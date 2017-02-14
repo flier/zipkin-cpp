@@ -1,0 +1,6 @@
+static_library("hello") {
+  sources = [
+    "gen-cpp/zipkinCore_constants.cpp",
+    "gen-cpp/zipkinCore_types.cpp
+  ]
+}

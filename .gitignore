@@ -1,0 +1,9 @@
+.vscode
+
+.scons*
+*_conan
+conaninfo.txt
+tags
+
+*.o
+*.a

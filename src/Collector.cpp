@@ -135,27 +135,17 @@ Collector *Collector::create(const std::string &brokers, const std::string &topi
 
 void KafkaCollector::Submit(const Span &span)
 {
-    ::Span msg;
+    std::shared_ptr<SpanMessage> msg = span.message();
 
-    msg.trace_id = span.tracer->id;
-    msg.name = span.name;
-    msg.id = span.id;
-
-    if (span.parent)
+    if (msg->timestamp)
     {
-        msg.__set_parent_id(span.parent);
-    }
-
-    if (span.ts)
-    {
-        msg.__set_timestamp(span.ts);
-        msg.__set_duration(timestamp() - span.ts);
+        msg->__set_duration(Span::now() - msg->timestamp);
     }
 
     boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer());
     boost::shared_ptr<apache::thrift::protocol::TBinaryProtocol> protocol(new apache::thrift::protocol::TBinaryProtocol(buf));
 
-    size_t size = msg.write(protocol.get());
+    size_t size = msg->write(protocol.get());
     uint8_t *ptr = nullptr;
     uint32_t len = 0;
 
@@ -165,7 +155,7 @@ void KafkaCollector::Submit(const Span &span)
                                                  m_partition,
                                                  RdKafka::Producer::RK_MSG_COPY, // msgflags
                                                  (void *)ptr, len,               // payload
-                                                 &span.tracer->name,             // key
+                                                 &msg->name,                     // key
                                                  this);                          // msg_opaque
 
     if (RdKafka::ErrorCode::ERR_NO_ERROR != err)

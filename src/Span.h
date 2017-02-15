@@ -3,75 +3,51 @@
 #include <arpa/inet.h>
 
 #include <cstdint>
-#include <vector>
+#include <memory>
+#include <chrono>
 
 #include "../gen-cpp/zipkinCore_constants.h"
 
 typedef uint64_t span_id_t;
 typedef uint64_t timestamp_t;
 
-uint64_t next_id();
-
-timestamp_t timestamp();
-
 namespace zipkin
 {
 
 struct Endpoint
 {
-    const char *service;
     in_addr_t addr;
     uint16_t port;
-};
+    const std::string service;
 
-enum AnnotationType
-{
-    BOOL = 0,
-    BYTES = 1,
-    I16 = 2,
-    I32 = 3,
-    I64 = 4,
-    DOUBLE = 5,
-    STRING = 6
-};
-
-struct Annotation
-{
-    timestamp_t ts;
-    const std::string value;
-    const Endpoint *endpoint;
-};
-
-struct TypedAnnotation
-{
-    const std::string key;
-    std::vector<uint8_t> value;
-    AnnotationType type;
-    const Endpoint *endpoint;
+    const ::Endpoint host(void) const;
 };
 
 struct Tracer;
 
-struct Span
+typedef ::Span SpanMessage;
+
+class Span
 {
-    const Tracer *tracer;
-    const std::string name;
-    span_id_t id;
-    span_id_t parent;
-    bool sampled;
-    timestamp_t ts;
-    std::vector<Annotation> annotates;
-    std::vector<TypedAnnotation> typed_annotates;
+    std::shared_ptr<SpanMessage> m_message;
+    const Tracer *m_tracer;
 
-    inline void annotate(const std::string &value, const Endpoint *endpoint = nullptr)
-    {
-        Annotation annotation = {timestamp(), value, endpoint};
+    static const ::Endpoint host(const Endpoint *endpoint);
 
-        annotates.push_back(annotation);
-    }
+  public:
+    Span(const Tracer *tracer, const std::string &name, span_id_t parent_id = 0);
 
-    template <typename T>
-    void annotate(const std::string &key, T value, const Endpoint *endpoint = nullptr);
+    std::shared_ptr<SpanMessage> message(void) const { return m_message; }
+
+    const std::string &name(void) const;
+    span_id_t id(void) const;
+    span_id_t parent_id(void) const;
+    std::chrono::time_point<std::chrono::system_clock> timestamp(void) const;
+    std::chrono::microseconds duration(void) const;
+
+    const Span span(const std::string &name) const;
+
+    void annotate(const std::string &value, const Endpoint *endpoint = nullptr);
 
     inline void client_send(void) { annotate(g_zipkinCore_constants.CLIENT_SEND); }
     inline void client_recv(void) { annotate(g_zipkinCore_constants.CLIENT_RECV); }
@@ -83,6 +59,9 @@ struct Span
     inline void client_recv_fragment(void) { annotate(g_zipkinCore_constants.CLIENT_RECV_FRAGMENT); }
     inline void server_send_fragment(void) { annotate(g_zipkinCore_constants.SERVER_SEND_FRAGMENT); }
     inline void server_recv_fragment(void) { annotate(g_zipkinCore_constants.SERVER_RECV_FRAGMENT); }
+
+    template <typename T>
+    void annotate(const std::string &key, T value, const Endpoint *endpoint = nullptr);
 
     void annotate(const std::string &key, const std::vector<uint8_t> &value, const Endpoint *endpoint = nullptr);
     void annotate(const std::string &key, const std::string &value, const Endpoint *endpoint = nullptr);
@@ -128,6 +107,10 @@ struct Span
     {
         return annotate(g_zipkinCore_constants.SERVER_ADDR, value, endpoint);
     }
+
+    static uint64_t next_id();
+
+    static timestamp_t now();
 };
 
 namespace __impl
@@ -139,27 +122,27 @@ struct __annotation
 template <>
 struct __annotation<bool>
 {
-    static const AnnotationType type = AnnotationType::BOOL;
+    static const AnnotationType::type type = AnnotationType::type::BOOL;
 };
 template <>
 struct __annotation<int16_t>
 {
-    static const AnnotationType type = AnnotationType::I16;
+    static const AnnotationType::type type = AnnotationType::type::I16;
 };
 template <>
 struct __annotation<int32_t>
 {
-    static const AnnotationType type = AnnotationType::I32;
+    static const AnnotationType::type type = AnnotationType::type::I32;
 };
 template <>
 struct __annotation<int64_t>
 {
-    static const AnnotationType type = AnnotationType::I64;
+    static const AnnotationType::type type = AnnotationType::type::I64;
 };
 template <>
 struct __annotation<double>
 {
-    static const AnnotationType type = AnnotationType::DOUBLE;
+    static const AnnotationType::type type = AnnotationType::type::DOUBLE;
 };
 } // namespace __impl
 
@@ -167,15 +150,20 @@ template <typename T>
 void Span::annotate(const std::string &key, T value, const Endpoint *endpoint)
 {
     auto ptr = reinterpret_cast<uint8_t *>(&value);
+    std::string data(reinterpret_cast<char *>(ptr), sizeof(T));
 
-    TypedAnnotation annotation = {
-        key,                                        // key
-        std::vector<uint8_t>(ptr, ptr + sizeof(T)), // value
-        __impl::__annotation<T>::type,              // type
-        endpoint,                                   // endpoint
-    };
+    ::BinaryAnnotation annotation;
 
-    typed_annotates.push_back(annotation);
+    annotation.__set_key(key);
+    annotation.__set_value(data);
+    annotation.__set_annotation_type(__impl::__annotation<T>::type);
+
+    if (endpoint)
+    {
+        annotation.__set_host(endpoint->host());
+    }
+
+    m_message->binary_annotations.push_back(annotation);
 }
 
 } // namespace zipkin

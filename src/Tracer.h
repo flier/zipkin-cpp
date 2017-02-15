@@ -15,10 +15,7 @@ struct Tracer
     trace_id_t id;
     const std::string name;
 
-    const Span span(const std::string &name) const
-    {
-        return {this, name, next_id(), 0, true, timestamp()};
-    }
+    inline const Span span(const std::string &name) const { return Span(this, name); }
 };
 
 } // namespace zipkin

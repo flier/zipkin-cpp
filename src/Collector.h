@@ -8,6 +8,13 @@
 namespace zipkin
 {
 
+struct Collector
+{
+  virtual ~Collector() = default;
+
+  virtual void submit(const Span *span) = 0;
+};
+
 struct KafkaConf
 {
   // metadata.broker.list - Initial list of brokers.
@@ -24,36 +31,53 @@ struct KafkaConf
   // default: PARTITION_UA (UnAssigned)
   int partition;
 
+  enum CompressionCodec
+  {
+    none,
+    gzip,
+    snappy,
+    lz4
+  };
+
+  static const std::string to_string(CompressionCodec codec);
+
   // compression.codec - compression codec to use for compressing message sets.
   //
   // default: none
-  std::string compression_codec;
+  CompressionCodec compression_codec;
 
   // batch.num.messages - the minimum number of messages to wait for to accumulate in the local queue before sending off a message set.
   //
   // default: 10000
   size_t batch_num_messages;
 
+  // queue.buffering.max.messages - Maximum number of messages allowed on the producer queue.
+  //
+  // default: 100000
+  size_t queue_buffering_max_messages;
+
+  // queue.buffering.max.kbytes - Maximum total message size sum allowed on the producer queue.
+  //
+  // default: 4000000
+  size_t queue_buffering_max_kbytes;
+
   // queue.buffering.max.ms - how long to wait for batch.num.messages to fill up in the local queue.
   //
   // default: 1000ms
-  std::chrono::milliseconds queue_buffering_max;
+  std::chrono::milliseconds queue_buffering_max_ms;
+
+  // message.send.max.retries - How many times to retry sending a failing MessageSet. Note: retrying may cause reordering.
+  //
+  // default: 2
+  size_t message_send_max_retries;
 
   KafkaConf(const std::string &_brokers, const std::string &_topic_name, int _partition = PARTITION_UA)
-      : brokers(_brokers), topic_name(_topic_name), partition(_partition), batch_num_messages(1000), queue_buffering_max(1000)
+      : brokers(_brokers), topic_name(_topic_name), partition(_partition), compression_codec(none), batch_num_messages(0),
+        queue_buffering_max_messages(0), queue_buffering_max_kbytes(0), queue_buffering_max_ms(0), message_send_max_retries(0)
   {
   }
-};
 
-struct Collector
-{
-  virtual ~Collector() = default;
-
-  virtual void submit(const Span *span) = 0;
-
-  // Create Kafka Collector
-
-  static Collector *create(const KafkaConf &conf);
+  Collector *create(void) const;
 };
 
 } // namespace zipkin

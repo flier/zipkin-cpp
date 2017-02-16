@@ -61,7 +61,66 @@ class KafkaCollector : public Collector
     virtual void submit(const Span *span) override;
 };
 
-Collector *Collector::create(const KafkaConf &conf)
+void KafkaCollector::submit(const Span *span)
+{
+    std::shared_ptr<SpanMessage> msg = span->message();
+
+    if (msg->timestamp)
+    {
+        msg->__set_duration(Span::now() - msg->timestamp);
+    }
+
+    boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer());
+    boost::shared_ptr<apache::thrift::protocol::TBinaryProtocol> protocol(new apache::thrift::protocol::TBinaryProtocol(buf));
+
+    size_t size = msg->write(protocol.get());
+    uint8_t *ptr = nullptr;
+    uint32_t len = 0;
+
+    buf->getBuffer(&ptr, &len);
+
+    RdKafka::ErrorCode err = m_producer->produce(m_topic.get(),
+                                                 m_partition,
+                                                 RdKafka::Producer::RK_MSG_COPY, // msgflags
+                                                 (void *)ptr, len,               // payload
+                                                 &msg->name,                     // key
+                                                 this);                          // msg_opaque
+
+    if (RdKafka::ErrorCode::ERR_NO_ERROR != err)
+    {
+        LOG(WARNING) << "fail to submit message to Kafka, " << err2str(err);
+    }
+}
+const std::string KafkaConf::to_string(CompressionCodec codec)
+{
+    switch (codec)
+    {
+    case CompressionCodec::none:
+        return "none";
+    case CompressionCodec::gzip:
+        return "gzip";
+    case CompressionCodec::snappy:
+        return "snappy";
+    case CompressionCodec::lz4:
+        return "lz4";
+    }
+}
+
+bool kafka_conf_set(std::unique_ptr<RdKafka::Conf> &conf, const std::string &name, const std::string &value)
+{
+    std::string errstr;
+
+    bool ok = RdKafka::Conf::CONF_OK == conf->set(name, value, errstr);
+
+    if (!ok)
+    {
+        LOG(ERROR) << "fail to set " << name << " to " << value << ", " << errstr;
+    }
+
+    return ok;
+}
+
+Collector *KafkaConf::create(void) const
 {
     std::string errstr;
 
@@ -69,22 +128,28 @@ Collector *Collector::create(const KafkaConf &conf)
     std::unique_ptr<RdKafka::Conf> topic_conf(RdKafka::Conf::create(RdKafka::Conf::ConfType::CONF_TOPIC));
     std::unique_ptr<RdKafka::PartitionerCb> partitioner;
 
-    if (!conf.compression_codec.empty())
-    {
-        if (RdKafka::Conf::CONF_OK != producer_conf->set("compression.codec", conf.compression_codec, errstr))
-        {
-            LOG(ERROR) << "fail to set compression codec to `" << conf.compression_codec << "`, " << errstr;
-            return nullptr;
-        }
-    }
-
-    if (RdKafka::Conf::CONF_OK != producer_conf->set("metadata.broker.list", conf.brokers, errstr))
-    {
-        LOG(ERROR) << "fail to set broker list to [" << conf.brokers << "], " << errstr;
+    if (!kafka_conf_set(producer_conf, "metadata.broker.list", brokers))
         return nullptr;
-    }
 
-    if (conf.partition == RdKafka::Topic::PARTITION_UA)
+    if (compression_codec != CompressionCodec::none && !kafka_conf_set(producer_conf, "compression.codec", to_string(compression_codec)))
+        return nullptr;
+
+    if (batch_num_messages && !kafka_conf_set(producer_conf, "batch.num.messages", std::to_string(batch_num_messages)))
+        return nullptr;
+
+    if (queue_buffering_max_messages && !kafka_conf_set(producer_conf, "queue.buffering.max.messages", std::to_string(queue_buffering_max_messages)))
+        return nullptr;
+
+    if (queue_buffering_max_kbytes && !kafka_conf_set(producer_conf, "queue.buffering.max.kbytes", std::to_string(queue_buffering_max_kbytes)))
+        return nullptr;
+
+    if (queue_buffering_max_ms.count() && !kafka_conf_set(producer_conf, "queue.buffering.max.ms", std::to_string(queue_buffering_max_ms.count())))
+        return nullptr;
+
+    if (message_send_max_retries && !kafka_conf_set(producer_conf, "message.send.max.retries", std::to_string(message_send_max_retries)))
+        return nullptr;
+
+    if (partition == RdKafka::Topic::PARTITION_UA)
     {
         partitioner.reset(new HashPartitioner());
 
@@ -120,52 +185,21 @@ Collector *Collector::create(const KafkaConf &conf)
 
     if (!producer)
     {
-        LOG(ERROR) << "fail to connect Kafka broker @ " << conf.brokers << ", " << errstr;
+        LOG(ERROR) << "fail to connect Kafka broker @ " << brokers << ", " << errstr;
 
         return nullptr;
     }
 
-    std::unique_ptr<RdKafka::Topic> topic(RdKafka::Topic::create(producer.get(), conf.topic_name, topic_conf.get(), errstr));
+    std::unique_ptr<RdKafka::Topic> topic(RdKafka::Topic::create(producer.get(), topic_name, topic_conf.get(), errstr));
 
     if (!topic)
     {
-        LOG(ERROR) << "fail to create topic `" << conf.topic_name << "`, " << errstr;
+        LOG(ERROR) << "fail to create topic `" << topic_name << "`, " << errstr;
 
         return nullptr;
     }
 
-    return new KafkaCollector(producer, topic, partitioner, conf.partition);
-}
-
-void KafkaCollector::submit(const Span *span)
-{
-    std::shared_ptr<SpanMessage> msg = span->message();
-
-    if (msg->timestamp)
-    {
-        msg->__set_duration(Span::now() - msg->timestamp);
-    }
-
-    boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer());
-    boost::shared_ptr<apache::thrift::protocol::TBinaryProtocol> protocol(new apache::thrift::protocol::TBinaryProtocol(buf));
-
-    size_t size = msg->write(protocol.get());
-    uint8_t *ptr = nullptr;
-    uint32_t len = 0;
-
-    buf->getBuffer(&ptr, &len);
-
-    RdKafka::ErrorCode err = m_producer->produce(m_topic.get(),
-                                                 m_partition,
-                                                 RdKafka::Producer::RK_MSG_COPY, // msgflags
-                                                 (void *)ptr, len,               // payload
-                                                 &msg->name,                     // key
-                                                 this);                          // msg_opaque
-
-    if (RdKafka::ErrorCode::ERR_NO_ERROR != err)
-    {
-        LOG(WARNING) << "fail to submit message to Kafka, " << err2str(err);
-    }
+    return new KafkaCollector(producer, topic, partitioner, partition);
 }
 
 } // namespace zipkin

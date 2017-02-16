@@ -1,4 +1,18 @@
 [requires]
+glog/0.3.4@eliaskousk/stable
+gflags/2.2.0@eliaskousk/stable
+gtest/1.8.0@eliaskousk/stable
+
+[options]
+glog:shared=False
+glog:gflags=False
+gflags:shared=False
+gtest:shared=False
 
 [generators]
 scons
+txt
+
+[imports]
+bin, *.dll -> ./bin
+lib, *.dylib* -> ./bin

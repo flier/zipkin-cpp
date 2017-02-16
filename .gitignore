@@ -1,8 +1,9 @@
 .vscode
+bin
 
 .scons*
 *_conan
-conaninfo.txt
+conan*info.txt
 tags
 
 *.o

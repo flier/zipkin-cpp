@@ -9,15 +9,14 @@ namespace zipkin
 
 class Collector
 {
-  protected:
-    virtual ~Collector() = default;
+  virtual ~Collector() = default;
 
-  public:
-    static const int PARTITION_UA = -1;
+  virtual void submit(const Span *span) = 0;
 
-    static Collector *create(const std::string &brokers, const std::string &topic, int partition = PARTITION_UA, const char *codec = nullptr);
+public: // Kafka Collector
+  static const int PARTITION_UA = -1;
 
-    virtual void Submit(const Span &span) = 0;
+  static Collector *create(const std::string &brokers, const std::string &topic, int partition = PARTITION_UA, const char *codec = nullptr);
 };
 
 } // namespace zipkin

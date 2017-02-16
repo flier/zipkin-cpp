@@ -54,7 +54,7 @@ class KafkaCollector : public Collector
     }
 
     // Implement Collector
-    virtual void Submit(const Span &span) override;
+    virtual void submit(const Span *span) override;
 };
 
 Collector *Collector::create(const std::string &brokers, const std::string &topic_name, int partition, const char *codec)
@@ -133,9 +133,9 @@ Collector *Collector::create(const std::string &brokers, const std::string &topi
     return new KafkaCollector(producer, topic, partitioner, partition);
 }
 
-void KafkaCollector::Submit(const Span &span)
+void KafkaCollector::submit(const Span *span)
 {
-    std::shared_ptr<SpanMessage> msg = span.message();
+    std::shared_ptr<SpanMessage> msg = span->message();
 
     if (msg->timestamp)
     {

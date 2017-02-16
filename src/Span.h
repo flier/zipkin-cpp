@@ -30,12 +30,20 @@ typedef ::Span SpanMessage;
 class Span
 {
     std::shared_ptr<SpanMessage> m_message;
-    const Tracer *m_tracer;
+    Tracer *m_tracer;
 
     static const ::Endpoint host(const Endpoint *endpoint);
 
   public:
-    Span(const Tracer *tracer, const std::string &name, span_id_t parent_id = 0);
+    Span(Tracer *tracer, const std::string &name, span_id_t parent_id = 0);
+
+    void reset(const std::string &name, span_id_t parent_id = 0);
+
+    void submit(void);
+
+    static uint64_t next_id();
+
+    static timestamp_t now();
 
     std::shared_ptr<SpanMessage> message(void) const { return m_message; }
 
@@ -107,10 +115,6 @@ class Span
     {
         return annotate(g_zipkinCore_constants.SERVER_ADDR, value, endpoint);
     }
-
-    static uint64_t next_id();
-
-    static timestamp_t now();
 };
 
 namespace __impl

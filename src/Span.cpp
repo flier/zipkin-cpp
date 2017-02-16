@@ -22,17 +22,30 @@ const ::Endpoint Endpoint::host() const
     return host;
 }
 
-Span::Span(const Tracer *tracer, const std::string &name, span_id_t parent_id) : m_message(new ::Span()), m_tracer(tracer)
+Span::Span(Tracer *tracer, const std::string &name, span_id_t parent_id) : m_message(new ::Span()), m_tracer(tracer)
 {
-    m_message->__set_trace_id(tracer->id);
+    m_message->__set_trace_id(tracer->id());
+
+    reset(name, parent_id);
+}
+
+void Span::reset(const std::string &name, span_id_t parent_id)
+{
     m_message->__set_name(name);
     m_message->__set_id(next_id());
     m_message->__set_timestamp(now());
+    m_message->annotations.clear();
+    m_message->binary_annotations.clear();
 
     if (parent_id)
     {
         m_message->__set_parent_id(parent_id);
     }
+}
+
+void Span::submit(void)
+{
+    m_tracer->submit(this);
 }
 
 uint64_t Span::next_id()

@@ -1,5 +1,7 @@
 #include "Collector.h"
 
+#include <ios>
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
@@ -22,12 +24,33 @@
 namespace zipkin
 {
 
-class HashPartitioner : public RdKafka::PartitionerCb
+struct SpanDeliveryReporter : public RdKafka::DeliveryReportCb
+{
+    void dr_cb(RdKafka::Message &message)
+    {
+        std::auto_ptr<Span> span(static_cast<Span *>(message.msg_opaque()));
+
+        if (RdKafka::ErrorCode::ERR_NO_ERROR == message.err())
+        {
+            VLOG(2) << "Deliveried Span `" << std::hex << span->id
+                    << "` to topic " << message.topic_name()
+                    << " #" << message.partition() << " @" << message.offset()
+                    << " with " << message.len() << " bytes";
+        }
+        else
+        {
+            LOG(WARNING) << "Fail to delivery Span `" << std::hex << span->id
+                         << "` to topic " << message.topic_name()
+                         << " #" << message.partition() << " @" << message.offset()
+                         << ", " << message.errstr();
+        }
+    }
+};
+
+struct HashPartitioner : public RdKafka::PartitionerCb
 {
     std::hash<std::string> hasher;
 
-  public:
-    // Implement RdKafka::PartitionerCb
     virtual int32_t partitioner_cb(const RdKafka::Topic *topic,
                                    const std::string *key,
                                    int32_t partition_cnt,
@@ -41,15 +64,18 @@ class KafkaCollector : public Collector
 {
     std::unique_ptr<RdKafka::Producer> m_producer;
     std::unique_ptr<RdKafka::Topic> m_topic;
+    std::unique_ptr<RdKafka::DeliveryReportCb> m_reporter;
     std::unique_ptr<RdKafka::PartitionerCb> m_partitioner;
     int m_partition;
 
   public:
     KafkaCollector(std::unique_ptr<RdKafka::Producer> &producer,
                    std::unique_ptr<RdKafka::Topic> &topic,
+                   std::unique_ptr<RdKafka::DeliveryReportCb> &reporter,
                    std::unique_ptr<RdKafka::PartitionerCb> &partitioner,
                    int partition)
-        : m_producer(std::move(producer)), m_topic(std::move(topic)), m_partitioner(std::move(partitioner)), m_partition(partition)
+        : m_producer(std::move(producer)), m_topic(std::move(topic)), m_reporter(std::move(reporter)),
+          m_partitioner(std::move(partitioner)), m_partition(partition)
     {
     }
     virtual ~KafkaCollector() override
@@ -58,26 +84,32 @@ class KafkaCollector : public Collector
     }
 
     // Implement Collector
-    virtual void submit(const Span *span) override;
+    virtual void submit(Span *span) override;
 };
 
-void KafkaCollector::submit(const Span *span)
+void KafkaCollector::submit(Span *span)
 {
-    boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer());
+    boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer(span->cache_ptr(), span->cache_size()));
     boost::shared_ptr<apache::thrift::protocol::TBinaryProtocol> protocol(new apache::thrift::protocol::TBinaryProtocol(buf));
 
-    size_t size = span->write(protocol.get());
+    uint32_t wrote = span->write(protocol.get());
+
+    VLOG(2) << "wrote " << wrote << " bytes to message";
+
     uint8_t *ptr = nullptr;
     uint32_t len = 0;
 
     buf->getBuffer(&ptr, &len);
 
+    assert(ptr);
+    assert(wrote == len);
+
     RdKafka::ErrorCode err = m_producer->produce(m_topic.get(),
                                                  m_partition,
-                                                 RdKafka::Producer::RK_MSG_COPY, // msgflags
-                                                 (void *)ptr, len,               // payload
-                                                 &span->name,                    // key
-                                                 this);                          // msg_opaque
+                                                 0,                                 // msgflags
+                                                 (void *)ptr, std::max(wrote, len), // payload
+                                                 &span->name,                       // key
+                                                 span);                             // msg_opaque
 
     if (RdKafka::ErrorCode::ERR_NO_ERROR != err)
     {
@@ -120,10 +152,17 @@ Collector *KafkaConf::create(void) const
 
     std::unique_ptr<RdKafka::Conf> producer_conf(RdKafka::Conf::create(RdKafka::Conf::ConfType::CONF_GLOBAL));
     std::unique_ptr<RdKafka::Conf> topic_conf(RdKafka::Conf::create(RdKafka::Conf::ConfType::CONF_TOPIC));
+    std::unique_ptr<RdKafka::DeliveryReportCb> reporter(new SpanDeliveryReporter());
     std::unique_ptr<RdKafka::PartitionerCb> partitioner;
 
     if (!kafka_conf_set(producer_conf, "metadata.broker.list", brokers))
         return nullptr;
+
+    if (RdKafka::Conf::CONF_OK != producer_conf->set("dr_cb", reporter.get(), errstr))
+    {
+        LOG(ERROR) << "fail to set delivery reporter, " << errstr;
+        return nullptr;
+    }
 
     if (compression_codec != CompressionCodec::none && !kafka_conf_set(producer_conf, "compression.codec", to_string(compression_codec)))
         return nullptr;
@@ -193,7 +232,7 @@ Collector *KafkaConf::create(void) const
         return nullptr;
     }
 
-    return new KafkaCollector(producer, topic, partitioner, partition);
+    return new KafkaCollector(producer, topic, reporter, partitioner, partition);
 }
 
 } // namespace zipkin

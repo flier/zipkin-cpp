@@ -25,9 +25,13 @@ struct Endpoint
 
 struct Tracer;
 
+class CachedTracer;
+
 class Span : public ::Span
 {
     Tracer *m_tracer;
+
+    uint8_t m_buf[0] __attribute__((aligned));
 
     static const ::Endpoint host(const Endpoint *endpoint);
 
@@ -37,6 +41,14 @@ class Span : public ::Span
     void reset(const std::string &name, span_id_t parent_id = 0);
 
     void submit(void);
+
+    static void *operator new(size_t size, CachedTracer *tracer) noexcept;
+    static void operator delete(void *ptr) noexcept;
+
+    static size_t cache_offset(void) { return offsetof(Span, m_buf); }
+
+    uint8_t *cache_ptr(void) { return &m_buf[0]; }
+    size_t cache_size(void) const;
 
     static uint64_t next_id();
 
@@ -104,7 +116,7 @@ class Span : public ::Span
     {
         return annotate(g_zipkinCore_constants.SERVER_ADDR, value, endpoint);
     }
-};
+} __attribute__((aligned));
 
 namespace __impl
 {

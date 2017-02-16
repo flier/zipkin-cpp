@@ -12,7 +12,7 @@ struct Collector
 {
   virtual ~Collector() = default;
 
-  virtual void submit(const Span *span) = 0;
+  virtual void submit(Span *span) = 0;
 };
 
 struct KafkaConf

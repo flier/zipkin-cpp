@@ -1,6 +1,7 @@
 #include <random>
 #include <utility>
 
+#include <cstdlib>
 #include <string>
 #include <locale>
 #include <codecvt>
@@ -49,6 +50,29 @@ void Span::submit(void)
         __set_duration(now() - timestamp);
 
     m_tracer->submit(this);
+}
+
+size_t Span::cache_size(void) const
+{
+    return static_cast<CachedTracer *>(m_tracer)->cache_message_size() - cache_offset();
+}
+
+void *Span::operator new(size_t size, CachedTracer *tracer) noexcept
+{
+    size_t sz = tracer->cache_message_size();
+    void *p = nullptr;
+
+    if (posix_memalign(&p, CachedTracer::cache_line_size(), sz))
+        return nullptr;
+
+    return ::operator new(sz, p);
+}
+
+void Span::operator delete(void *ptr) noexcept
+{
+    Span *span = static_cast<Span *>(ptr);
+
+    static_cast<CachedTracer *>(span->m_tracer)->release(span);
 }
 
 uint64_t Span::next_id()

@@ -5,14 +5,9 @@ gtest/1.8.0@eliaskousk/stable
 
 [options]
 glog:shared=False
-glog:gflags=False
 gflags:shared=False
 gtest:shared=False
 
 [generators]
 scons
 txt
-
-[imports]
-bin, *.dll -> ./bin
-lib, *.dylib* -> ./bin

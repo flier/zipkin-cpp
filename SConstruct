@@ -2,7 +2,7 @@ import os
 import os.path
 import itertools
 
-from SCons.Script import SConscript, Environment, ARGUMENTS, COMMAND_LINE_TARGETS
+from SCons.Script import SConscript, Environment, ARGUMENTS
 
 debug_mode = int(ARGUMENTS.get('debug', 0))
 build_dir = ARGUMENTS.get('build_dir', 'build')
@@ -13,7 +13,7 @@ src_dir = 'src'
 test_dir = 'test'
 obj_dir = os.path.join(build_dir, 'obj')
 
-env = Environment(CXXFLAGS=['-std=c++11'],
+env = Environment(CXXFLAGS=['-std=c++11', '-Wno-invalid-offsetof'],
                   ENV={'TERM': os.getenv('TERM', 'xterm-256color')})
 
 env.VariantDir(build_dir, '.', duplicate=0)
@@ -21,14 +21,18 @@ env.VariantDir(build_dir, '.', duplicate=0)
 conan_file = 'conanfile.txt'
 conan_script = 'SConscript_conan'
 
-if not os.path.isfile(conan_script):
-    env.Execute(action=['conan install .'])
-else:
-    env.Command(target=conan_script,
-                source=conan_file,
-                action=['conan install .'])
+conan_install = env.Command(target=conan_script,
+                            source=conan_file,
+                            action=['conan install .'])
 
-conan_libs = SConscript(conan_script)
+env.Clean(conan_install, ['conaninfo.txt', 'conanbuildinfo.txt', 'conan_imports_manifest.txt'])
+
+if not env.GetOption('clean') and not os.path.isfile(conan_script):
+    env.Execute(action=['conan install .'])
+
+    conan_libs = SConscript(conan_script)
+else:
+    conan_libs = {'conan': {'LIBS': ['']}}
 
 if debug_mode:
     env.Append(CXXFLAGS=['-g'])
@@ -74,5 +78,4 @@ runtest = test_env.Command(target='runtest',
                            DYLD_LIBRARY_PATH=bin_dir,
                            chdir=bin_dir)
 
-if 'test' in COMMAND_LINE_TARGETS:
-    env.Execute(runtest)
+env.Execute(runtest)

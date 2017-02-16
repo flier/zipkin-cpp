@@ -23,7 +23,7 @@ struct Tracer
 
     virtual void submit(Span *span) = 0;
 
-  public: // Cached Tracer
+    // Create Cached Tracer
     static Tracer *create(Collector *collector, const std::string &name, size_t capacity = 0);
 };
 

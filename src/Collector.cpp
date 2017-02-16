@@ -52,12 +52,16 @@ class KafkaCollector : public Collector
         : m_producer(std::move(producer)), m_topic(std::move(topic)), m_partitioner(std::move(partitioner)), m_partition(partition)
     {
     }
+    virtual ~KafkaCollector() override
+    {
+        m_producer->flush(200);
+    }
 
     // Implement Collector
     virtual void submit(const Span *span) override;
 };
 
-Collector *Collector::create(const std::string &brokers, const std::string &topic_name, int partition, const char *codec)
+Collector *Collector::create(const KafkaConf &conf)
 {
     std::string errstr;
 
@@ -65,22 +69,22 @@ Collector *Collector::create(const std::string &brokers, const std::string &topi
     std::unique_ptr<RdKafka::Conf> topic_conf(RdKafka::Conf::create(RdKafka::Conf::ConfType::CONF_TOPIC));
     std::unique_ptr<RdKafka::PartitionerCb> partitioner;
 
-    if (codec)
+    if (!conf.compression_codec.empty())
     {
-        if (RdKafka::Conf::CONF_OK != producer_conf->set("compression.codec", codec, errstr))
+        if (RdKafka::Conf::CONF_OK != producer_conf->set("compression.codec", conf.compression_codec, errstr))
         {
-            LOG(ERROR) << "fail to set compression codec to `" << codec << "`, " << errstr;
+            LOG(ERROR) << "fail to set compression codec to `" << conf.compression_codec << "`, " << errstr;
             return nullptr;
         }
     }
 
-    if (RdKafka::Conf::CONF_OK != producer_conf->set("metadata.broker.list", brokers, errstr))
+    if (RdKafka::Conf::CONF_OK != producer_conf->set("metadata.broker.list", conf.brokers, errstr))
     {
-        LOG(ERROR) << "fail to set broker list to [" << brokers << "], " << errstr;
+        LOG(ERROR) << "fail to set broker list to [" << conf.brokers << "], " << errstr;
         return nullptr;
     }
 
-    if (partition == RdKafka::Topic::PARTITION_UA)
+    if (conf.partition == RdKafka::Topic::PARTITION_UA)
     {
         partitioner.reset(new HashPartitioner());
 
@@ -116,21 +120,21 @@ Collector *Collector::create(const std::string &brokers, const std::string &topi
 
     if (!producer)
     {
-        LOG(ERROR) << "fail to connect Kafka broker @ " << brokers << ", " << errstr;
+        LOG(ERROR) << "fail to connect Kafka broker @ " << conf.brokers << ", " << errstr;
 
         return nullptr;
     }
 
-    std::unique_ptr<RdKafka::Topic> topic(RdKafka::Topic::create(producer.get(), topic_name, topic_conf.get(), errstr));
+    std::unique_ptr<RdKafka::Topic> topic(RdKafka::Topic::create(producer.get(), conf.topic_name, topic_conf.get(), errstr));
 
     if (!topic)
     {
-        LOG(ERROR) << "fail to create topic `" << topic_name << "`, " << errstr;
+        LOG(ERROR) << "fail to create topic `" << conf.topic_name << "`, " << errstr;
 
         return nullptr;
     }
 
-    return new KafkaCollector(producer, topic, partitioner, partition);
+    return new KafkaCollector(producer, topic, partitioner, conf.partition);
 }
 
 void KafkaCollector::submit(const Span *span)

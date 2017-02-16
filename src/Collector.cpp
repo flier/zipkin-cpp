@@ -63,17 +63,10 @@ class KafkaCollector : public Collector
 
 void KafkaCollector::submit(const Span *span)
 {
-    std::shared_ptr<SpanMessage> msg = span->message();
-
-    if (msg->timestamp)
-    {
-        msg->__set_duration(Span::now() - msg->timestamp);
-    }
-
     boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer());
     boost::shared_ptr<apache::thrift::protocol::TBinaryProtocol> protocol(new apache::thrift::protocol::TBinaryProtocol(buf));
 
-    size_t size = msg->write(protocol.get());
+    size_t size = span->write(protocol.get());
     uint8_t *ptr = nullptr;
     uint32_t len = 0;
 
@@ -83,7 +76,7 @@ void KafkaCollector::submit(const Span *span)
                                                  m_partition,
                                                  RdKafka::Producer::RK_MSG_COPY, // msgflags
                                                  (void *)ptr, len,               // payload
-                                                 &msg->name,                     // key
+                                                 &span->name,                    // key
                                                  this);                          // msg_opaque
 
     if (RdKafka::ErrorCode::ERR_NO_ERROR != err)
@@ -91,6 +84,7 @@ void KafkaCollector::submit(const Span *span)
         LOG(WARNING) << "fail to submit message to Kafka, " << err2str(err);
     }
 }
+
 const std::string KafkaConf::to_string(CompressionCodec codec)
 {
     switch (codec)

@@ -25,11 +25,8 @@ struct Endpoint
 
 struct Tracer;
 
-typedef ::Span SpanMessage;
-
-class Span
+class Span : public ::Span
 {
-    std::shared_ptr<SpanMessage> m_message;
     Tracer *m_tracer;
 
     static const ::Endpoint host(const Endpoint *endpoint);
@@ -45,15 +42,7 @@ class Span
 
     static timestamp_t now();
 
-    std::shared_ptr<SpanMessage> message(void) const { return m_message; }
-
-    const std::string &name(void) const;
-    span_id_t id(void) const;
-    span_id_t parent_id(void) const;
-    std::chrono::time_point<std::chrono::system_clock> timestamp(void) const;
-    std::chrono::microseconds duration(void) const;
-
-    const Span span(const std::string &name) const;
+    Span *span(const std::string &name) const;
 
     void annotate(const std::string &value, const Endpoint *endpoint = nullptr);
 
@@ -167,7 +156,7 @@ void Span::annotate(const std::string &key, T value, const Endpoint *endpoint)
         annotation.__set_host(endpoint->host());
     }
 
-    m_message->binary_annotations.push_back(annotation);
+    binary_annotations.push_back(annotation);
 }
 
 } // namespace zipkin

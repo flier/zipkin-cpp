@@ -22,29 +22,32 @@ const ::Endpoint Endpoint::host() const
     return host;
 }
 
-Span::Span(Tracer *tracer, const std::string &name, span_id_t parent_id) : m_message(new ::Span()), m_tracer(tracer)
+Span::Span(Tracer *tracer, const std::string &name, span_id_t parent_id) : m_tracer(tracer)
 {
-    m_message->__set_trace_id(tracer->id());
+    __set_trace_id(tracer->id());
 
     reset(name, parent_id);
 }
 
 void Span::reset(const std::string &name, span_id_t parent_id)
 {
-    m_message->__set_name(name);
-    m_message->__set_id(next_id());
-    m_message->__set_timestamp(now());
-    m_message->annotations.clear();
-    m_message->binary_annotations.clear();
+    __set_name(name);
+    __set_id(next_id());
+    __set_timestamp(now());
+    annotations.clear();
+    binary_annotations.clear();
 
     if (parent_id)
     {
-        m_message->__set_parent_id(parent_id);
+        __set_parent_id(parent_id);
     }
 }
 
 void Span::submit(void)
 {
+    if (timestamp)
+        __set_duration(now() - timestamp);
+
     m_tracer->submit(this);
 }
 
@@ -60,25 +63,7 @@ timestamp_t Span::now()
     return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 }
 
-const std::string &Span::name(void) const { return m_message->name; }
-
-span_id_t Span::id(void) const { return m_message->id; }
-
-span_id_t Span::parent_id(void) const { return m_message->parent_id; }
-
-std::chrono::time_point<std::chrono::system_clock> Span::timestamp(void) const
-{
-    std::chrono::microseconds ts(m_message->timestamp);
-
-    return std::chrono::system_clock::from_time_t(std::chrono::duration_cast<std::chrono::seconds>(ts).count());
-}
-
-std::chrono::microseconds Span::duration(void) const
-{
-    return std::chrono::microseconds(m_message->duration);
-}
-
-const Span Span::span(const std::string &name) const { return Span(m_tracer, name, m_message->id); }
+Span *Span::span(const std::string &name) const { return m_tracer->span(name, id); }
 
 void Span::annotate(const std::string &value, const Endpoint *endpoint)
 {
@@ -92,7 +77,7 @@ void Span::annotate(const std::string &value, const Endpoint *endpoint)
         annotation.__set_host(endpoint->host());
     }
 
-    m_message->annotations.push_back(annotation);
+    annotations.push_back(annotation);
 }
 
 void Span::annotate(const std::string &key, const std::vector<uint8_t> &value, const Endpoint *endpoint)
@@ -108,7 +93,7 @@ void Span::annotate(const std::string &key, const std::vector<uint8_t> &value, c
         annotation.__set_host(endpoint->host());
     }
 
-    m_message->binary_annotations.push_back(annotation);
+    binary_annotations.push_back(annotation);
 }
 
 void Span::annotate(const std::string &key, const std::string &value, const Endpoint *endpoint)
@@ -124,7 +109,7 @@ void Span::annotate(const std::string &key, const std::string &value, const Endp
         annotation.__set_host(endpoint->host());
     }
 
-    m_message->binary_annotations.push_back(annotation);
+    binary_annotations.push_back(annotation);
 }
 
 void Span::annotate(const std::string &key, const std::wstring &value, const Endpoint *endpoint)
@@ -142,7 +127,7 @@ void Span::annotate(const std::string &key, const std::wstring &value, const End
         annotation.__set_host(endpoint->host());
     }
 
-    m_message->binary_annotations.push_back(annotation);
+    binary_annotations.push_back(annotation);
 }
 
 } // namespace zipkin

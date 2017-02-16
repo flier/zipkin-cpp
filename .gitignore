@@ -1,9 +1,12 @@
+.sconf_temp
 .vscode
 bin
+gen-cpp
 
-.scons*
+.sconsign.dblite
 *_conan
 conan*info.txt
+config.log
 tags
 
 *.o

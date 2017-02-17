@@ -52,7 +52,7 @@ TEST(tracer, cache)
     auto id = span->id();
     auto s = span.release();
 
-    s->release();
+    tracer->release(s);
 
     ASSERT_FALSE(t->cache().empty());
 

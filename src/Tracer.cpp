@@ -25,7 +25,7 @@ Span *CachedTracer::span(const std::string &name, span_id_t parent_id)
     }
     else
     {
-        span = new (this) Span(this, name, parent_id);
+        span = new (this) CachedSpan(this, name, parent_id);
     }
 
     return span;
@@ -34,7 +34,18 @@ Span *CachedTracer::span(const std::string &name, span_id_t parent_id)
 void CachedTracer::submit(Span *span)
 {
     if (m_collector)
+    {
+        VLOG(2) << "Span @ " << span << " submited to collector @ " << m_collector << ", id=" << span->id();
+
         m_collector->submit(span);
+    }
+}
+
+void CachedTracer::release(Span *span)
+{
+    VLOG(2) << "Span @ " << span << " released to tracer @ " << this << ", id=" << span->id();
+
+    m_cache.release(static_cast<CachedSpan *>(span));
 }
 
 } // namespace zipkin

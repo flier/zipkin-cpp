@@ -57,47 +57,6 @@ void Span::submit(void)
         m_tracer->submit(this);
 }
 
-void Span::release(void)
-{
-    if (m_tracer)
-    {
-        VLOG(2) << "Span @ " << this << " released to tracer @ " << m_tracer << ", id=" << id();
-
-        m_tracer->release(this);
-    }
-    else
-    {
-        delete this;
-    }
-}
-
-size_t Span::cache_size(void) const
-{
-    return static_cast<CachedTracer *>(m_tracer)->cache().message_size() - cache_offset();
-}
-
-void *Span::operator new(size_t size, CachedTracer *tracer) noexcept
-{
-    size_t sz = tracer ? tracer->cache().message_size() : size;
-    void *p = nullptr;
-
-    if (posix_memalign(&p, CachedTracer::cache_line_size, sz))
-        return nullptr;
-
-    VLOG(2) << "Span @ " << p << " allocated with " << sz << " bytes";
-
-    return ::operator new(sz, p);
-}
-
-void Span::operator delete(void *ptr, std::size_t sz)
-{
-    Span *span = static_cast<Span *>(ptr);
-
-    VLOG(2) << "Span @ " << ptr << " deleted with " << sz << " bytes, id=" << std::hex << span->id();
-
-    free(ptr);
-}
-
 uint64_t Span::next_id()
 {
     thread_local std::mt19937_64 rand_gen((std::chrono::system_clock::now().time_since_epoch().count() << 32) + std::random_device()());
@@ -108,18 +67,6 @@ uint64_t Span::next_id()
 timestamp_t Span::now()
 {
     return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-}
-
-Span *Span::span(const std::string &name) const
-{
-    if (m_tracer)
-    {
-        return m_tracer->span(m_span.name, m_span.id);
-    }
-    else
-    {
-        return new (nullptr) Span(nullptr, m_span.name, m_span.id);
-    }
 }
 
 void Span::annotate(const std::string &value, const Endpoint *endpoint)
@@ -137,12 +84,12 @@ void Span::annotate(const std::string &value, const Endpoint *endpoint)
     m_span.annotations.push_back(annotation);
 }
 
-void Span::annotate(const std::string &key, const std::vector<uint8_t> &value, const Endpoint *endpoint)
+void Span::annotate(const std::string &key, const uint8_t *value, size_t size, const Endpoint *endpoint)
 {
     ::BinaryAnnotation annotation;
 
     annotation.__set_key(key);
-    annotation.__set_value(std::string(value.begin(), value.end()));
+    annotation.__set_value(std::string(reinterpret_cast<const char *>(value), size));
     annotation.__set_annotation_type(AnnotationType::type::BYTES);
 
     if (endpoint)
@@ -185,6 +132,56 @@ void Span::annotate(const std::string &key, const std::wstring &value, const End
     }
 
     m_span.binary_annotations.push_back(annotation);
+}
+
+size_t CachedSpan::cache_size(void) const
+{
+    return static_cast<CachedTracer *>(m_tracer)->cache().message_size() - cache_offset();
+}
+
+void *CachedSpan::operator new(size_t size, CachedTracer *tracer) noexcept
+{
+    size_t sz = tracer ? tracer->cache().message_size() : size;
+    void *p = nullptr;
+
+    if (posix_memalign(&p, CachedTracer::cache_line_size, sz))
+        return nullptr;
+
+    VLOG(2) << "Span @ " << p << " allocated with " << sz << " bytes";
+
+    return ::operator new(sz, p);
+}
+
+void CachedSpan::operator delete(void *ptr, std::size_t sz) noexcept
+{
+    if (!ptr)
+        return;
+
+    CachedSpan *span = static_cast<CachedSpan *>(ptr);
+
+    VLOG(2) << "Span @ " << ptr << " deleted with " << sz << " bytes, id=" << std::hex << span->id();
+
+    free(ptr);
+}
+
+Span *CachedSpan::span(const std::string &name) const
+{
+    if (m_tracer)
+        return m_tracer->span(m_span.name, m_span.id);
+
+    return new (nullptr) CachedSpan(nullptr, m_span.name, m_span.id);
+}
+
+void CachedSpan::release(void)
+{
+    if (m_tracer)
+    {
+        m_tracer->release(this);
+    }
+    else
+    {
+        delete this;
+    }
 }
 
 } // namespace zipkin

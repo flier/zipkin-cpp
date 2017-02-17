@@ -29,10 +29,9 @@ class CachedTracer;
 
 class Span
 {
+  protected:
     Tracer *m_tracer;
     ::Span m_span;
-
-    uint8_t m_buf[0] __attribute__((aligned));
 
     static const ::Endpoint host(const Endpoint *endpoint);
 
@@ -43,27 +42,20 @@ class Span
 
     void submit(void);
 
-    void release(void);
-
-    static void *operator new(size_t size, CachedTracer *tracer) noexcept;
-    static void operator delete(void *ptr, std::size_t sz);
-
-    static size_t cache_offset(void) { return offsetof(Span, m_buf); }
-
     Tracer *tracer(void) const { return m_tracer; }
     const ::Span &message(void) const { return m_span; }
 
     span_id_t id(void) const { return m_span.id; }
     const std::string &name(void) const { return m_span.name; }
 
-    uint8_t *cache_ptr(void) { return &m_buf[0]; }
-    size_t cache_size(void) const;
+    virtual Span *span(const std::string &name) const
+    {
+        return new Span(m_tracer, name, m_span.id);
+    };
 
     static uint64_t next_id();
 
     static timestamp_t now();
-
-    Span *span(const std::string &name) const;
 
     void annotate(const std::string &value, const Endpoint *endpoint = nullptr);
 
@@ -81,9 +73,27 @@ class Span
     template <typename T>
     void annotate(const std::string &key, T value, const Endpoint *endpoint = nullptr);
 
-    void annotate(const std::string &key, const std::vector<uint8_t> &value, const Endpoint *endpoint = nullptr);
+    void annotate(const std::string &key, const uint8_t *value, size_t size, const Endpoint *endpoint = nullptr);
+
+    template <size_t N>
+    void annotate(const std::string &key, const uint8_t (&value)[N], const Endpoint *endpoint = nullptr)
+    {
+        annotate(key, value, N, endpoint);
+    }
+    void annotate(const std::string &key, const std::vector<uint8_t> &value, const Endpoint *endpoint = nullptr)
+    {
+        annotate(key, value.data(), value.size(), endpoint);
+    }
     void annotate(const std::string &key, const std::string &value, const Endpoint *endpoint = nullptr);
+    void annotate(const std::string &key, const char *value, int len = -1, const Endpoint *endpoint = nullptr)
+    {
+        annotate(key, len >= 0 ? std::string(value, len) : std::string(value), endpoint);
+    }
     void annotate(const std::string &key, const std::wstring &value, const Endpoint *endpoint = nullptr);
+    void annotate(const std::string &key, const wchar_t *value, int len = -1, const Endpoint *endpoint = nullptr)
+    {
+        annotate(key, len >= 0 ? std::wstring(value, len) : std::wstring(value), endpoint);
+    }
 
     inline void http_host(const std::string &value, const Endpoint *endpoint = nullptr)
     {
@@ -125,6 +135,30 @@ class Span
     {
         return annotate(g_zipkinCore_constants.SERVER_ADDR, value, endpoint);
     }
+};
+
+class CachedSpan : public Span
+{
+    uint8_t m_buf[0] __attribute__((aligned));
+
+  public:
+    CachedSpan(Tracer *tracer, const std::string &name, span_id_t parent_id = 0)
+        : Span(tracer, name, parent_id)
+    {
+    }
+
+    static void *operator new(size_t size, CachedTracer *tracer) noexcept;
+    static void operator delete(void *ptr, std::size_t sz) noexcept;
+
+    static size_t cache_offset(void) { return offsetof(CachedSpan, m_buf); }
+
+    uint8_t *cache_ptr(void) { return &m_buf[0]; }
+    size_t cache_size(void) const;
+
+    void release(void);
+
+    virtual Span *span(const std::string &name) const override;
+
 } __attribute__((aligned));
 
 namespace __impl

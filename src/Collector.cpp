@@ -28,7 +28,7 @@ struct SpanDeliveryReporter : public RdKafka::DeliveryReportCb
 {
     void dr_cb(RdKafka::Message &message)
     {
-        Span *span = static_cast<Span *>(message.msg_opaque());
+        CachedSpan *span = static_cast<CachedSpan *>(message.msg_opaque());
 
         if (RdKafka::ErrorCode::ERR_NO_ERROR == message.err())
         {
@@ -89,8 +89,10 @@ class KafkaCollector : public Collector
     virtual void submit(Span *span) override;
 };
 
-void KafkaCollector::submit(Span *span)
+void KafkaCollector::submit(Span *_span)
 {
+    CachedSpan *span = static_cast<CachedSpan *>(_span);
+
     boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer(span->cache_ptr(), span->cache_size()));
     boost::shared_ptr<apache::thrift::protocol::TBinaryProtocol> protocol(new apache::thrift::protocol::TBinaryProtocol(buf));
 

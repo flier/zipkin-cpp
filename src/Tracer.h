@@ -35,7 +35,7 @@ class SpanCache
 {
     size_t m_message_size;
 
-    boost::lockfree::stack<Span *, boost::lockfree::capacity<64>> m_spans;
+    boost::lockfree::stack<CachedSpan *, boost::lockfree::capacity<64>> m_spans;
 
   public:
     SpanCache(size_t message_size) : m_message_size(message_size)
@@ -50,17 +50,17 @@ class SpanCache
 
     inline void purge_all(void)
     {
-        m_spans.consume_all([](Span *span) -> void { delete span; });
+        m_spans.consume_all([](CachedSpan *span) -> void { delete span; });
     }
 
-    inline Span *get(void)
+    inline CachedSpan *get(void)
     {
-        Span *span = nullptr;
+        CachedSpan *span = nullptr;
 
         return m_spans.pop(span) ? span : nullptr;
     }
 
-    inline void release(Span *span)
+    inline void release(CachedSpan *span)
     {
         if (!m_spans.bounded_push(span))
         {
@@ -98,7 +98,7 @@ class CachedTracer : public Tracer
 
     virtual void submit(Span *span) override;
 
-    virtual void release(Span *span) override { m_cache.release(span); }
+    virtual void release(Span *span) override;
 };
 
 } // namespace zipkin

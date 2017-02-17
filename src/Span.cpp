@@ -1,10 +1,13 @@
 #include <random>
 #include <utility>
 
+#include <ios>
 #include <cstdlib>
 #include <string>
 #include <locale>
 #include <codecvt>
+
+#include <glog/logging.h>
 
 #include "Span.h"
 #include "Tracer.h"
@@ -25,54 +28,74 @@ const ::Endpoint Endpoint::host() const
 
 Span::Span(Tracer *tracer, const std::string &name, span_id_t parent_id) : m_tracer(tracer)
 {
-    __set_trace_id(tracer->id());
+    if (tracer)
+        m_span.__set_trace_id(tracer->id());
 
     reset(name, parent_id);
 }
 
 void Span::reset(const std::string &name, span_id_t parent_id)
 {
-    __set_name(name);
-    __set_id(next_id());
-    __set_timestamp(now());
-    annotations.clear();
-    binary_annotations.clear();
+    m_span.__set_name(name);
+    m_span.__set_id(next_id());
+    m_span.__set_timestamp(now());
+    m_span.annotations.clear();
+    m_span.binary_annotations.clear();
 
     if (parent_id)
     {
-        __set_parent_id(parent_id);
+        m_span.__set_parent_id(parent_id);
     }
 }
 
 void Span::submit(void)
 {
-    if (timestamp)
-        __set_duration(now() - timestamp);
+    if (m_span.timestamp)
+        m_span.__set_duration(now() - m_span.timestamp);
 
-    m_tracer->submit(this);
+    if (m_tracer)
+        m_tracer->submit(this);
+}
+
+void Span::release(void)
+{
+    if (m_tracer)
+    {
+        VLOG(2) << "Span @ " << this << " released to tracer @ " << m_tracer << ", id=" << id();
+
+        m_tracer->release(this);
+    }
+    else
+    {
+        delete this;
+    }
 }
 
 size_t Span::cache_size(void) const
 {
-    return static_cast<CachedTracer *>(m_tracer)->cache_message_size() - cache_offset();
+    return static_cast<CachedTracer *>(m_tracer)->cache().message_size() - cache_offset();
 }
 
 void *Span::operator new(size_t size, CachedTracer *tracer) noexcept
 {
-    size_t sz = tracer->cache_message_size();
+    size_t sz = tracer ? tracer->cache().message_size() : size;
     void *p = nullptr;
 
-    if (posix_memalign(&p, CachedTracer::cache_line_size(), sz))
+    if (posix_memalign(&p, CachedTracer::cache_line_size, sz))
         return nullptr;
+
+    VLOG(2) << "Span @ " << p << " allocated with " << sz << " bytes";
 
     return ::operator new(sz, p);
 }
 
-void Span::operator delete(void *ptr) noexcept
+void Span::operator delete(void *ptr, std::size_t sz)
 {
     Span *span = static_cast<Span *>(ptr);
 
-    static_cast<CachedTracer *>(span->m_tracer)->release(span);
+    VLOG(2) << "Span @ " << ptr << " deleted with " << sz << " bytes, id=" << std::hex << span->id();
+
+    free(ptr);
 }
 
 uint64_t Span::next_id()
@@ -87,7 +110,17 @@ timestamp_t Span::now()
     return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 }
 
-Span *Span::span(const std::string &name) const { return m_tracer->span(name, id); }
+Span *Span::span(const std::string &name) const
+{
+    if (m_tracer)
+    {
+        return m_tracer->span(m_span.name, m_span.id);
+    }
+    else
+    {
+        return new (nullptr) Span(nullptr, m_span.name, m_span.id);
+    }
+}
 
 void Span::annotate(const std::string &value, const Endpoint *endpoint)
 {
@@ -101,7 +134,7 @@ void Span::annotate(const std::string &value, const Endpoint *endpoint)
         annotation.__set_host(endpoint->host());
     }
 
-    annotations.push_back(annotation);
+    m_span.annotations.push_back(annotation);
 }
 
 void Span::annotate(const std::string &key, const std::vector<uint8_t> &value, const Endpoint *endpoint)
@@ -117,7 +150,7 @@ void Span::annotate(const std::string &key, const std::vector<uint8_t> &value, c
         annotation.__set_host(endpoint->host());
     }
 
-    binary_annotations.push_back(annotation);
+    m_span.binary_annotations.push_back(annotation);
 }
 
 void Span::annotate(const std::string &key, const std::string &value, const Endpoint *endpoint)
@@ -133,7 +166,7 @@ void Span::annotate(const std::string &key, const std::string &value, const Endp
         annotation.__set_host(endpoint->host());
     }
 
-    binary_annotations.push_back(annotation);
+    m_span.binary_annotations.push_back(annotation);
 }
 
 void Span::annotate(const std::string &key, const std::wstring &value, const Endpoint *endpoint)
@@ -151,7 +184,7 @@ void Span::annotate(const std::string &key, const std::wstring &value, const End
         annotation.__set_host(endpoint->host());
     }
 
-    binary_annotations.push_back(annotation);
+    m_span.binary_annotations.push_back(annotation);
 }
 
 } // namespace zipkin

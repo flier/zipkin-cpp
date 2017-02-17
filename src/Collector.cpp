@@ -28,22 +28,24 @@ struct SpanDeliveryReporter : public RdKafka::DeliveryReportCb
 {
     void dr_cb(RdKafka::Message &message)
     {
-        std::auto_ptr<Span> span(static_cast<Span *>(message.msg_opaque()));
+        Span *span = static_cast<Span *>(message.msg_opaque());
 
         if (RdKafka::ErrorCode::ERR_NO_ERROR == message.err())
         {
-            VLOG(2) << "Deliveried Span `" << std::hex << span->id
+            VLOG(2) << "Deliveried Span `" << std::hex << span->id()
                     << "` to topic " << message.topic_name()
                     << " #" << message.partition() << " @" << message.offset()
                     << " with " << message.len() << " bytes";
         }
         else
         {
-            LOG(WARNING) << "Fail to delivery Span `" << std::hex << span->id
+            LOG(WARNING) << "Fail to delivery Span `" << std::hex << span->id()
                          << "` to topic " << message.topic_name()
                          << " #" << message.partition() << " @" << message.offset()
                          << ", " << message.errstr();
         }
+
+        span->release();
     }
 };
 
@@ -92,7 +94,7 @@ void KafkaCollector::submit(Span *span)
     boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer(span->cache_ptr(), span->cache_size()));
     boost::shared_ptr<apache::thrift::protocol::TBinaryProtocol> protocol(new apache::thrift::protocol::TBinaryProtocol(buf));
 
-    uint32_t wrote = span->write(protocol.get());
+    uint32_t wrote = span->message().write(protocol.get());
 
     VLOG(2) << "wrote " << wrote << " bytes to message";
 
@@ -106,10 +108,11 @@ void KafkaCollector::submit(Span *span)
 
     RdKafka::ErrorCode err = m_producer->produce(m_topic.get(),
                                                  m_partition,
-                                                 0,                                 // msgflags
-                                                 (void *)ptr, std::max(wrote, len), // payload
-                                                 &span->name,                       // key
-                                                 span);                             // msg_opaque
+                                                 0,                    // msgflags
+                                                 (void *)ptr,          // payload
+                                                 std::max(wrote, len), // payload length
+                                                 &span->name(),        // key
+                                                 span);                // msg_opaque
 
     if (RdKafka::ErrorCode::ERR_NO_ERROR != err)
     {

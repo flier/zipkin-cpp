@@ -27,9 +27,10 @@ struct Tracer;
 
 class CachedTracer;
 
-class Span : public ::Span
+class Span
 {
     Tracer *m_tracer;
+    ::Span m_span;
 
     uint8_t m_buf[0] __attribute__((aligned));
 
@@ -42,10 +43,18 @@ class Span : public ::Span
 
     void submit(void);
 
+    void release(void);
+
     static void *operator new(size_t size, CachedTracer *tracer) noexcept;
-    static void operator delete(void *ptr) noexcept;
+    static void operator delete(void *ptr, std::size_t sz);
 
     static size_t cache_offset(void) { return offsetof(Span, m_buf); }
+
+    Tracer *tracer(void) const { return m_tracer; }
+    const ::Span &message(void) const { return m_span; }
+
+    span_id_t id(void) const { return m_span.id; }
+    const std::string &name(void) const { return m_span.name; }
 
     uint8_t *cache_ptr(void) { return &m_buf[0]; }
     size_t cache_size(void) const;
@@ -168,7 +177,7 @@ void Span::annotate(const std::string &key, T value, const Endpoint *endpoint)
         annotation.__set_host(endpoint->host());
     }
 
-    binary_annotations.push_back(annotation);
+    m_span.binary_annotations.push_back(annotation);
 }
 
 } // namespace zipkin

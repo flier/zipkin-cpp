@@ -1,10 +1,12 @@
 import os
 import os.path
 import itertools
+from distutils.util import strtobool
 
 from SCons.Script import SConscript, Environment, Configure, Exit, ARGUMENTS
 
-debug_mode = int(ARGUMENTS.get('debug', 0))
+debug_mode = strtobool(ARGUMENTS.get('debug', 'true'))
+release_mode = strtobool(ARGUMENTS.get('release', 'false'))
 build_dir = ARGUMENTS.get('build_dir', 'build')
 gen_dir = ARGUMENTS.get('gen_dir', 'gen-cpp')
 
@@ -77,7 +79,7 @@ else:
 
 if debug_mode:
     env.Append(CXXFLAGS=['-g'])
-else:
+if release_mode:
     env.Append(CXXFLAGS=['-O2'])
 
 
@@ -108,6 +110,7 @@ zipkinLib = env.StaticLibrary(target=os.path.join(build_dir, 'zipkin'),
 test_env = env.Clone()
 test_env.MergeFlags(conan_libs['conan'])
 test_env.Replace(LIBS=[lib for lib in test_env['LIBS'] if not lib.endswith('_main')])
+test_env.Append(CPPPATH=[src_dir])
 
 zipkinTestSources = [
     'TestMain.cpp',

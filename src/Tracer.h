@@ -25,8 +25,48 @@ struct Tracer
 
     virtual void submit(Span *span) = 0;
 
+    virtual void release(Span *span) = 0;
+
     // Create Cached Tracer
     static Tracer *create(Collector *collector, const std::string &name);
+};
+
+class SpanCache
+{
+    size_t m_message_size;
+
+    boost::lockfree::stack<Span *, boost::lockfree::capacity<64>> m_spans;
+
+  public:
+    SpanCache(size_t message_size) : m_message_size(message_size)
+    {
+    }
+
+    ~SpanCache() { purge_all(); }
+
+    size_t message_size(void) const { return m_message_size; }
+
+    inline bool empty(void) const { return m_spans.empty(); }
+
+    inline void purge_all(void)
+    {
+        m_spans.consume_all([](Span *span) -> void { delete span; });
+    }
+
+    inline Span *get(void)
+    {
+        Span *span = nullptr;
+
+        return m_spans.pop(span) ? span : nullptr;
+    }
+
+    inline void release(Span *span)
+    {
+        if (!m_spans.bounded_push(span))
+        {
+            delete span;
+        }
+    }
 };
 
 class CachedTracer : public Tracer
@@ -35,31 +75,30 @@ class CachedTracer : public Tracer
 
     trace_id_t m_id;
     const std::string m_name;
-    size_t m_cache_message_size;
 
-    boost::lockfree::stack<Span *> m_spans;
+    SpanCache m_cache;
 
   public:
-    CachedTracer(Collector *collector, const std::string &name, size_t cache_message_size = 2048)
-        : m_collector(collector), m_id(Span::next_id()), m_name(name), m_cache_message_size(cache_message_size)
+    CachedTracer(Collector *collector, const std::string &name, size_t cache_message_size = default_cache_message_size)
+        : m_collector(collector), m_id(Span::next_id()), m_name(name), m_cache(cache_message_size)
     {
-    }
-    virtual ~CachedTracer()
-    {
-        m_spans.consume_all([](Span *span) -> void { delete span; });
     }
 
-    static size_t cache_line_size(void) { return 64; }
-    size_t cache_message_size(void) const { return m_cache_message_size; }
+    static const size_t cache_line_size;
+    static const size_t default_cache_message_size;
+
+    const SpanCache &cache(void) const { return m_cache; }
+
+    // Implement Tracer
 
     virtual trace_id_t id(void) const override { return m_id; }
     virtual const std::string &name(void) const override { return m_name; }
 
     virtual Span *span(const std::string &name, span_id_t parent_id = 0) override;
 
-    virtual void submit(Span *span) override { m_collector->submit(span); }
+    virtual void submit(Span *span) override;
 
-    void release(Span *span) { m_spans.push(span); }
+    virtual void release(Span *span) override { m_cache.release(span); }
 };
 
 } // namespace zipkin

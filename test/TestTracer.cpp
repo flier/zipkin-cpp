@@ -1,14 +1,4 @@
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
-#include "Collector.h"
-#include "Tracer.h"
-
-class MockCollector : public zipkin::Collector
-{
-  public:
-    MOCK_METHOD1(submit, void(zipkin::Span *span));
-};
+#include "Mocks.hpp"
 
 TEST(tracer, properties)
 {

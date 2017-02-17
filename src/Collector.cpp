@@ -15,8 +15,6 @@
 #include <thrift/protocol/TBinaryProtocol.h>
 #include <thrift/transport/TBufferTransports.h>
 
-#include <librdkafka/rdkafkacpp.h>
-
 #include "../gen-cpp/zipkinCore_types.h"
 
 #include "Tracer.h"
@@ -62,43 +60,30 @@ struct HashPartitioner : public RdKafka::PartitionerCb
     }
 };
 
-class KafkaCollector : public Collector
+class ReusableMemoryBuffer : public apache::thrift::transport::TMemoryBuffer
 {
-    std::unique_ptr<RdKafka::Producer> m_producer;
-    std::unique_ptr<RdKafka::Topic> m_topic;
-    std::unique_ptr<RdKafka::DeliveryReportCb> m_reporter;
-    std::unique_ptr<RdKafka::PartitionerCb> m_partitioner;
-    int m_partition;
-
   public:
-    KafkaCollector(std::unique_ptr<RdKafka::Producer> &producer,
-                   std::unique_ptr<RdKafka::Topic> &topic,
-                   std::unique_ptr<RdKafka::DeliveryReportCb> &reporter,
-                   std::unique_ptr<RdKafka::PartitionerCb> &partitioner,
-                   int partition)
-        : m_producer(std::move(producer)), m_topic(std::move(topic)), m_reporter(std::move(reporter)),
-          m_partitioner(std::move(partitioner)), m_partition(partition)
+    ReusableMemoryBuffer(CachedSpan *cached_span)
+        : TMemoryBuffer(cached_span->cache_ptr(), cached_span->cache_size())
     {
-    }
-    virtual ~KafkaCollector() override
-    {
-        m_producer->flush(200);
-    }
+        resetBuffer();
 
-    // Implement Collector
-    virtual void submit(Span *span) override;
+        size_t size = cached_span->cache_size();
+
+        wBound_ += size;
+        bufferSize_ = size;
+    }
 };
 
-void KafkaCollector::submit(Span *_span)
+void KafkaCollector::submit(Span *span)
 {
-    CachedSpan *span = static_cast<CachedSpan *>(_span);
-
-    boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer(span->cache_ptr(), span->cache_size()));
+    boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new ReusableMemoryBuffer(static_cast<CachedSpan *>(span)));
     boost::shared_ptr<apache::thrift::protocol::TBinaryProtocol> protocol(new apache::thrift::protocol::TBinaryProtocol(buf));
 
     uint32_t wrote = span->message().write(protocol.get());
 
-    VLOG(2) << "wrote " << wrote << " bytes to message";
+    VLOG(2) << "Span @ " << span << " wrote " << wrote << " bytes to message, id=" << std::hex << span->id();
+    VLOG(3) << span->message();
 
     uint8_t *ptr = nullptr;
     uint32_t len = 0;
@@ -110,11 +95,11 @@ void KafkaCollector::submit(Span *_span)
 
     RdKafka::ErrorCode err = m_producer->produce(m_topic.get(),
                                                  m_partition,
-                                                 0,                    // msgflags
-                                                 (void *)ptr,          // payload
-                                                 std::max(wrote, len), // payload length
-                                                 &span->name(),        // key
-                                                 span);                // msg_opaque
+                                                 0,             // msgflags
+                                                 (void *)ptr,   // payload
+                                                 len,           // payload length
+                                                 &span->name(), // key
+                                                 span);         // msg_opaque
 
     if (RdKafka::ErrorCode::ERR_NO_ERROR != err)
     {
@@ -151,7 +136,7 @@ bool kafka_conf_set(std::unique_ptr<RdKafka::Conf> &conf, const std::string &nam
     return ok;
 }
 
-Collector *KafkaConf::create(void) const
+KafkaCollector *KafkaConf::create(void) const
 {
     std::string errstr;
 
@@ -237,7 +222,7 @@ Collector *KafkaConf::create(void) const
         return nullptr;
     }
 
-    return new KafkaCollector(producer, topic, reporter, partitioner, partition);
+    return new KafkaCollector(producer, topic, std::move(reporter), std::move(partitioner), partition);
 }
 
 } // namespace zipkin

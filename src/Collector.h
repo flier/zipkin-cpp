@@ -3,6 +3,8 @@
 #include <string>
 #include <chrono>
 
+#include <librdkafka/rdkafkacpp.h>
+
 #include "Span.h"
 
 namespace zipkin
@@ -15,6 +17,36 @@ struct Collector
   virtual void submit(Span *span) = 0;
 };
 
+class KafkaCollector : public Collector
+{
+  std::unique_ptr<RdKafka::Producer> m_producer;
+  std::unique_ptr<RdKafka::Topic> m_topic;
+  std::unique_ptr<RdKafka::DeliveryReportCb> m_reporter;
+  std::unique_ptr<RdKafka::PartitionerCb> m_partitioner;
+  int m_partition;
+
+public:
+  KafkaCollector(std::unique_ptr<RdKafka::Producer> &producer,
+                 std::unique_ptr<RdKafka::Topic> &topic,
+                 std::unique_ptr<RdKafka::DeliveryReportCb> reporter = nullptr,
+                 std::unique_ptr<RdKafka::PartitionerCb> partitioner = nullptr,
+                 int partition = RdKafka::Topic::PARTITION_UA)
+      : m_producer(std::move(producer)), m_topic(std::move(topic)),
+        m_reporter(std::move(reporter)), m_partitioner(std::move(partitioner)), m_partition(partition)
+  {
+  }
+  virtual ~KafkaCollector() override
+  {
+    m_producer->flush(200);
+  }
+
+  RdKafka::Producer *producer(void) const { return m_producer.get(); }
+  RdKafka::Topic *topic(void) const { return m_topic.get(); }
+
+  // Implement Collector
+  virtual void submit(Span *span) override;
+};
+
 struct KafkaConf
 {
   // metadata.broker.list - Initial list of brokers.
@@ -22,9 +54,6 @@ struct KafkaConf
 
   // the topic to produce to
   std::string topic_name;
-
-  // the configured partitioner function will be used to select a target partition.
-  static const int PARTITION_UA = -1;
 
   // the partition to produce to.
   //
@@ -71,13 +100,13 @@ struct KafkaConf
   // default: 2
   size_t message_send_max_retries;
 
-  KafkaConf(const std::string &_brokers, const std::string &_topic_name, int _partition = PARTITION_UA)
+  KafkaConf(const std::string &_brokers, const std::string &_topic_name, int _partition = RdKafka::Topic::PARTITION_UA)
       : brokers(_brokers), topic_name(_topic_name), partition(_partition), compression_codec(none), batch_num_messages(0),
         queue_buffering_max_messages(0), queue_buffering_max_kbytes(0), queue_buffering_max_ms(0), message_send_max_retries(0)
   {
   }
 
-  Collector *create(void) const;
+  KafkaCollector *create(void) const;
 };
 
 } // namespace zipkin

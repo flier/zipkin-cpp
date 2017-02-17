@@ -20,6 +20,9 @@ env = Environment(CXXFLAGS=['-std=c++11', '-Wno-invalid-offsetof'],
 
 env.VariantDir(build_dir, '.', duplicate=0)
 
+for libname in ['thrift', 'rdkafka++']:
+    env.ParseConfig('pkg-config --cflags --libs ' + libname)
+
 conan_file = 'conanfile.txt'
 conan_script = 'SConscript_conan'
 conan_generated_files = [

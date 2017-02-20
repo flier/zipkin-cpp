@@ -31,17 +31,33 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data);
 
 void forward_tcp_connection(struct mg_connection *nc, struct http_message *hm)
 {
+  const char *errmsg = NULL;
+  struct mg_connect_opts opts = {nc, 0, &errmsg};
+  char addr[1024] = {0};
+  char *p = addr, *end = addr + sizeof(addr) + 1;
+
+  p += snprintf(p, end - p, "tcp://%.*s", (int)hm->uri.len, hm->uri.p);
+
+  nc->user_data = mg_connect_opt(nc->mgr, addr, ev_handler, opts);
+
+  if (nc->user_data)
+  {
+    mg_send_head(nc, 200, 0, "Proxy-agent: " APP_NAME "/" APP_VERSION);
+  }
+  else
+  {
+    mg_http_send_error(nc->user_data, 400, errmsg);
+  }
 }
 
-struct mg_connection *forward_http_request(struct mg_connection *nc, struct http_message *hm)
+void forward_http_request(struct mg_connection *nc, struct http_message *hm)
 {
   int i;
-  struct mg_connect_opts opts = {nc};
+  const char *errmsg = NULL;
+  struct mg_connect_opts opts = {nc, 0, &errmsg};
   char *uri = strndup(hm->uri.p, hm->uri.len);
   char hostname[MAXHOSTNAMELEN] = {0};
-  union socket_address addr;
-  socklen_t addr_len = sizeof(addr);
-  char *local_addr, *peer_addr;
+  char local_addr[64] = {0}, peer_addr[64] = {0};
   char extra_headers[4096] = {0};
   char *p = extra_headers, *end = extra_headers + sizeof(extra_headers) - 1;
   struct mg_str *proxy_conn = NULL, *proxy_auth = NULL;
@@ -66,9 +82,8 @@ struct mg_connection *forward_http_request(struct mg_connection *nc, struct http
   }
 
   gethostname(hostname, sizeof(hostname));
-  getsockname(nc->sock, &addr.sa, &addr_len);
-  local_addr = inet_ntoa(addr.sin.sin_addr);
-  peer_addr = inet_ntoa(nc->sa.sin.sin_addr);
+  mg_conn_addr_to_str(nc, local_addr, sizeof(local_addr), MG_SOCK_STRINGIFY_IP);
+  mg_conn_addr_to_str(nc, peer_addr, sizeof(peer_addr), MG_SOCK_STRINGIFY_IP | MG_SOCK_STRINGIFY_REMOTE);
 
   p += snprintf(p, end - p, HTTP_VIA ": 1.1 %s (%s/%s)\n", hostname, APP_NAME, APP_VERSION);
   p += snprintf(p, end - p, HTTP_X_FORWARDED_FOR ": %s\n", peer_addr);
@@ -76,11 +91,14 @@ struct mg_connection *forward_http_request(struct mg_connection *nc, struct http
   p += snprintf(p, end - p, HTTP_X_FORWARDED_PROTO ": %s\n", "http");
   p += snprintf(p, end - p, HTTP_FORWARDED ": for=%s;proto=http;by=%s\n", peer_addr, local_addr);
 
-  struct mg_connection *conn = mg_connect_http_opt(nc->mgr, ev_handler, opts, uri, extra_headers, hm->body.p);
+  nc->user_data = mg_connect_http_opt(nc->mgr, ev_handler, opts, uri, extra_headers, hm->body.p);
+
+  if (!nc->user_data)
+  {
+    mg_http_send_error(nc->user_data, 400, errmsg);
+  }
 
   free(uri);
-
-  return conn;
 }
 
 void forward_http_response(struct mg_connection *nc, struct http_message *hm)
@@ -149,6 +167,14 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
 
   case MG_EV_HTTP_REPLY:
     forward_http_response(nc, hm);
+    break;
+
+  case MG_EV_RECV:
+    if (nc->user_data)
+    {
+      mg_send((struct mg_connection *)nc->user_data, nc->recv_mbuf.buf, nc->recv_mbuf.len);
+      mbuf_remove(&nc->recv_mbuf, nc->recv_mbuf.len);
+    }
     break;
 
   case MG_EV_CLOSE:

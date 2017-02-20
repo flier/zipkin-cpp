@@ -13,9 +13,12 @@ gen_dir = ARGUMENTS.get('gen_dir', 'gen-cpp')
 bin_dir = 'bin'
 src_dir = 'src'
 test_dir = 'test'
+inc_dir = 'include'
+example_dir = 'examples'
 obj_dir = os.path.join(build_dir, 'obj')
 
 env = Environment(CXXFLAGS=['-std=c++11', '-Wno-invalid-offsetof'],
+                  CPPPATH=[inc_dir],
                   ENV={'TERM': os.getenv('TERM', 'xterm-256color')})
 
 env.VariantDir(build_dir, '.', duplicate=0)
@@ -135,3 +138,20 @@ runtest = test_env.Command(target='runtest',
                            chdir=bin_dir)
 
 env.Execute(runtest)
+
+exam_env = Environment(CPPPATH=[inc_dir],
+                       ENV={'TERM': os.getenv('TERM', 'xterm-256color')})
+
+if debug_mode:
+    exam_env.Append(CFLAGS=['-g', '-ggdb'])
+
+if release_mode:
+    exam_env.Append(CFLAGS=['-O2', '-ggdb'])
+
+zipkinSimpleWebServerSources = ['main.c', "mongoose.c"]
+zipkinSimpleWebServerObjects = obj_files(source_files=zipkinSimpleWebServerSources,
+                                         base_dir=os.path.join(example_dir, 'simple_webserver'),
+                                         env=exam_env)
+
+exam_env.Program(target=os.path.join(bin_dir, 'simple_webserver',),
+                 source=list(zipkinSimpleWebServerObjects) + [zipkinLib])

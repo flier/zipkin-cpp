@@ -7,6 +7,7 @@
 
 typedef uint64_t zipkin_span_id_t;
 typedef uint64_t zipkin_trace_id_t;
+typedef void *zipkin_userdata_t;
 
 typedef void *zipkin_endpoint_t;
 typedef void *zipkin_span_t;
@@ -21,13 +22,14 @@ extern "C" {
 zipkin_endpoint_t zipkin_endpoint_new(struct sockaddr_in *addr, const char *service);
 void zipkin_endpoint_free(zipkin_endpoint_t endpoint);
 
-zipkin_span_t zipkin_span_new(zipkin_tracer_t tracer, const char *name);
-zipkin_span_t zipkin_span_new_child(zipkin_span_t span, const char *name);
+zipkin_span_t zipkin_span_new(zipkin_tracer_t tracer, const char *name, zipkin_userdata_t userdata);
+zipkin_span_t zipkin_span_new_child(zipkin_span_t span, const char *name, zipkin_userdata_t userdata);
 void zipkin_span_free(zipkin_span_t span);
 
 zipkin_span_id_t zipkin_span_id(zipkin_span_t span);
 const char *zipkin_span_name(zipkin_span_t span);
 zipkin_tracer_t zipkin_span_tracer(zipkin_span_t span);
+zipkin_userdata_t zipkin_span_userdata(zipkin_span_t span);
 
 void zipkin_span_annotate(zipkin_span_t span, const char *value);
 void zipkin_span_annotate_bool(zipkin_span_t span, const char *key, int value);

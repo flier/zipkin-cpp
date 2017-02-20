@@ -10,6 +10,7 @@
 
 typedef uint64_t span_id_t;
 typedef uint64_t timestamp_t;
+typedef void *userdata_t;
 
 namespace zipkin
 {
@@ -31,25 +32,27 @@ struct Span
   protected:
     Tracer *m_tracer;
     ::Span m_span;
+    userdata_t m_userdata;
 
     static const ::Endpoint host(const Endpoint *endpoint);
 
   public:
-    Span(Tracer *tracer, const std::string &name, span_id_t parent_id = 0);
+    Span(Tracer *tracer, const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr);
 
-    void reset(const std::string &name, span_id_t parent_id = 0);
+    void reset(const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr);
 
     void submit(void);
 
     Tracer *tracer(void) const { return m_tracer; }
     const ::Span &message(void) const { return m_span; }
+    userdata_t userdata(void) const { return m_userdata; }
 
     span_id_t id(void) const { return m_span.id; }
     const std::string &name(void) const { return m_span.name; }
 
-    virtual Span *span(const std::string &name) const
+    virtual Span *span(const std::string &name, userdata_t userdata = nullptr) const
     {
-        return new Span(m_tracer, name, m_span.id);
+        return new Span(m_tracer, name, m_span.id, userdata ? userdata : m_userdata);
     };
 
     static uint64_t next_id();
@@ -141,8 +144,8 @@ class CachedSpan : public Span
     uint8_t m_buf[0] __attribute__((aligned));
 
   public:
-    CachedSpan(Tracer *tracer, const std::string &name, span_id_t parent_id = 0)
-        : Span(tracer, name, parent_id)
+    CachedSpan(Tracer *tracer, const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr)
+        : Span(tracer, name, parent_id, userdata)
     {
     }
 
@@ -156,7 +159,7 @@ class CachedSpan : public Span
 
     void release(void);
 
-    virtual Span *span(const std::string &name) const override;
+    virtual Span *span(const std::string &name, userdata_t userdata = nullptr) const override;
 
 } __attribute__((aligned));
 

@@ -21,7 +21,7 @@ struct Tracer
 
     virtual const std::string &name(void) const = 0;
 
-    virtual Span *span(const std::string &name, span_id_t parent_id = 0) = 0;
+    virtual Span *span(const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr) = 0;
 
     virtual void submit(Span *span) = 0;
 
@@ -94,7 +94,7 @@ class CachedTracer : public Tracer
     virtual trace_id_t id(void) const override { return m_id; }
     virtual const std::string &name(void) const override { return m_name; }
 
-    virtual Span *span(const std::string &name, span_id_t parent_id = 0) override;
+    virtual Span *span(const std::string &name, span_id_t parent_id = 0, void *userdata = nullptr) override;
 
     virtual void submit(Span *span) override;
 

@@ -19,13 +19,13 @@ void zipkin_endpoint_free(zipkin_endpoint_t endpoint)
     delete static_cast<zipkin::Endpoint *>(endpoint);
 }
 
-zipkin_span_t zipkin_span_new(zipkin_tracer_t tracer, const char *name)
+zipkin_span_t zipkin_span_new(zipkin_tracer_t tracer, const char *name, zipkin_userdata_t userdata)
 {
-    return static_cast<zipkin::Tracer *>(tracer)->span(name);
+    return static_cast<zipkin::Tracer *>(tracer)->span(name, 0, userdata);
 }
-zipkin_span_t zipkin_span_new_child(zipkin_span_t span, const char *name)
+zipkin_span_t zipkin_span_new_child(zipkin_span_t span, const char *name, zipkin_userdata_t userdata)
 {
-    return static_cast<zipkin::Span *>(span)->span(name);
+    return static_cast<zipkin::Span *>(span)->span(name, userdata);
 }
 void zipkin_span_free(zipkin_span_t span)
 {
@@ -43,6 +43,10 @@ const char *zipkin_span_name(zipkin_span_t span)
 zipkin_tracer_t zipkin_span_tracer(zipkin_span_t span)
 {
     return static_cast<zipkin::Span *>(span)->tracer();
+}
+zipkin_userdata_t zipkin_span_userdata(zipkin_span_t span)
+{
+    return static_cast<zipkin::Span *>(span)->userdata();
 }
 
 void zipkin_span_annotate(zipkin_span_t span, const char *value)

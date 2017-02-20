@@ -13,19 +13,19 @@ Tracer *Tracer::create(Collector *collector, const std::string &name)
     return new CachedTracer(collector, name);
 }
 
-Span *CachedTracer::span(const std::string &name, span_id_t parent_id)
+Span *CachedTracer::span(const std::string &name, span_id_t parent_id, void *userdata)
 {
     Span *span = m_cache.get();
 
     if (span)
     {
-        span->reset(name, parent_id);
+        span->reset(name, parent_id, userdata);
 
         VLOG(2) << "Span @ " << span << " reused, id=" << std::hex << span->id();
     }
     else
     {
-        span = new (this) CachedSpan(this, name, parent_id);
+        span = new (this) CachedSpan(this, name, parent_id, userdata);
     }
 
     return span;

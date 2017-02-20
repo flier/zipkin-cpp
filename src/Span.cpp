@@ -26,15 +26,15 @@ const ::Endpoint Endpoint::host() const
     return host;
 }
 
-Span::Span(Tracer *tracer, const std::string &name, span_id_t parent_id) : m_tracer(tracer)
+Span::Span(Tracer *tracer, const std::string &name, span_id_t parent_id, userdata_t userdata) : m_tracer(tracer)
 {
     if (tracer)
         m_span.__set_trace_id(tracer->id());
 
-    reset(name, parent_id);
+    reset(name, parent_id, userdata);
 }
 
-void Span::reset(const std::string &name, span_id_t parent_id)
+void Span::reset(const std::string &name, span_id_t parent_id, userdata_t userdata)
 {
     m_span.__set_name(name);
     m_span.__set_id(next_id());
@@ -46,6 +46,8 @@ void Span::reset(const std::string &name, span_id_t parent_id)
     {
         m_span.__set_parent_id(parent_id);
     }
+
+    m_userdata = userdata;
 }
 
 void Span::submit(void)
@@ -164,12 +166,12 @@ void CachedSpan::operator delete(void *ptr, std::size_t sz) noexcept
     free(ptr);
 }
 
-Span *CachedSpan::span(const std::string &name) const
+Span *CachedSpan::span(const std::string &name, userdata_t userdata) const
 {
     if (m_tracer)
-        return m_tracer->span(m_span.name, m_span.id);
+        return m_tracer->span(m_span.name, m_span.id, userdata ? userdata : m_userdata);
 
-    return new (nullptr) CachedSpan(nullptr, m_span.name, m_span.id);
+    return new (nullptr) CachedSpan(nullptr, m_span.name, m_span.id, userdata ? userdata : m_userdata);
 }
 
 void CachedSpan::release(void)

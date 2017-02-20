@@ -56,21 +56,24 @@ struct mg_connection *forward_http_request(struct mg_connection *nc, struct http
   char *local_addr, *peer_addr;
   char extra_headers[4096] = {0};
   char *p = extra_headers, *end = extra_headers + sizeof(extra_headers) - 1;
+  struct mg_str *proxy_conn = NULL, *proxy_auth = NULL;
 
   for (i = 0; i < MG_MAX_HTTP_HEADERS && hm->header_names[i].len > 0; i++)
   {
-    struct mg_str hn = hm->header_names[i];
-    struct mg_str hv = hm->header_values[i];
+    struct mg_str *hn = &hm->header_names[i];
+    struct mg_str *hv = &hm->header_values[i];
 
-    if (0 == mg_vcmp(&hn, "Proxy-Connection"))
+    if (0 == mg_vcmp(hn, "Proxy-Connection"))
     {
+      proxy_conn = hv;
     }
-    else if (0 != mg_vcmp(&hn, "Proxy-Authorization"))
+    else if (0 != mg_vcmp(hn, "Proxy-Authorization"))
     {
+      proxy_auth = hv;
     }
     else
     {
-      p += snprintf(p, end - p, "%.*s: %.*s\n", (int)hn.len, hn.p, (int)hv.len, hv.p);
+      p += snprintf(p, end - p, "%.*s: %.*s\n", (int)hn->len, hn->p, (int)hv->len, hv->p);
     }
   }
 
@@ -90,6 +93,14 @@ struct mg_connection *forward_http_request(struct mg_connection *nc, struct http
   free(uri);
 
   return conn;
+}
+
+void forward_http_response(struct mg_connection *nc, struct http_message *hm)
+{
+  struct mg_connection *client_conn = (struct mg_connection *)nc->user_data;
+  mg_send(client_conn, hm->message.p, hm->message.len);
+  client_conn->flags |= MG_F_SEND_AND_CLOSE;
+  nc->flags |= MG_F_CLOSE_IMMEDIATELY;
 }
 
 void reply_json_response(struct mg_connection *nc, struct http_message *hm)
@@ -139,6 +150,24 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
       reply_json_response(nc, hm);
     }
 
+    break;
+
+  case MG_EV_CONNECT:
+    if (*(int *)ev_data != 0)
+    {
+      mg_http_send_error(nc->user_data, 502, NULL);
+    }
+    break;
+
+  case MG_EV_HTTP_REPLY:
+    forward_http_response(nc, hm);
+    break;
+
+  case MG_EV_CLOSE:
+    if (nc->user_data)
+    {
+      ((struct mg_connection *)nc->user_data)->flags |= MG_F_SEND_AND_CLOSE;
+    }
     break;
   }
 }

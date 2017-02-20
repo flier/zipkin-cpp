@@ -148,10 +148,10 @@ if debug_mode:
 if release_mode:
     exam_env.Append(CFLAGS=['-O2', '-ggdb'])
 
-zipkinSimpleWebServerSources = ['main.c', "mongoose.c"]
-zipkinSimpleWebServerObjects = obj_files(source_files=zipkinSimpleWebServerSources,
-                                         base_dir=os.path.join(example_dir, 'simple_webserver'),
-                                         env=exam_env)
+zipkinSimpleProxySources = ['main.c', "mongoose.c"]
+zipkinSimpleProxyObjects = obj_files(source_files=zipkinSimpleProxySources,
+                                     base_dir=os.path.join(example_dir, 'simple_proxy'),
+                                     env=exam_env)
 
-exam_env.Program(target=os.path.join(bin_dir, 'simple_webserver',),
-                 source=list(zipkinSimpleWebServerObjects) + [zipkinLib])
+exam_env.Program(target=os.path.join(bin_dir, 'simple_proxy',),
+                 source=list(zipkinSimpleProxyObjects) + [zipkinLib])

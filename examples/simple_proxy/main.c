@@ -8,7 +8,7 @@
 
 #include "zipkin.h"
 
-#define APP_NAME "simple_webserver"
+#define APP_NAME "simple_proxy"
 #define APP_VERSION "1.0"
 
 #define HTTP_VIA "Via"
@@ -198,7 +198,7 @@ int main(int argc, char **argv)
 
   mg_mgr_init(&mgr, NULL);
 
-  printf("Starting web server on port %s\n", s_http_port);
+  printf("Starting proxy on port %s\n", s_http_port);
   nc = mg_bind(&mgr, s_http_port, ev_handler);
   if (nc == NULL)
   {

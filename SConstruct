@@ -78,15 +78,16 @@ if not env.GetOption('clean'):
     check_conf()
 
     env.MergeFlags(conan_libs['glog'])
+    env.MergeFlags(conan_libs['gflags'])
     env.Replace(LIBS=[lib for lib in env['LIBS'] if not lib.endswith('_main')])
 else:
     conan_libs = {'conan': {'LIBS': ['']}}
 
 
 if debug_mode:
-    env.Append(CXXFLAGS=['-g'])
+    env.Append(CXXFLAGS=['-g'], CFLAGS=['-g'])
 if release_mode:
-    env.Append(CXXFLAGS=['-O2'])
+    env.Append(CXXFLAGS=['-O2'], CFLAGS=['-O2'])
 
 
 def obj_files(source_files, base_dir, target_dir=obj_dir, env=env):
@@ -137,21 +138,14 @@ runtest = test_env.Command(target='runtest',
                            DYLD_LIBRARY_PATH=bin_dir,
                            chdir=bin_dir)
 
-env.Execute(runtest)
-
-exam_env = Environment(CPPPATH=[inc_dir],
-                       ENV={'TERM': os.getenv('TERM', 'xterm-256color')})
-
-if debug_mode:
-    exam_env.Append(CFLAGS=['-g', '-ggdb'])
-
-if release_mode:
-    exam_env.Append(CFLAGS=['-O2', '-ggdb'])
+test_env.Execute(runtest)
 
 zipkinSimpleProxySources = ['main.c', "mongoose.c"]
 zipkinSimpleProxyObjects = obj_files(source_files=zipkinSimpleProxySources,
                                      base_dir=os.path.join(example_dir, 'simple_proxy'),
-                                     env=exam_env)
+                                     env=env)
 
-exam_env.Program(target=os.path.join(bin_dir, 'simple_proxy',),
-                 source=list(zipkinSimpleProxyObjects) + [zipkinLib])
+env.Append(LIBS=['c++'])
+
+env.Program(target=os.path.join(bin_dir, 'simple_proxy',),
+            source=list(zipkinSimpleProxyObjects) + [zipkinLib])

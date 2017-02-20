@@ -186,10 +186,76 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
   }
 }
 
+zipkin_tracer_t create_tracer(const char *kafka_uri)
+{
+  struct mg_str uri = mg_mk_str(kafka_uri), host, path;
+  unsigned int port = 0;
+  char broker[1024] = {0};
+  char *topic;
+  zipkin_conf_t conf;
+  zipkin_collector_t collector;
+  zipkin_tracer_t tracer;
+
+  if (mg_parse_uri(uri, NULL, NULL, &host, &port, &path, NULL, NULL))
+    return NULL;
+
+  if (port)
+  {
+    snprintf(broker, sizeof(broker), "%.*s:%d", (int)host.len, host.p, port);
+  }
+  else
+  {
+    snprintf(broker, sizeof(broker), "%.*s", (int)host.len, host.p);
+  }
+
+  topic = strtok((char *)path.p, "/");
+
+  conf = zipkin_conf_new(broker, topic);
+
+  if (!conf)
+    return NULL;
+
+  collector = zipkin_collector_new(conf);
+
+  zipkin_conf_free(conf);
+
+  if (collector)
+  {
+    tracer = zipkin_tracer_new(collector, APP_NAME);
+  }
+
+  return tracer;
+}
+
 int main(int argc, char **argv)
 {
+  int c;
+  const char *kafka_uri = NULL;
+
   struct mg_mgr mgr;
   struct mg_connection *nc;
+
+  while ((c = getopt(argc, argv, "ht:")) != -1)
+  {
+    switch (c)
+    {
+    case 't':
+      kafka_uri = optarg;
+      break;
+
+    case 'h':
+    case '?':
+      printf("%s [options]\n\n", argv[0]);
+      printf("-t <uri>\tKafka for tracing\n");
+
+      return 1;
+
+    default:
+      printf("unknown argument: %c", c);
+
+      abort();
+    }
+  }
 
   signal(SIGTERM, signal_handler);
   signal(SIGINT, signal_handler);
@@ -204,6 +270,11 @@ int main(int argc, char **argv)
   {
     printf("Failed to create listener\n");
     return 1;
+  }
+
+  if (kafka_uri)
+  {
+    mgr.user_data = create_tracer(kafka_uri);
   }
 
   mg_set_protocol_http_websocket(nc);

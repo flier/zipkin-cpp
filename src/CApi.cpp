@@ -138,7 +138,7 @@ const char *zipkin_tracer_name(zipkin_tracer_t tracer)
     return static_cast<zipkin::Tracer *>(tracer)->name().c_str();
 }
 
-zipkin_conf_t zipkin_conf_create(const char *brokers, const char *topic)
+zipkin_conf_t zipkin_conf_new(const char *brokers, const char *topic)
 {
     return new zipkin::KafkaConf(brokers, topic);
 }

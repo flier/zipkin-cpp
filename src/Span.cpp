@@ -19,8 +19,8 @@ const ::Endpoint Endpoint::host() const
 {
     ::Endpoint host;
 
-    host.__set_ipv4(addr);
-    host.__set_port(port);
+    host.__set_ipv4(addr.sin_addr.s_addr);
+    host.__set_port(addr.sin_port);
     host.__set_service_name(service);
 
     return host;

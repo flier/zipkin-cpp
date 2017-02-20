@@ -16,8 +16,7 @@ namespace zipkin
 
 struct Endpoint
 {
-    in_addr_t addr;
-    uint16_t port;
+    sockaddr_in addr;
     const std::string service;
 
     const ::Endpoint host(void) const;
@@ -27,7 +26,7 @@ struct Tracer;
 
 class CachedTracer;
 
-class Span
+struct Span
 {
   protected:
     Tracer *m_tracer;
@@ -76,21 +75,21 @@ class Span
     void annotate(const std::string &key, const uint8_t *value, size_t size, const Endpoint *endpoint = nullptr);
 
     template <size_t N>
-    void annotate(const std::string &key, const uint8_t (&value)[N], const Endpoint *endpoint = nullptr)
+    inline void annotate(const std::string &key, const uint8_t (&value)[N], const Endpoint *endpoint = nullptr)
     {
         annotate(key, value, N, endpoint);
     }
-    void annotate(const std::string &key, const std::vector<uint8_t> &value, const Endpoint *endpoint = nullptr)
+    inline void annotate(const std::string &key, const std::vector<uint8_t> &value, const Endpoint *endpoint = nullptr)
     {
         annotate(key, value.data(), value.size(), endpoint);
     }
     void annotate(const std::string &key, const std::string &value, const Endpoint *endpoint = nullptr);
-    void annotate(const std::string &key, const char *value, int len = -1, const Endpoint *endpoint = nullptr)
+    inline void annotate(const std::string &key, const char *value, int len = -1, const Endpoint *endpoint = nullptr)
     {
         annotate(key, len >= 0 ? std::string(value, len) : std::string(value), endpoint);
     }
     void annotate(const std::string &key, const std::wstring &value, const Endpoint *endpoint = nullptr);
-    void annotate(const std::string &key, const wchar_t *value, int len = -1, const Endpoint *endpoint = nullptr)
+    inline void annotate(const std::string &key, const wchar_t *value, int len = -1, const Endpoint *endpoint = nullptr)
     {
         annotate(key, len >= 0 ? std::wstring(value, len) : std::wstring(value), endpoint);
     }
@@ -194,8 +193,14 @@ struct __annotation<double>
 };
 } // namespace __impl
 
+template <>
+inline void Span::annotate(const std::string &key, Endpoint *value, const Endpoint *endpoint)
+{
+    annotate(key, value);
+}
+
 template <typename T>
-void Span::annotate(const std::string &key, T value, const Endpoint *endpoint)
+inline void Span::annotate(const std::string &key, T value, const Endpoint *endpoint)
 {
     auto ptr = reinterpret_cast<uint8_t *>(&value);
     std::string data(reinterpret_cast<char *>(ptr), sizeof(T));

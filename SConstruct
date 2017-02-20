@@ -105,7 +105,7 @@ env.Command(target=zipkinCoreFiles,
             source=zipkinCoreThrift,
             action=['thrift -r --gen cpp ' + zipkinCoreThrift])
 
-zipkinSources = ['Span.cpp', 'Tracer.cpp', 'Collector.cpp']
+zipkinSources = ['Span.cpp', 'Tracer.cpp', 'Collector.cpp', 'CApi.cpp']
 zipkinObjects = obj_files(zipkinSources, base_dir=src_dir)
 
 zipkinLibObjects = itertools.chain(zipkinCoreObjects, zipkinObjects)

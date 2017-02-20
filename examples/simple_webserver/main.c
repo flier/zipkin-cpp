@@ -24,21 +24,6 @@ void signal_handler(int sig_num)
   s_signal_received = sig_num;
 }
 
-struct mg_str *find_http_header(struct http_message *hm, const char *name)
-{
-  int i;
-
-  for (i = 0; i < MG_MAX_HTTP_HEADERS && hm->header_names[i].len > 0; i++)
-  {
-    if (0 == mg_vcmp(&hm->header_names[i], name))
-    {
-      return &hm->header_values[i];
-    }
-  }
-
-  return NULL;
-}
-
 void ev_handler(struct mg_connection *nc, int ev, void *ev_data);
 
 void forward_tcp_connection(struct mg_connection *nc, struct http_message *hm)
@@ -141,7 +126,7 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
     {
       forward_tcp_connection(nc, hm);
     }
-    else if (NULL != (proxy_connection = find_http_header(hm, "Proxy-Connection")))
+    else if (NULL != (proxy_connection = mg_get_http_header(hm, "Proxy-Connection")))
     {
       forward_http_request(nc, hm);
     }

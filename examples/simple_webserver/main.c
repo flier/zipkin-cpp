@@ -8,6 +8,9 @@
 
 #include "zipkin.h"
 
+#define APP_NAME "simple_webserver"
+#define APP_VERSION "1.0"
+
 #define HTTP_VIA "Via"
 #define HTTP_X_FORWARDED_FOR "X-Forwarded-For"
 #define HTTP_X_FORWARDED_PORT "X-Forwarded-Port"
@@ -67,7 +70,7 @@ struct mg_connection *forward_http_request(struct mg_connection *nc, struct http
   local_addr = inet_ntoa(addr.sin.sin_addr);
   peer_addr = inet_ntoa(nc->sa.sin.sin_addr);
 
-  p += snprintf(p, end - p, HTTP_VIA ": %s\n", hostname);
+  p += snprintf(p, end - p, HTTP_VIA ": 1.1 %s (%s/%s)\n", hostname, APP_NAME, APP_VERSION);
   p += snprintf(p, end - p, HTTP_X_FORWARDED_FOR ": %s\n", peer_addr);
   p += snprintf(p, end - p, HTTP_X_FORWARDED_PORT ": %d\n", nc->sa.sin.sin_port);
   p += snprintf(p, end - p, HTTP_X_FORWARDED_PROTO ": %s\n", "http");

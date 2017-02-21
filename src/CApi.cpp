@@ -49,68 +49,35 @@ zipkin_userdata_t zipkin_span_userdata(zipkin_span_t span)
     return static_cast<zipkin::Span *>(span)->userdata();
 }
 
-void zipkin_span_annotate(zipkin_span_t span, const char *value)
-{
-    static_cast<zipkin::Span *>(span)->annotate(value);
-}
-void zipkin_span_annotate_bool(zipkin_span_t span, const char *key, int value)
-{
-    static_cast<zipkin::Span *>(span)->annotate(key, (bool)value, nullptr);
-}
-void zipkin_span_annotate_bytes(zipkin_span_t span, const char *key, const char *value, size_t len)
-{
-    static_cast<zipkin::Span *>(span)->annotate(key, std::vector<uint8_t>(value, value + len), nullptr);
-}
-void zipkin_span_annotate_int16(zipkin_span_t span, const char *key, int16_t value)
-{
-    static_cast<zipkin::Span *>(span)->annotate(key, value, nullptr);
-}
-void zipkin_span_annotate_int32(zipkin_span_t span, const char *key, int32_t value)
-{
-    static_cast<zipkin::Span *>(span)->annotate(key, value, nullptr);
-}
-void zipkin_span_annotate_int64(zipkin_span_t span, const char *key, int64_t value)
-{
-    static_cast<zipkin::Span *>(span)->annotate(key, value, nullptr);
-}
-void zipkin_span_annotate_double(zipkin_span_t span, const char *key, double value)
-{
-    static_cast<zipkin::Span *>(span)->annotate(key, value, nullptr);
-}
-void zipkin_span_annotate_str(zipkin_span_t span, const char *key, const char *value)
-{
-    static_cast<zipkin::Span *>(span)->annotate(key, std::string(value), nullptr);
-}
-
-void zipkin_span_annotate_with_endpoint(zipkin_span_t span, const char *value, zipkin_endpoint_t endpoint)
+void zipkin_span_annotate(zipkin_span_t span, const char *value, zipkin_endpoint_t endpoint)
 {
     static_cast<zipkin::Span *>(span)->annotate(value, static_cast<zipkin::Endpoint *>(endpoint));
 }
-void zipkin_span_annotate_bool_with_endpoint(zipkin_span_t span, const char *key, int value, zipkin_endpoint_t endpoint)
+void zipkin_span_annotate_bool(zipkin_span_t span, const char *key, int value, zipkin_endpoint_t endpoint)
 {
     static_cast<zipkin::Span *>(span)->annotate(key, (bool)value, static_cast<zipkin::Endpoint *>(endpoint));
 }
-void zipkin_span_annotate_bytes_with_endpoint(zipkin_span_t span, const char *key, const char *value, size_t len, zipkin_endpoint_t endpoint)
+void zipkin_span_annotate_bytes(zipkin_span_t span, const char *key, const char *value, size_t len, zipkin_endpoint_t endpoint)
 {
     static_cast<zipkin::Span *>(span)->annotate(key, std::vector<uint8_t>(value, value + len), static_cast<zipkin::Endpoint *>(endpoint));
 }
-void zipkin_span_annotate_int16_with_endpoint(zipkin_span_t span, const char *key, int16_t value, zipkin_endpoint_t endpoint)
+void zipkin_span_annotate_int16(zipkin_span_t span, const char *key, int16_t value, zipkin_endpoint_t endpoint)
 {
     static_cast<zipkin::Span *>(span)->annotate(key, value, static_cast<zipkin::Endpoint *>(endpoint));
 }
-void zipkin_span_annotate_int32_with_endpoint(zipkin_span_t span, const char *key, int32_t value, zipkin_endpoint_t endpoint)
+void zipkin_span_annotate_int32(zipkin_span_t span, const char *key, int32_t value, zipkin_endpoint_t endpoint)
 {
     static_cast<zipkin::Span *>(span)->annotate(key, value, static_cast<zipkin::Endpoint *>(endpoint));
 }
-void zipkin_span_annotate_int64_with_endpoint(zipkin_span_t span, const char *key, int64_t value, zipkin_endpoint_t endpoint)
+void zipkin_span_annotate_int64(zipkin_span_t span, const char *key, int64_t value, zipkin_endpoint_t endpoint)
 {
     static_cast<zipkin::Span *>(span)->annotate(key, value, static_cast<zipkin::Endpoint *>(endpoint));
 }
-void zipkin_span_annotate_double_with_endpoint(zipkin_span_t span, const char *key, double value, zipkin_endpoint_t endpoint)
+void zipkin_span_annotate_double(zipkin_span_t span, const char *key, double value, zipkin_endpoint_t endpoint)
 {
     static_cast<zipkin::Span *>(span)->annotate(key, value, static_cast<zipkin::Endpoint *>(endpoint));
 }
-void zipkin_span_annotate_str_with_endpoint(zipkin_span_t span, const char *key, const char *value, zipkin_endpoint_t endpoint)
+void zipkin_span_annotate_str(zipkin_span_t span, const char *key, const char *value, zipkin_endpoint_t endpoint)
 {
     static_cast<zipkin::Span *>(span)->annotate(key, std::string(value), static_cast<zipkin::Endpoint *>(endpoint));
 }

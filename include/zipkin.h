@@ -31,23 +31,14 @@ const char *zipkin_span_name(zipkin_span_t span);
 zipkin_tracer_t zipkin_span_tracer(zipkin_span_t span);
 zipkin_userdata_t zipkin_span_userdata(zipkin_span_t span);
 
-void zipkin_span_annotate(zipkin_span_t span, const char *value);
-void zipkin_span_annotate_bool(zipkin_span_t span, const char *key, int value);
-void zipkin_span_annotate_bytes(zipkin_span_t span, const char *key, const char *value, size_t len);
-void zipkin_span_annotate_int16(zipkin_span_t span, const char *key, int16_t value);
-void zipkin_span_annotate_int32(zipkin_span_t span, const char *key, int32_t value);
-void zipkin_span_annotate_int64(zipkin_span_t span, const char *key, int64_t value);
-void zipkin_span_annotate_double(zipkin_span_t span, const char *key, double value);
-void zipkin_span_annotate_str(zipkin_span_t span, const char *key, const char *value);
-
-void zipkin_span_annotate_with_endpoint(zipkin_span_t span, const char *value, zipkin_endpoint_t endpoint);
-void zipkin_span_annotate_bool_with_endpoint(zipkin_span_t span, const char *key, int value, zipkin_endpoint_t endpoint);
-void zipkin_span_annotate_bytes_with_endpoint(zipkin_span_t span, const char *key, const char *value, size_t len, zipkin_endpoint_t endpoint);
-void zipkin_span_annotate_int16_with_endpoint(zipkin_span_t span, const char *key, int16_t value, zipkin_endpoint_t endpoint);
-void zipkin_span_annotate_int32_with_endpoint(zipkin_span_t span, const char *key, int32_t value, zipkin_endpoint_t endpoint);
-void zipkin_span_annotate_int64_with_endpoint(zipkin_span_t span, const char *key, int64_t value, zipkin_endpoint_t endpoint);
-void zipkin_span_annotate_double_with_endpoint(zipkin_span_t span, const char *key, double value, zipkin_endpoint_t endpoint);
-void zipkin_span_annotate_str_with_endpoint(zipkin_span_t span, const char *key, const char *value, zipkin_endpoint_t endpoint);
+void zipkin_span_annotate_with(zipkin_span_t span, const char *value, zipkin_endpoint_t endpoint);
+void zipkin_span_annotate_bool(zipkin_span_t span, const char *key, int value, zipkin_endpoint_t endpoint);
+void zipkin_span_annotate_bytes(zipkin_span_t span, const char *key, const char *value, size_t len, zipkin_endpoint_t endpoint);
+void zipkin_span_annotate_int16(zipkin_span_t span, const char *key, int16_t value, zipkin_endpoint_t endpoint);
+void zipkin_span_annotate_int32(zipkin_span_t span, const char *key, int32_t value, zipkin_endpoint_t endpoint);
+void zipkin_span_annotate_int64(zipkin_span_t span, const char *key, int64_t value, zipkin_endpoint_t endpoint);
+void zipkin_span_annotate_double(zipkin_span_t span, const char *key, double value, zipkin_endpoint_t endpoint);
+void zipkin_span_annotate_str(zipkin_span_t span, const char *key, const char *value, zipkin_endpoint_t endpoint);
 
 void zipkin_span_submit(zipkin_span_t span);
 

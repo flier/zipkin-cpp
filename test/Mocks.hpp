@@ -15,7 +15,7 @@ public:
 
   MOCK_CONST_METHOD0(name, const std::string &(void));
 
-  MOCK_CONST_METHOD0(userdata, userdata_t(void));
+  MOCK_CONST_METHOD0(collector, zipkin::Collector *(void));
 
   MOCK_METHOD3(span, zipkin::Span *(const std::string &name, span_id_t parent_id, userdata_t userdata));
 

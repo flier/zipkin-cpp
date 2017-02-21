@@ -1,7 +1,7 @@
 #include <unistd.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-
+#include <stdlib.h>
 #include <string.h>
 
 #include "mongoose.h"
@@ -11,11 +11,15 @@
 #define APP_NAME "simple_proxy"
 #define APP_VERSION "1.0"
 
+#define HTTP_PROXY_CONNECTION "Proxy-Connection"
+#define HTTP_PROXY_AUTHORIZATION "Proxy-Authorization"
+#define HTTP_PROXY_AGENT "Proxy-Agent"
 #define HTTP_VIA "Via"
+#define HTTP_FORWARDED "Forwarded"
 #define HTTP_X_FORWARDED_FOR "X-Forwarded-For"
 #define HTTP_X_FORWARDED_PORT "X-Forwarded-Port"
 #define HTTP_X_FORWARDED_PROTO "X-Forwarded-Proto"
-#define HTTP_FORWARDED "Forwarded"
+#define HTTP_X_SPAN_ID "X-Span-Id"
 
 static sig_atomic_t s_signal_received = 0;
 static const char *s_http_port = "8000";
@@ -29,8 +33,29 @@ void signal_handler(int sig_num)
 
 void ev_handler(struct mg_connection *nc, int ev, void *ev_data);
 
+zipkin_span_t create_session_span(struct mg_connection *nc, struct http_message *hm, const char *service, const char *type)
+{
+  static char hostname[MAXHOSTNAMELEN] = {0};
+  union socket_address addr;
+  socklen_t addr_len = sizeof(addr);
+  zipkin_span_t span = zipkin_span_new((zipkin_tracer_t)nc->mgr->user_data, "session", NULL);
+
+  if (!hostname[0])
+    gethostname(hostname, sizeof(hostname));
+
+  getsockname(nc->sock, &addr.sa, &addr_len);
+
+  zipkin_span_annotate_str(span, "hostname", hostname, -1, NULL);
+  zipkin_span_annotate_str(span, "type", type, -1, zipkin_endpoint_new(&addr.sin, service, -1));
+  zipkin_span_annotate_str(span, "request", hm->uri.p, hm->uri.len, zipkin_endpoint_new(&nc->sa.sin, hm->method.p, hm->method.len));
+
+  return span;
+}
+
 void forward_tcp_connection(struct mg_connection *nc, struct http_message *hm)
 {
+  zipkin_span_t span = create_session_span(nc, hm, "proxy", "stream");
+  struct mg_connection *cc;
   const char *errmsg = NULL;
   struct mg_connect_opts opts = {nc, 0, &errmsg};
   char addr[1024] = {0};
@@ -38,20 +63,29 @@ void forward_tcp_connection(struct mg_connection *nc, struct http_message *hm)
 
   p += snprintf(p, end - p, "tcp://%.*s", (int)hm->uri.len, hm->uri.p);
 
-  nc->user_data = mg_connect_opt(nc->mgr, addr, ev_handler, opts);
+  cc = mg_connect_opt(nc->mgr, addr, ev_handler, opts);
 
-  if (nc->user_data)
+  zipkin_span_annotate_str(span, "upstream", addr, -1, NULL);
+  zipkin_span_set_userdata(span, cc);
+
+  nc->user_data = span;
+
+  if (cc)
   {
-    mg_send_head(nc, 200, 0, "Proxy-agent: " APP_NAME "/" APP_VERSION);
+    cc->user_data = zipkin_span_new_child(span, "upstream", nc);
+
+    mg_send_head(nc, 200, 0, HTTP_PROXY_AGENT ": " APP_NAME "/" APP_VERSION);
   }
   else
   {
-    mg_http_send_error(nc->user_data, 400, errmsg);
+    mg_http_send_error(cc, 400, errmsg);
   }
 }
 
 void forward_http_request(struct mg_connection *nc, struct http_message *hm)
 {
+  zipkin_span_t span = create_session_span(nc, hm, "proxy", "request");
+  struct mg_connection *cc;
   int i;
   const char *errmsg = NULL;
   struct mg_connect_opts opts = {nc, 0, &errmsg};
@@ -67,13 +101,17 @@ void forward_http_request(struct mg_connection *nc, struct http_message *hm)
     struct mg_str *hn = &hm->header_names[i];
     struct mg_str *hv = &hm->header_values[i];
 
-    if (0 == mg_vcmp(hn, "Proxy-Connection"))
+    if (0 == mg_vcmp(hn, HTTP_PROXY_CONNECTION))
     {
       proxy_conn = hv;
     }
-    else if (0 != mg_vcmp(hn, "Proxy-Authorization"))
+    else if (0 != mg_vcmp(hn, HTTP_PROXY_AUTHORIZATION))
     {
       proxy_auth = hv;
+    }
+    else if (0 != mg_vcmp(hn, HTTP_X_SPAN_ID))
+    {
+      zipkin_span_set_parent_id(span, strtoll(hv->p, NULL, 16));
     }
     else
     {
@@ -90,27 +128,31 @@ void forward_http_request(struct mg_connection *nc, struct http_message *hm)
   p += snprintf(p, end - p, HTTP_X_FORWARDED_PORT ": %d\n", nc->sa.sin.sin_port);
   p += snprintf(p, end - p, HTTP_X_FORWARDED_PROTO ": %s\n", "http");
   p += snprintf(p, end - p, HTTP_FORWARDED ": for=%s;proto=http;by=%s\n", peer_addr, local_addr);
+  p += snprintf(p, end - p, HTTP_X_SPAN_ID ": %llx", zipkin_span_id(span));
 
-  nc->user_data = mg_connect_http_opt(nc->mgr, ev_handler, opts, uri, extra_headers, hm->body.p);
+  cc = mg_connect_http_opt(nc->mgr, ev_handler, opts, uri, extra_headers, hm->body.p);
 
-  if (!nc->user_data)
+  zipkin_span_annotate_str(span, "upstream", hm->uri.p, hm->uri.len, NULL);
+  zipkin_span_set_userdata(span, cc);
+
+  nc->user_data = span;
+
+  if (cc)
   {
-    mg_http_send_error(nc->user_data, 400, errmsg);
+    cc->user_data = zipkin_span_new_child(span, "upstream", nc);
+  }
+  else
+  {
+    mg_http_send_error(cc, 400, errmsg);
   }
 
   free(uri);
 }
 
-void forward_http_response(struct mg_connection *nc, struct http_message *hm)
-{
-  struct mg_connection *client_conn = (struct mg_connection *)nc->user_data;
-  mg_send(client_conn, hm->message.p, hm->message.len);
-  client_conn->flags |= MG_F_SEND_AND_CLOSE;
-  nc->flags |= MG_F_CLOSE_IMMEDIATELY;
-}
-
 void reply_json_response(struct mg_connection *nc, struct http_message *hm)
 {
+  zipkin_span_t span = create_session_span(nc, hm, "http", "response");
+  char local_addr[64] = {0}, peer_addr[64] = {0};
   int i;
 
   mg_send_response_line(nc, 200,
@@ -133,12 +175,14 @@ void reply_json_response(struct mg_connection *nc, struct http_message *hm)
   mg_printf(nc, "}}");
 
   nc->flags |= MG_F_SEND_AND_CLOSE;
+  nc->user_data = span;
 }
 
 void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
 {
   struct http_message *hm = (struct http_message *)ev_data;
-  struct mg_str *proxy_connection = NULL;
+  zipkin_span_t span = (zipkin_span_t)nc->user_data;
+  struct mg_connection *cc = span ? (struct mg_connection *)zipkin_span_userdata(span) : NULL;
 
   switch (ev)
   {
@@ -147,7 +191,7 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
     {
       forward_tcp_connection(nc, hm);
     }
-    else if (NULL != (proxy_connection = mg_get_http_header(hm, "Proxy-Connection")))
+    else if (mg_get_http_header(hm, HTTP_PROXY_CONNECTION))
     {
       forward_http_request(nc, hm);
     }
@@ -161,26 +205,46 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
   case MG_EV_CONNECT:
     if (*(int *)ev_data != 0)
     {
-      mg_http_send_error(nc->user_data, 502, NULL);
+      zipkin_span_annotate(span, "refused", -1, NULL);
+
+      mg_http_send_error(cc, 502, NULL);
+    }
+    else
+    {
+      zipkin_span_annotate(span, "connected", -1, NULL);
     }
     break;
 
   case MG_EV_HTTP_REPLY:
-    forward_http_response(nc, hm);
+    zipkin_span_annotate_int16(span, "status", hm->resp_code, NULL);
+    zipkin_span_annotate_int32(span, "size", hm->message.len, NULL);
+
+    mg_send(cc, hm->message.p, hm->message.len);
+
+    cc->flags |= MG_F_SEND_AND_CLOSE;
+    nc->flags |= MG_F_CLOSE_IMMEDIATELY;
+
     break;
 
   case MG_EV_RECV:
-    if (nc->user_data)
+    if (cc)
     {
-      mg_send((struct mg_connection *)nc->user_data, nc->recv_mbuf.buf, nc->recv_mbuf.len);
+      zipkin_span_annotate_int32(span, "received", nc->recv_mbuf.len, NULL);
+
+      mg_send(cc, nc->recv_mbuf.buf, nc->recv_mbuf.len);
       mbuf_remove(&nc->recv_mbuf, nc->recv_mbuf.len);
     }
     break;
 
   case MG_EV_CLOSE:
-    if (nc->user_data)
+    if (span)
     {
-      ((struct mg_connection *)nc->user_data)->flags |= MG_F_SEND_AND_CLOSE;
+      cc->flags |= MG_F_SEND_AND_CLOSE;
+
+      zipkin_span_annotate(span, "closed", -1, NULL);
+
+      zipkin_span_submit(span);
+      zipkin_span_free(span);
     }
     break;
   }
@@ -283,6 +347,12 @@ int main(int argc, char **argv)
   {
     mg_mgr_poll(&mgr, 1000);
   }
+
+  if (mgr.user_data)
+  {
+    zipkin_collector_free(zipkin_tracer_collector((zipkin_tracer_t)mgr.user_data));
+  }
+
   mg_mgr_free(&mgr);
 
   return 0;

@@ -45,10 +45,17 @@ struct Span
 
     Tracer *tracer(void) const { return m_tracer; }
     const ::Span &message(void) const { return m_span; }
-    userdata_t userdata(void) const { return m_userdata; }
 
     span_id_t id(void) const { return m_span.id; }
+    void set_id(span_id_t id) { m_span.id = id; }
+
     const std::string &name(void) const { return m_span.name; }
+
+    span_id_t parent_id(void) const { return m_span.parent_id; }
+    void set_parent_id(span_id_t id) { m_span.parent_id = id; }
+
+    userdata_t userdata(void) const { return m_userdata; }
+    void set_userdata(userdata_t userdata) { m_userdata = userdata; }
 
     virtual Span *span(const std::string &name, userdata_t userdata = nullptr) const
     {

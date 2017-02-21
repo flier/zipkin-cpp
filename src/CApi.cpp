@@ -29,7 +29,7 @@ zipkin_span_t zipkin_span_new_child(zipkin_span_t span, const char *name, zipkin
 }
 void zipkin_span_free(zipkin_span_t span)
 {
-    delete static_cast<zipkin::Span *>(span);
+    delete static_cast<zipkin::CachedSpan *>(span);
 }
 
 zipkin_span_id_t zipkin_span_id(zipkin_span_t span)

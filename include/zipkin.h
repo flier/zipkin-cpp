@@ -5,6 +5,30 @@
 
 #include <sys/socket.h>
 
+#define ZIPKIN_CLIENT_SEND "cs"
+#define ZIPKIN_CLIENT_RECV "cr"
+#define ZIPKIN_SERVER_SEND "ss"
+#define ZIPKIN_SERVER_RECV "sr"
+#define ZIPKIN_WIRE_SEND "ws"
+#define ZIPKIN_WIRE_RECV "wr"
+#define ZIPKIN_CLIENT_SEND_FRAGMENT "csf"
+#define ZIPKIN_CLIENT_RECV_FRAGMENT "crf"
+#define ZIPKIN_SERVER_SEND_FRAGMENT "ssf"
+#define ZIPKIN_SERVER_RECV_FRAGMENT "srf"
+
+#define ZIPKIN_HTTP_HOST "http.host"
+#define ZIPKIN_HTTP_METHOD "http.method"
+#define ZIPKIN_HTTP_PATH "http.path"
+#define ZIPKIN_HTTP_URL "http.url"
+#define ZIPKIN_HTTP_STATUS_CODE "http.status_code"
+#define ZIPKIN_HTTP_REQUEST_SIZE "http.request.size"
+#define ZIPKIN_HTTP_RESPONSE_SIZE "http.response.size"
+#define ZIPKIN_LOCAL_COMPONENT "lc"
+#define ZIPKIN_CLIENT_ADDR "ca"
+#define ZIPKIN_SERVER_ADDR "sa"
+
+#define ZIPKIN_ERROR "err"
+
 typedef uint64_t zipkin_span_id_t;
 typedef uint64_t zipkin_trace_id_t;
 typedef void *zipkin_userdata_t;

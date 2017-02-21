@@ -80,7 +80,9 @@ void KafkaCollector::submit(Span *span)
     boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new ReusableMemoryBuffer(static_cast<CachedSpan *>(span)));
     boost::shared_ptr<apache::thrift::protocol::TBinaryProtocol> protocol(new apache::thrift::protocol::TBinaryProtocol(buf));
 
-    uint32_t wrote = span->message().write(protocol.get());
+    uint32_t wrote = protocol->writeByte(12) + // type of the list elements: 12 == struct
+                     protocol->writeI32(1) +   // count of spans that will follow
+                     span->message().write(protocol.get());
 
     VLOG(2) << "Span @ " << span << " wrote " << wrote << " bytes to message, id=" << std::hex << span->id();
     VLOG(3) << span->message();

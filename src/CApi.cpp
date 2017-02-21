@@ -68,7 +68,7 @@ void zipkin_span_set_userdata(zipkin_span_t span, zipkin_userdata_t userdata)
 void zipkin_span_annotate(zipkin_span_t span, const char *value, int len, zipkin_endpoint_t endpoint)
 {
     static_cast<zipkin::Span *>(span)->annotate(std::string(value, len < 0 ? strlen(value) : len),
-                                                static_cast<zipkin::Endpoint *>(endpoint));
+                                                static_cast<const zipkin::Endpoint *>(endpoint));
 }
 void zipkin_span_annotate_bool(zipkin_span_t span, const char *key, int value, zipkin_endpoint_t endpoint)
 {
@@ -194,6 +194,10 @@ zipkin_collector_t zipkin_collector_new(zipkin_conf_t conf)
 void zipkin_collector_free(zipkin_collector_t collector)
 {
     delete static_cast<zipkin::Collector *>(collector);
+}
+int zipkin_collector_flush(zipkin_collector_t collector, size_t timeout_ms)
+{
+    return static_cast<zipkin::Collector *>(collector)->flush(std::chrono::milliseconds(timeout_ms));
 }
 
 #ifdef __cplusplus

@@ -2,6 +2,7 @@
 
 #include <string>
 #include <chrono>
+using namespace std::chrono_literals;
 
 #include <librdkafka/rdkafkacpp.h>
 
@@ -15,6 +16,8 @@ struct Collector
   virtual ~Collector() = default;
 
   virtual void submit(Span *span) = 0;
+
+  virtual bool flush(std::chrono::milliseconds timeout) = 0;
 };
 
 class KafkaCollector : public Collector
@@ -37,7 +40,7 @@ public:
   }
   virtual ~KafkaCollector() override
   {
-    m_producer->flush(200);
+    flush();
   }
 
   RdKafka::Producer *producer(void) const { return m_producer.get(); }
@@ -45,6 +48,11 @@ public:
 
   // Implement Collector
   virtual void submit(Span *span) override;
+
+  virtual bool flush(std::chrono::milliseconds timeout = 500ms) override
+  {
+    return RdKafka::ERR_NO_ERROR == m_producer->flush(timeout.count());
+  }
 };
 
 struct KafkaConf

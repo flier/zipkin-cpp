@@ -237,10 +237,13 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
     break;
 
   case MG_EV_CLOSE:
-    if (span)
+    if (cc)
     {
       cc->flags |= MG_F_SEND_AND_CLOSE;
+    }
 
+    if (span)
+    {
       zipkin_span_annotate(span, "closed", -1, NULL);
 
       zipkin_span_submit(span);

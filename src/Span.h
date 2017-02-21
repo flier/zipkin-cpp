@@ -203,12 +203,6 @@ struct __annotation<double>
 };
 } // namespace __impl
 
-template <>
-inline void Span::annotate(const std::string &key, Endpoint *value, const Endpoint *endpoint)
-{
-    annotate(key, value);
-}
-
 template <typename T>
 inline void Span::annotate(const std::string &key, T value, const Endpoint *endpoint)
 {

@@ -105,6 +105,10 @@ void KafkaCollector::submit(Span *span)
     {
         LOG(WARNING) << "fail to submit message to Kafka, " << err2str(err);
     }
+    else
+    {
+        m_producer->poll(0);
+    }
 }
 
 const std::string KafkaConf::to_string(CompressionCodec codec)

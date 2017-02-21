@@ -17,7 +17,7 @@ inc_dir = 'include'
 example_dir = 'examples'
 obj_dir = os.path.join(build_dir, 'obj')
 
-env = Environment(CXXFLAGS=['-std=c++11', '-Wno-invalid-offsetof'],
+env = Environment(CXXFLAGS=['-std=c++14', '-Wno-invalid-offsetof'],
                   CPPPATH=[inc_dir],
                   ENV={'TERM': os.getenv('TERM', 'xterm-256color')})
 

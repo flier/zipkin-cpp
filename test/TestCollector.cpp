@@ -28,6 +28,10 @@ TEST(collector, submit)
         .Times(1)
         .WillOnce(Return(RdKafka::ErrorCode::ERR_NO_ERROR));
 
+    EXPECT_CALL(p, poll(0))
+        .Times(1)
+        .WillOnce(Return(RdKafka::ErrorCode::ERR_NO_ERROR));
+
     EXPECT_CALL(p, flush(_))
         .Times(1)
         .WillOnce(Return(RdKafka::ErrorCode::ERR_NO_ERROR));

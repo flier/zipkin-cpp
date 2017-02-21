@@ -70,6 +70,7 @@ void zipkin_conf_set_message_send_max_retries(zipkin_conf_t conf, size_t message
 
 zipkin_collector_t zipkin_collector_new(zipkin_conf_t conf);
 void zipkin_collector_free(zipkin_collector_t collector);
+int zipkin_collector_flush(zipkin_collector_t collector, size_t timeout_ms);
 
 #ifdef __cplusplus
 }

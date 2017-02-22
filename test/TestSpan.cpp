@@ -136,16 +136,16 @@ TEST(span, serialize_json)
     span.annotate("bytes", {1, 2, 3});
 
     rapidjson::StringBuffer buffer;
-    rapidjson::PrettyWriter <rapidjson::StringBuffer> writer(buffer);
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
 
     span.serialize_json(writer);
 
     char str[2048] = {0};
-    int str_len = snprintf(str, sizeof(str),  R"###({
-    "traceId": "%llx",
+    int str_len = snprintf(str, sizeof(str), R"###({
+    "traceId": "%016llx",
     "name": "test",
-    "id": "%llx",
-    "parentId": "%llx",
+    "id": "%016llx",
+    "parentId": "%016llx",
     "annotations": [
         {
             "endpoint": {
@@ -198,7 +198,8 @@ TEST(span, serialize_json)
     ],
     "debug": false,
     "timestamp": %lld
-})###", span.trace_id(), span.id(), span.parent_id(), span.message().annotations[0].timestamp, span.message().timestamp);
+})###",
+                           span.trace_id(), span.id(), span.parent_id(), span.message().annotations[0].timestamp, span.message().timestamp);
 
     ASSERT_EQ(buffer.GetSize(), 1197);
     ASSERT_EQ(std::string(buffer.GetString(), buffer.GetSize()), std::string(str, str_len));

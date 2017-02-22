@@ -150,13 +150,13 @@ struct Span
         return annotate(g_zipkinCore_constants.SERVER_ADDR, value, endpoint);
     }
 
-    size_t serialize_binary(apache::thrift::protocol::TProtocol& protocol) const
+    size_t serialize_binary(apache::thrift::protocol::TProtocol &protocol) const
     {
         return m_span.write(&protocol);
     }
 
     template <class Writer>
-    void serialize_json(Writer& writer) const;
+    void serialize_json(Writer &writer) const;
 };
 
 class CachedSpan : public Span
@@ -237,7 +237,7 @@ inline void Span::annotate(const std::string &key, T value, const Endpoint *endp
 }
 
 template <class Writer>
-void Span::serialize_json(Writer& writer) const
+void Span::serialize_json(Writer &writer) const
 {
     auto serialize_endpoint = [&writer](const ::Endpoint &host) {
         writer.StartObject();
@@ -300,18 +300,18 @@ void Span::serialize_json(Writer& writer) const
     writer.StartObject();
 
     writer.Key("traceId");
-    writer.String(str, snprintf(str, sizeof(str), "%llx", m_span.trace_id));
+    writer.String(str, snprintf(str, sizeof(str), "%016llx", m_span.trace_id));
 
     writer.Key("name");
     writer.String(m_span.name);
 
     writer.Key("id");
-    writer.String(str, snprintf(str, sizeof(str), "%llx", m_span.id));
+    writer.String(str, snprintf(str, sizeof(str), "%016llx", m_span.id));
 
     if (m_span.__isset.parent_id)
     {
         writer.Key("parentId");
-        writer.String(str, snprintf(str, sizeof(str), "%llx", m_span.parent_id));
+        writer.String(str, snprintf(str, sizeof(str), "%016llx", m_span.parent_id));
     }
 
     writer.Key("annotations");

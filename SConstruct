@@ -148,7 +148,7 @@ runtest = test_env.Command(target='runtest',
 
 test_env.Execute(runtest)
 
-zipkinSimpleProxySources = ['main.c', "mongoose.c"]
+zipkinSimpleProxySources = ['main.c', 'mongoose.c', 'zf_log.c']
 zipkinSimpleProxyObjects = obj_files(source_files=zipkinSimpleProxySources,
                                      base_dir=os.path.join(example_dir, 'simple_proxy'),
                                      env=env)

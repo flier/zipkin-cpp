@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "zf_log.h"
 #include "mongoose.h"
 
 #include "zipkin.h"
@@ -390,28 +391,45 @@ int main(int argc, char **argv)
   struct mg_mgr mgr;
   struct mg_connection *nc;
 
-  while ((c = getopt(argc, argv, "bht:")) != -1)
+  zf_log_set_output_level(ZF_LOG_WARN);
+
+  while ((c = getopt(argc, argv, "dvp:bt:h")) != -1)
   {
     switch (c)
     {
-    case 'b':
-      binary_encoding = 1;
+    case 'd':
+      zf_log_set_output_level(ZF_LOG_DEBUG);
+      break;
+
+    case 'v':
+      zf_log_set_output_level(ZF_LOG_INFO);
+      break;
+
+    case 'p':
+      zf_log_set_tag_prefix(optarg);
       break;
 
     case 't':
       kafka_uri = optarg;
       break;
 
+    case 'b':
+      binary_encoding = 1;
+      break;
+
     case 'h':
     case '?':
       printf("%s [options]\n\n", argv[0]);
-      printf("-b\tEncode message in binary\n");
-      printf("-t <uri>\tKafka for tracing\n");
+      printf("-d\t\tShow debug messages\n");
+      printf("-v\t\tShow verbose messages\n");
+      printf("-p <prefix>\tTag prefix for logging\n");
+      printf("-t <uri>\tKafka URI for tracing\n");
+      printf("-b\t\tEncode message in binary\n");
 
       return 1;
 
     default:
-      printf("unknown argument: %c", c);
+      printf("unknown argument: %c\n", c);
 
       return -1;
     }

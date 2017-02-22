@@ -106,3 +106,43 @@ TEST(span, annotate)
     span.annotate("bytes", {1, 2, 3});
     ASSERT_EQ(msg.binary_annotations.back().annotation_type, AnnotationType::type::BYTES);
 }
+
+TEST(span, serialize_json)
+{
+    MockTracer tracer;
+
+    EXPECT_CALL(tracer, id())
+        .Times(1)
+        .WillOnce(Return(zipkin::Span::next_id()));
+
+    zipkin::Span span(&tracer, "test", zipkin::Span::next_id());
+
+    sockaddr_in addr;
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    addr.sin_port = 80;
+    zipkin::Endpoint host = {addr, "host"};
+
+    span.client_send(&host);
+    span.annotate("bool", true, &host);
+    span.annotate("i16", (int16_t)123);
+    span.annotate("i32", (int32_t)123);
+    span.annotate("i64", (int64_t)123);
+    span.annotate("double", 12.3);
+    span.annotate("string", std::wstring(L"测试"));
+    span.annotate("bytes", {1, 2, 3});
+
+    boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer());
+
+    span.serialize_json(buf, true);
+
+    uint8_t *ptr = nullptr;
+    uint32_t len = 0;
+
+    buf->getBuffer(&ptr, &len);
+
+    char str[1024];
+    int str_len = snprintf(str, sizeof(str), "{\"traceId\":\"%llx\",\"name\":\"test\",\"id\":\"%llx\",\"parentId\":\"%llx\",\"annotations\":[{\"endpoint\":{\"serviceName\":\"host\",\"ipv4\":\"127.0.0.1\",\"port\":80},\"timestamp\":%lld,\"value\":\"cs\"}],\"binary_annotations\":[{\"endpoint\":{\"serviceName\":\"host\",\"ipv4\":\"127.0.0.1\",\"port\":80},\"key\":\"bool\",\"value\":true},{\"key\":\"i16\",\"value\":123},{\"key\":\"i32\",\"value\":123},{\"key\":\"i64\",\"value\":123},{\"key\":\"double\",\"value\":12.3},{\"key\":\"string\",\"value\":\"\xE6\xB5\x8B\xE8\xAF\x95\"},{\"key\":\"bytes\",\"value\":[1,2,3]}],\"debug\":false,\"timestamp\":%lld}",
+                           span.trace_id(), span.id(), span.parent_id(), span.message().annotations[0].timestamp, span.message().timestamp);
+
+    ASSERT_EQ(std::string(reinterpret_cast<char *>(ptr), len), std::string(str, str_len));
+}

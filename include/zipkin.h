@@ -29,6 +29,15 @@
 
 #define ZIPKIN_ERROR "err"
 
+#define ZIPKIN_COMPRESSION_GZIP "gzip"
+#define ZIPKIN_COMPRESSION_SNAPPY "snappy"
+#define ZIPKIN_COMPRESSION_LZ4 "lz4"
+#define ZIPKIN_COMPRESSION_NONE "none"
+
+#define ZIPKIN_ENCODING_BINARY "binary"
+#define ZIPKIN_ENCODING_JSON "json"
+#define ZIPKIN_ENCODING_PRETTY_JSON "pretty_json"
+
 typedef uint64_t zipkin_span_id_t;
 typedef uint64_t zipkin_trace_id_t;
 typedef void *zipkin_userdata_t;
@@ -86,6 +95,7 @@ void zipkin_conf_free(zipkin_conf_t conf);
 
 void zipkin_conf_set_partition(zipkin_conf_t conf, int partition);
 int zipkin_conf_set_compression_codec(zipkin_conf_t conf, const char *codec);
+int zipkin_conf_set_message_codec(zipkin_conf_t conf, const char *codec);
 void zipkin_conf_set_batch_num_messages(zipkin_conf_t conf, size_t batch_num_messages);
 void zipkin_conf_set_queue_buffering_max_messages(zipkin_conf_t conf, size_t queue_buffering_max_messages);
 void zipkin_conf_set_queue_buffering_max_kbytes(zipkin_conf_t conf, size_t queue_buffering_max_kbytes);

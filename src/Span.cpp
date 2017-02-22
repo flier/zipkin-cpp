@@ -7,7 +7,15 @@
 #include <locale>
 #include <codecvt>
 
+#include <arpa/inet.h>
+
 #include <glog/logging.h>
+
+#include <thrift/protocol/TBinaryProtocol.h>
+
+#define RAPIDJSON_HAS_STDSTRING 1
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/prettywriter.h>
 
 #include "Span.h"
 #include "Tracer.h"
@@ -134,6 +142,169 @@ void Span::annotate(const std::string &key, const std::wstring &value, const End
     }
 
     m_span.binary_annotations.push_back(annotation);
+}
+
+size_t Span::serialize_binary(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf) const
+{
+    std::unique_ptr<apache::thrift::protocol::TBinaryProtocol> protocol(new apache::thrift::protocol::TBinaryProtocol(buf));
+
+    return protocol->writeByte(12) + // type of the list elements: 12 == struct
+           protocol->writeI32(1) +   // count of spans that will follow
+           m_span.write(protocol.get());
+}
+
+size_t Span::serialize_json(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, bool pretty_print) const
+{
+    rapidjson::StringBuffer buffer;
+    boost::shared_ptr<rapidjson::Writer<rapidjson::StringBuffer>> writer(
+        pretty_print ? new rapidjson::PrettyWriter<rapidjson::StringBuffer>(buffer) : new rapidjson::Writer<rapidjson::StringBuffer>(buffer));
+
+    auto serialize_endpoint = [writer](const ::Endpoint &host) {
+        writer->StartObject();
+
+        writer->Key("serviceName");
+        writer->String(host.service_name);
+
+        writer->Key("ipv4");
+        writer->String(inet_ntoa({static_cast<in_addr_t>(host.ipv4)}));
+
+        writer->Key("port");
+        writer->Int(host.port);
+
+        writer->EndObject();
+    };
+
+    auto serialize_value = [writer](const std::string &data, AnnotationType::type type) {
+        switch (type)
+        {
+        case AnnotationType::type::BOOL:
+            writer->Bool(*reinterpret_cast<const bool *>(data.c_str()));
+            break;
+
+        case AnnotationType::type::I16:
+            writer->Int(*reinterpret_cast<const int16_t *>(data.c_str()));
+            break;
+
+        case AnnotationType::type::I32:
+            writer->Int(*reinterpret_cast<const int32_t *>(data.c_str()));
+            break;
+
+        case AnnotationType::type::I64:
+            writer->Int64(*reinterpret_cast<const int64_t *>(data.c_str()));
+            break;
+
+        case AnnotationType::type::DOUBLE:
+            writer->Double(*reinterpret_cast<const double *>(data.c_str()));
+            break;
+
+        case AnnotationType::type::BYTES:
+            writer->StartArray();
+
+            for (auto c : data)
+            {
+                writer->Int(c);
+            }
+
+            writer->EndArray(data.size());
+
+            break;
+
+        case AnnotationType::type::STRING:
+            writer->String(data);
+            break;
+        }
+    };
+
+    char str[64];
+
+    writer->StartObject();
+
+    writer->Key("traceId");
+    writer->String(str, snprintf(str, sizeof(str), "%llx", m_span.trace_id));
+
+    writer->Key("name");
+    writer->String(m_span.name);
+
+    writer->Key("id");
+    writer->String(str, snprintf(str, sizeof(str), "%llx", m_span.id));
+
+    if (m_span.__isset.parent_id)
+    {
+        writer->Key("parentId");
+        writer->String(str, snprintf(str, sizeof(str), "%llx", m_span.parent_id));
+    }
+
+    writer->Key("annotations");
+    writer->StartArray();
+
+    for (auto &annotation : m_span.annotations)
+    {
+        writer->StartObject();
+
+        if (annotation.__isset.host)
+        {
+            writer->Key("endpoint");
+            serialize_endpoint(annotation.host);
+        }
+
+        writer->Key("timestamp");
+        writer->Int64(annotation.timestamp);
+
+        writer->Key("value");
+        writer->String(annotation.value);
+
+        writer->EndObject();
+    }
+
+    writer->EndArray(m_span.annotations.size());
+
+    writer->Key("binary_annotations");
+    writer->StartArray();
+
+    for (auto &annotation : m_span.binary_annotations)
+    {
+        writer->StartObject();
+
+        if (annotation.__isset.host)
+        {
+            writer->Key("endpoint");
+            serialize_endpoint(annotation.host);
+        }
+
+        writer->Key("key");
+        writer->String(annotation.key);
+
+        writer->Key("value");
+        serialize_value(annotation.value, annotation.annotation_type);
+
+        writer->EndObject();
+    }
+
+    writer->EndArray(m_span.binary_annotations.size());
+
+    if (m_span.__isset.debug)
+    {
+        writer->Key("debug");
+        writer->Bool(m_span.debug);
+    }
+
+    if (m_span.__isset.timestamp)
+    {
+        writer->Key("timestamp");
+        writer->Int64(m_span.timestamp);
+    }
+
+    if (m_span.__isset.duration)
+    {
+        writer->Key("duration");
+        writer->Int64(m_span.duration);
+    }
+
+    writer->EndObject();
+
+    buf->write((const uint8_t *)buffer.GetString(), buffer.GetSize());
+
+    return buffer.GetSize();
 }
 
 size_t CachedSpan::cache_size(void) const

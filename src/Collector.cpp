@@ -12,7 +12,6 @@
 
 #include <boost/smart_ptr.hpp>
 
-#include <thrift/protocol/TBinaryProtocol.h>
 #include <thrift/transport/TBufferTransports.h>
 
 #include "../gen-cpp/zipkinCore_types.h"
@@ -78,11 +77,22 @@ class ReusableMemoryBuffer : public apache::thrift::transport::TMemoryBuffer
 void KafkaCollector::submit(Span *span)
 {
     boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new ReusableMemoryBuffer(static_cast<CachedSpan *>(span)));
-    boost::shared_ptr<apache::thrift::protocol::TBinaryProtocol> protocol(new apache::thrift::protocol::TBinaryProtocol(buf));
 
-    uint32_t wrote = protocol->writeByte(12) + // type of the list elements: 12 == struct
-                     protocol->writeI32(1) +   // count of spans that will follow
-                     span->message().write(protocol.get());
+    uint32_t wrote = 0;
+
+    switch (m_message_codec)
+    {
+    case MessageCodec::binary:
+        wrote = span->serialize_binary(buf);
+
+        break;
+
+    case MessageCodec::json:
+    case MessageCodec::pretty_json:
+        wrote = span->serialize_json(buf, m_message_codec == MessageCodec::pretty_json);
+
+        break;
+    }
 
     VLOG(2) << "Span @ " << span << " wrote " << wrote << " bytes to message, id=" << std::hex << span->id();
     VLOG(3) << span->message();
@@ -113,7 +123,7 @@ void KafkaCollector::submit(Span *span)
     }
 }
 
-const std::string KafkaConf::to_string(CompressionCodec codec)
+const std::string to_string(CompressionCodec codec)
 {
     switch (codec)
     {
@@ -125,6 +135,19 @@ const std::string KafkaConf::to_string(CompressionCodec codec)
         return "snappy";
     case CompressionCodec::lz4:
         return "lz4";
+    }
+}
+
+const std::string to_string(MessageCodec codec)
+{
+    switch (codec)
+    {
+    case MessageCodec::binary:
+        return "binary";
+    case MessageCodec::json:
+        return "json";
+    case MessageCodec::pretty_json:
+        return "pretty_json";
     }
 }
 
@@ -228,7 +251,7 @@ KafkaCollector *KafkaConf::create(void) const
         return nullptr;
     }
 
-    return new KafkaCollector(producer, topic, std::move(reporter), std::move(partitioner), partition);
+    return new KafkaCollector(producer, topic, std::move(reporter), std::move(partitioner), partition, message_codec);
 }
 
 } // namespace zipkin

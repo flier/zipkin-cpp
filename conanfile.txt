@@ -2,6 +2,7 @@
 glog/0.3.4@eliaskousk/stable
 gflags/2.2.0@eliaskousk/stable
 gtest/1.8.0@eliaskousk/stable
+RapidJSON/1.0.2@SamuelMarks/stable
 
 [options]
 glog:shared=False

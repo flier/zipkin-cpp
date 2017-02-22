@@ -340,7 +340,7 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
   }
 }
 
-zipkin_tracer_t create_tracer(const char *kafka_uri)
+zipkin_tracer_t create_tracer(const char *kafka_uri, int binary_encoding)
 {
   struct mg_str uri = mg_mk_str(kafka_uri), host, path;
   unsigned int port = 0;
@@ -369,6 +369,8 @@ zipkin_tracer_t create_tracer(const char *kafka_uri)
   if (!conf)
     return NULL;
 
+  zipkin_conf_set_message_codec(conf, binary_encoding ? ZIPKIN_ENCODING_BINARY : ZIPKIN_ENCODING_JSON);
+
   collector = zipkin_collector_new(conf);
 
   zipkin_conf_free(conf);
@@ -385,14 +387,19 @@ int main(int argc, char **argv)
 {
   int c;
   const char *kafka_uri = NULL;
+  int binary_encoding = 0;
 
   struct mg_mgr mgr;
   struct mg_connection *nc;
 
-  while ((c = getopt(argc, argv, "ht:")) != -1)
+  while ((c = getopt(argc, argv, "bht:")) != -1)
   {
     switch (c)
     {
+    case 'b':
+      binary_encoding = 1;
+      break;
+
     case 't':
       kafka_uri = optarg;
       break;
@@ -407,7 +414,7 @@ int main(int argc, char **argv)
     default:
       printf("unknown argument: %c", c);
 
-      abort();
+      return -1;
     }
   }
 
@@ -428,7 +435,7 @@ int main(int argc, char **argv)
 
   if (kafka_uri)
   {
-    mgr.user_data = create_tracer(kafka_uri);
+    mgr.user_data = create_tracer(kafka_uri, binary_encoding);
   }
 
   mg_set_protocol_http_websocket(nc);

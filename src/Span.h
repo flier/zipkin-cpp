@@ -6,9 +6,12 @@
 #include <memory>
 #include <chrono>
 
+#include <thrift/transport/TBufferTransports.h>
+
 #include "../gen-cpp/zipkinCore_constants.h"
 
 typedef uint64_t span_id_t;
+typedef uint64_t trace_id_t;
 typedef uint64_t timestamp_t;
 typedef void *userdata_t;
 
@@ -46,6 +49,8 @@ struct Span
     Tracer *tracer(void) const { return m_tracer; }
     const ::Span &message(void) const { return m_span; }
 
+    trace_id_t trace_id(void) const { return m_span.trace_id; }
+
     span_id_t id(void) const { return m_span.id; }
     void set_id(span_id_t id) { m_span.id = id; }
 
@@ -68,16 +73,16 @@ struct Span
 
     void annotate(const std::string &value, const Endpoint *endpoint = nullptr);
 
-    inline void client_send(void) { annotate(g_zipkinCore_constants.CLIENT_SEND); }
-    inline void client_recv(void) { annotate(g_zipkinCore_constants.CLIENT_RECV); }
-    inline void server_send(void) { annotate(g_zipkinCore_constants.SERVER_SEND); }
-    inline void server_recv(void) { annotate(g_zipkinCore_constants.SERVER_RECV); }
-    inline void wire_send(void) { annotate(g_zipkinCore_constants.WIRE_SEND); }
-    inline void wire_recv(void) { annotate(g_zipkinCore_constants.WIRE_RECV); }
-    inline void client_send_fragment(void) { annotate(g_zipkinCore_constants.CLIENT_SEND_FRAGMENT); }
-    inline void client_recv_fragment(void) { annotate(g_zipkinCore_constants.CLIENT_RECV_FRAGMENT); }
-    inline void server_send_fragment(void) { annotate(g_zipkinCore_constants.SERVER_SEND_FRAGMENT); }
-    inline void server_recv_fragment(void) { annotate(g_zipkinCore_constants.SERVER_RECV_FRAGMENT); }
+    inline void client_send(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.CLIENT_SEND, endpoint); }
+    inline void client_recv(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.CLIENT_RECV, endpoint); }
+    inline void server_send(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.SERVER_SEND, endpoint); }
+    inline void server_recv(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.SERVER_RECV, endpoint); }
+    inline void wire_send(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.WIRE_SEND, endpoint); }
+    inline void wire_recv(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.WIRE_RECV, endpoint); }
+    inline void client_send_fragment(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.CLIENT_SEND_FRAGMENT, endpoint); }
+    inline void client_recv_fragment(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.CLIENT_RECV_FRAGMENT, endpoint); }
+    inline void server_send_fragment(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.SERVER_SEND_FRAGMENT, endpoint); }
+    inline void server_recv_fragment(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.SERVER_RECV_FRAGMENT, endpoint); }
 
     template <typename T>
     void annotate(const std::string &key, T value, const Endpoint *endpoint = nullptr);
@@ -144,6 +149,10 @@ struct Span
     {
         return annotate(g_zipkinCore_constants.SERVER_ADDR, value, endpoint);
     }
+
+    size_t serialize_binary(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf) const;
+
+    size_t serialize_json(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, bool pretty_print) const;
 };
 
 class CachedSpan : public Span

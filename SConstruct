@@ -40,6 +40,9 @@ conan_install = env.Command(target=conan_script,
 
 env.Clean(conan_install, conan_generated_files)
 
+if not env.GetOption('clean'):
+    env.Execute(conan_install)
+
 
 def check_conf():
     check_env = env.Clone()
@@ -47,7 +50,7 @@ def check_conf():
 
     conf = Configure(check_env)
 
-    if not conf.CheckLibWithHeader('glog', 'glog/logging.h', 'cpp'):
+    if not conf.CheckLibWithHeader('glog', 'glog/logging.h', 'c++'):
         print 'Please install glog library!'
         Exit(1)
 
@@ -55,15 +58,19 @@ def check_conf():
         print 'Please install boost library!'
         Exit(1)
 
-    if not conf.CheckLibWithHeader('thrift', 'thrift/Thrift.h', 'cpp'):
+    if not conf.CheckLibWithHeader('thrift', 'thrift/Thrift.h', 'c++'):
         print 'Please install thrift library!'
         Exit(1)
 
-    if not conf.CheckLibWithHeader('rdkafka', 'librdkafka/rdkafkacpp.h', 'cpp'):
+    if not conf.CheckCXXHeader('rapidjson/rapidjson.h'):
+        print 'Please install rapidjson library!'
+        Exit(1)
+
+    if not conf.CheckLibWithHeader('rdkafka', 'librdkafka/rdkafkacpp.h', 'c++'):
         print 'Please install rdkafka library!'
         Exit(1)
 
-    if not conf.CheckLibWithHeader('gtest', 'gtest/gtest.h', 'cpp'):
+    if not conf.CheckLibWithHeader('gtest', 'gtest/gtest.h', 'c++'):
         print 'Please install gtest library!'
         Exit(1)
 
@@ -79,6 +86,7 @@ if not env.GetOption('clean'):
 
     env.MergeFlags(conan_libs['glog'])
     env.MergeFlags(conan_libs['gflags'])
+    env.MergeFlags(conan_libs['RapidJSON'])
     env.Replace(LIBS=[lib for lib in env['LIBS'] if not lib.endswith('_main')])
 else:
     conan_libs = {'conan': {'LIBS': ['']}}

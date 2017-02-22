@@ -8,8 +8,6 @@
 #include "Span.h"
 #include "Collector.h"
 
-typedef uint64_t trace_id_t;
-
 namespace zipkin
 {
 

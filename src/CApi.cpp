@@ -143,21 +143,42 @@ void zipkin_conf_set_partition(zipkin_conf_t conf, int partition)
 }
 int zipkin_conf_set_compression_codec(zipkin_conf_t conf, const char *codec)
 {
-    if (strcasecmp(codec, "gzip") == 0)
+    if (strcasecmp(codec, ZIPKIN_COMPRESSION_GZIP) == 0)
     {
-        static_cast<zipkin::KafkaConf *>(conf)->compression_codec = zipkin::KafkaConf::CompressionCodec::gzip;
+        static_cast<zipkin::KafkaConf *>(conf)->compression_codec = zipkin::CompressionCodec::gzip;
     }
-    else if (strcasecmp(codec, "snappy") == 0)
+    else if (strcasecmp(codec, ZIPKIN_COMPRESSION_SNAPPY) == 0)
     {
-        static_cast<zipkin::KafkaConf *>(conf)->compression_codec = zipkin::KafkaConf::CompressionCodec::snappy;
+        static_cast<zipkin::KafkaConf *>(conf)->compression_codec = zipkin::CompressionCodec::snappy;
     }
-    else if (strcasecmp(codec, "lz4") == 0)
+    else if (strcasecmp(codec, ZIPKIN_COMPRESSION_LZ4) == 0)
     {
-        static_cast<zipkin::KafkaConf *>(conf)->compression_codec = zipkin::KafkaConf::CompressionCodec::lz4;
+        static_cast<zipkin::KafkaConf *>(conf)->compression_codec = zipkin::CompressionCodec::lz4;
     }
-    else if (strcasecmp(codec, "none") == 0)
+    else if (strcasecmp(codec, ZIPKIN_COMPRESSION_NONE) == 0)
     {
-        static_cast<zipkin::KafkaConf *>(conf)->compression_codec = zipkin::KafkaConf::CompressionCodec::none;
+        static_cast<zipkin::KafkaConf *>(conf)->compression_codec = zipkin::CompressionCodec::none;
+    }
+    else
+    {
+        return 0;
+    }
+
+    return -1;
+}
+int zipkin_conf_set_message_codec(zipkin_conf_t conf, const char *codec)
+{
+    if (strcasecmp(codec, ZIPKIN_ENCODING_BINARY) == 0)
+    {
+        static_cast<zipkin::KafkaConf *>(conf)->message_codec = zipkin::MessageCodec::binary;
+    }
+    else if (strcasecmp(codec, ZIPKIN_ENCODING_JSON) == 0)
+    {
+        static_cast<zipkin::KafkaConf *>(conf)->message_codec = zipkin::MessageCodec::json;
+    }
+    else if (strcasecmp(codec, ZIPKIN_ENCODING_PRETTY_JSON) == 0)
+    {
+        static_cast<zipkin::KafkaConf *>(conf)->message_codec = zipkin::MessageCodec::pretty_json;
     }
     else
     {

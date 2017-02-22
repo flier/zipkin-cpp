@@ -20,6 +20,25 @@ struct Collector
   virtual bool flush(std::chrono::milliseconds timeout) = 0;
 };
 
+enum CompressionCodec
+{
+  none,
+  gzip,
+  snappy,
+  lz4
+};
+
+static const std::string to_string(CompressionCodec codec);
+
+enum MessageCodec
+{
+  binary,
+  json,
+  pretty_json,
+};
+
+static const std::string to_string(MessageCodec codec);
+
 class KafkaCollector : public Collector
 {
   std::unique_ptr<RdKafka::Producer> m_producer;
@@ -27,15 +46,17 @@ class KafkaCollector : public Collector
   std::unique_ptr<RdKafka::DeliveryReportCb> m_reporter;
   std::unique_ptr<RdKafka::PartitionerCb> m_partitioner;
   int m_partition;
+  MessageCodec m_message_codec;
 
 public:
   KafkaCollector(std::unique_ptr<RdKafka::Producer> &producer,
                  std::unique_ptr<RdKafka::Topic> &topic,
                  std::unique_ptr<RdKafka::DeliveryReportCb> reporter = nullptr,
                  std::unique_ptr<RdKafka::PartitionerCb> partitioner = nullptr,
-                 int partition = RdKafka::Topic::PARTITION_UA)
-      : m_producer(std::move(producer)), m_topic(std::move(topic)),
-        m_reporter(std::move(reporter)), m_partitioner(std::move(partitioner)), m_partition(partition)
+                 int partition = RdKafka::Topic::PARTITION_UA,
+                 MessageCodec message_codec = MessageCodec::binary)
+      : m_producer(std::move(producer)), m_topic(std::move(topic)), m_reporter(std::move(reporter)),
+        m_partitioner(std::move(partitioner)), m_partition(partition), m_message_codec(message_codec)
   {
   }
   virtual ~KafkaCollector() override
@@ -68,20 +89,15 @@ struct KafkaConf
   // default: PARTITION_UA (UnAssigned)
   int partition;
 
-  enum CompressionCodec
-  {
-    none,
-    gzip,
-    snappy,
-    lz4
-  };
-
-  static const std::string to_string(CompressionCodec codec);
-
   // compression.codec - compression codec to use for compressing message sets.
   //
   // default: none
   CompressionCodec compression_codec;
+
+  // message codec to use for encoding message sets.
+  //
+  // default: binary
+  MessageCodec message_codec;
 
   // batch.num.messages - the minimum number of messages to wait for to accumulate in the local queue before sending off a message set.
   //
@@ -109,8 +125,7 @@ struct KafkaConf
   size_t message_send_max_retries;
 
   KafkaConf(const std::string &_brokers, const std::string &_topic_name, int _partition = RdKafka::Topic::PARTITION_UA)
-      : brokers(_brokers), topic_name(_topic_name), partition(_partition), compression_codec(none), batch_num_messages(0),
-        queue_buffering_max_messages(0), queue_buffering_max_kbytes(0), queue_buffering_max_ms(0), message_send_max_retries(0)
+      : brokers(_brokers), topic_name(_topic_name), partition(_partition), compression_codec(none), message_codec(binary), batch_num_messages(0), queue_buffering_max_messages(0), queue_buffering_max_kbytes(0), queue_buffering_max_ms(0), message_send_max_retries(0)
   {
   }
 

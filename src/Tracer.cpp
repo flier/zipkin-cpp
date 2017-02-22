@@ -6,7 +6,7 @@ namespace zipkin
 {
 
 const size_t CachedTracer::cache_line_size = 64;
-const size_t CachedTracer::default_cache_message_size = 2048;
+const size_t CachedTracer::default_cache_message_size = 4096;
 
 Tracer *Tracer::create(Collector *collector, const std::string &name)
 {

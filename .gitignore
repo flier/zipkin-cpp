@@ -1,6 +1,7 @@
 .sconf_temp
 .vscode
 bin
+build
 gen-cpp
 
 .sconsign.dblite

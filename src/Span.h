@@ -6,7 +6,7 @@
 #include <memory>
 #include <chrono>
 
-#include <thrift/transport/TBufferTransports.h>
+#include <thrift/protocol/TProtocol.h>
 
 #include "../gen-cpp/zipkinCore_constants.h"
 
@@ -150,9 +150,13 @@ struct Span
         return annotate(g_zipkinCore_constants.SERVER_ADDR, value, endpoint);
     }
 
-    size_t serialize_binary(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf) const;
+    size_t serialize_binary(apache::thrift::protocol::TProtocol& protocol) const
+    {
+        return m_span.write(&protocol);
+    }
 
-    size_t serialize_json(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, bool pretty_print) const;
+    template <class Writer>
+    void serialize_json(Writer& writer) const;
 };
 
 class CachedSpan : public Span
@@ -230,6 +234,153 @@ inline void Span::annotate(const std::string &key, T value, const Endpoint *endp
     }
 
     m_span.binary_annotations.push_back(annotation);
+}
+
+template <class Writer>
+void Span::serialize_json(Writer& writer) const
+{
+    auto serialize_endpoint = [&writer](const ::Endpoint &host) {
+        writer.StartObject();
+
+        writer.Key("serviceName");
+        writer.String(host.service_name);
+
+        writer.Key("ipv4");
+        writer.String(inet_ntoa({static_cast<in_addr_t>(host.ipv4)}));
+
+        writer.Key("port");
+        writer.Int(host.port);
+
+        writer.EndObject();
+    };
+
+    auto serialize_value = [&writer](const std::string &data, AnnotationType::type type) {
+        switch (type)
+        {
+        case AnnotationType::type::BOOL:
+            writer.Bool(*reinterpret_cast<const bool *>(data.c_str()));
+            break;
+
+        case AnnotationType::type::I16:
+            writer.Int(*reinterpret_cast<const int16_t *>(data.c_str()));
+            break;
+
+        case AnnotationType::type::I32:
+            writer.Int(*reinterpret_cast<const int32_t *>(data.c_str()));
+            break;
+
+        case AnnotationType::type::I64:
+            writer.Int64(*reinterpret_cast<const int64_t *>(data.c_str()));
+            break;
+
+        case AnnotationType::type::DOUBLE:
+            writer.Double(*reinterpret_cast<const double *>(data.c_str()));
+            break;
+
+        case AnnotationType::type::BYTES:
+            writer.StartArray();
+
+            for (auto c : data)
+            {
+                writer.Int(c);
+            }
+
+            writer.EndArray(data.size());
+
+            break;
+
+        case AnnotationType::type::STRING:
+            writer.String(data);
+            break;
+        }
+    };
+
+    char str[64];
+
+    writer.StartObject();
+
+    writer.Key("traceId");
+    writer.String(str, snprintf(str, sizeof(str), "%llx", m_span.trace_id));
+
+    writer.Key("name");
+    writer.String(m_span.name);
+
+    writer.Key("id");
+    writer.String(str, snprintf(str, sizeof(str), "%llx", m_span.id));
+
+    if (m_span.__isset.parent_id)
+    {
+        writer.Key("parentId");
+        writer.String(str, snprintf(str, sizeof(str), "%llx", m_span.parent_id));
+    }
+
+    writer.Key("annotations");
+    writer.StartArray();
+
+    for (auto &annotation : m_span.annotations)
+    {
+        writer.StartObject();
+
+        if (annotation.__isset.host)
+        {
+            writer.Key("endpoint");
+            serialize_endpoint(annotation.host);
+        }
+
+        writer.Key("timestamp");
+        writer.Int64(annotation.timestamp);
+
+        writer.Key("value");
+        writer.String(annotation.value);
+
+        writer.EndObject();
+    }
+
+    writer.EndArray(m_span.annotations.size());
+
+    writer.Key("binary_annotations");
+    writer.StartArray();
+
+    for (auto &annotation : m_span.binary_annotations)
+    {
+        writer.StartObject();
+
+        if (annotation.__isset.host)
+        {
+            writer.Key("endpoint");
+            serialize_endpoint(annotation.host);
+        }
+
+        writer.Key("key");
+        writer.String(annotation.key);
+
+        writer.Key("value");
+        serialize_value(annotation.value, annotation.annotation_type);
+
+        writer.EndObject();
+    }
+
+    writer.EndArray(m_span.binary_annotations.size());
+
+    if (m_span.__isset.debug)
+    {
+        writer.Key("debug");
+        writer.Bool(m_span.debug);
+    }
+
+    if (m_span.__isset.timestamp)
+    {
+        writer.Key("timestamp");
+        writer.Int64(m_span.timestamp);
+    }
+
+    if (m_span.__isset.duration)
+    {
+        writer.Key("duration");
+        writer.Int64(m_span.duration);
+    }
+
+    writer.EndObject();
 }
 
 } // namespace zipkin

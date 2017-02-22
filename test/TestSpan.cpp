@@ -1,5 +1,9 @@
 #include "Mocks.hpp"
 
+#define RAPIDJSON_HAS_STDSTRING 1
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/prettywriter.h>
+
 TEST(span, properties)
 {
     MockTracer tracer;
@@ -131,18 +135,71 @@ TEST(span, serialize_json)
     span.annotate("string", std::wstring(L"测试"));
     span.annotate("bytes", {1, 2, 3});
 
-    boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer());
+    rapidjson::StringBuffer buffer;
+    rapidjson::PrettyWriter <rapidjson::StringBuffer> writer(buffer);
 
-    span.serialize_json(buf, true);
+    span.serialize_json(writer);
 
-    uint8_t *ptr = nullptr;
-    uint32_t len = 0;
+    char str[2048] = {0};
+    int str_len = snprintf(str, sizeof(str),  R"###({
+    "traceId": "%llx",
+    "name": "test",
+    "id": "%llx",
+    "parentId": "%llx",
+    "annotations": [
+        {
+            "endpoint": {
+                "serviceName": "host",
+                "ipv4": "127.0.0.1",
+                "port": 80
+            },
+            "timestamp": %lld,
+            "value": "cs"
+        }
+    ],
+    "binary_annotations": [
+        {
+            "endpoint": {
+                "serviceName": "host",
+                "ipv4": "127.0.0.1",
+                "port": 80
+            },
+            "key": "bool",
+            "value": true
+        },
+        {
+            "key": "i16",
+            "value": 123
+        },
+        {
+            "key": "i32",
+            "value": 123
+        },
+        {
+            "key": "i64",
+            "value": 123
+        },
+        {
+            "key": "double",
+            "value": 12.3
+        },
+        {
+            "key": "string",
+            "value": "测试"
+        },
+        {
+            "key": "bytes",
+            "value": [
+                1,
+                2,
+                3
+            ]
+        }
+    ],
+    "debug": false,
+    "timestamp": %lld
+})###", span.trace_id(), span.id(), span.parent_id(), span.message().annotations[0].timestamp, span.message().timestamp);
 
-    buf->getBuffer(&ptr, &len);
-
-    char str[1024];
-    int str_len = snprintf(str, sizeof(str), "{\"traceId\":\"%llx\",\"name\":\"test\",\"id\":\"%llx\",\"parentId\":\"%llx\",\"annotations\":[{\"endpoint\":{\"serviceName\":\"host\",\"ipv4\":\"127.0.0.1\",\"port\":80},\"timestamp\":%lld,\"value\":\"cs\"}],\"binary_annotations\":[{\"endpoint\":{\"serviceName\":\"host\",\"ipv4\":\"127.0.0.1\",\"port\":80},\"key\":\"bool\",\"value\":true},{\"key\":\"i16\",\"value\":123},{\"key\":\"i32\",\"value\":123},{\"key\":\"i64\",\"value\":123},{\"key\":\"double\",\"value\":12.3},{\"key\":\"string\",\"value\":\"\xE6\xB5\x8B\xE8\xAF\x95\"},{\"key\":\"bytes\",\"value\":[1,2,3]}],\"debug\":false,\"timestamp\":%lld}",
-                           span.trace_id(), span.id(), span.parent_id(), span.message().annotations[0].timestamp, span.message().timestamp);
-
-    ASSERT_EQ(std::string(reinterpret_cast<char *>(ptr), len), std::string(str, str_len));
+    ASSERT_EQ(buffer.GetSize(), 1197);
+    ASSERT_EQ(std::string(buffer.GetString(), buffer.GetSize()), std::string(str, str_len));
 }

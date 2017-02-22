@@ -13,6 +13,11 @@
 #include <boost/smart_ptr.hpp>
 
 #include <thrift/transport/TBufferTransports.h>
+#include <thrift/protocol/TBinaryProtocol.h>
+
+#define RAPIDJSON_HAS_STDSTRING 1
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/prettywriter.h>
 
 #include "../gen-cpp/zipkinCore_types.h"
 
@@ -83,15 +88,42 @@ void KafkaCollector::submit(Span *span)
     switch (m_message_codec)
     {
     case MessageCodec::binary:
-        wrote = span->serialize_binary(buf);
+    {
+        apache::thrift::protocol::TBinaryProtocol protocol(buf);
+
+        wrote = protocol.writeByte(12) + // type of the list elements: 12 == struct
+                protocol.writeI32(1);    // count of spans that will follow
+
+        wrote += span->serialize_binary(protocol);
 
         break;
+    }
 
     case MessageCodec::json:
     case MessageCodec::pretty_json:
-        wrote = span->serialize_json(buf, m_message_codec == MessageCodec::pretty_json);
+    {
+        rapidjson::StringBuffer buffer;
+
+        if (m_message_codec == MessageCodec::pretty_json) {
+            rapidjson::PrettyWriter <rapidjson::StringBuffer> writer(buffer);
+
+            writer.StartArray();
+            span->serialize_json(writer);
+            writer.EndArray(1);
+        } else {
+            rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+
+            writer.StartArray();
+            span->serialize_json(writer);
+            writer.EndArray(1);
+        }
+
+        buf->write((const uint8_t *)buffer.GetString(), buffer.GetSize());
+
+        wrote =  buffer.GetSize();
 
         break;
+    }
     }
 
     VLOG(2) << "Span @ " << span << " wrote " << wrote << " bytes to message, id=" << std::hex << span->id();

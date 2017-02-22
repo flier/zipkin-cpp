@@ -340,17 +340,16 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
   }
 }
 
-zipkin_tracer_t create_tracer(const char *kafka_uri, int binary_encoding)
+zipkin_tracer_t create_collector(const char *kafka_uri, int binary_encoding)
 {
-  struct mg_str uri = mg_mk_str(kafka_uri), host, path;
+  struct mg_str host, path;
   unsigned int port = 0;
   char broker[1024] = {0};
   char *topic;
-  zipkin_conf_t conf;
-  zipkin_collector_t collector;
-  zipkin_tracer_t tracer;
+  zipkin_conf_t conf = NULL;
+  zipkin_collector_t collector = NULL;
 
-  if (mg_parse_uri(uri, NULL, NULL, &host, &port, &path, NULL, NULL))
+  if (mg_parse_uri(mg_mk_str(kafka_uri), NULL, NULL, &host, &port, &path, NULL, NULL))
     return NULL;
 
   if (port)
@@ -366,26 +365,23 @@ zipkin_tracer_t create_tracer(const char *kafka_uri, int binary_encoding)
 
   conf = zipkin_conf_new(broker, topic);
 
-  if (!conf)
-    return NULL;
-
-  zipkin_conf_set_message_codec(conf, binary_encoding ? ZIPKIN_ENCODING_BINARY : ZIPKIN_ENCODING_JSON);
-
-  collector = zipkin_collector_new(conf);
-
-  zipkin_conf_free(conf);
-
-  if (collector)
+  if (conf)
   {
-    tracer = zipkin_tracer_new(collector, APP_NAME);
+    zipkin_conf_set_message_codec(conf, binary_encoding ? ZIPKIN_ENCODING_BINARY : ZIPKIN_ENCODING_PRETTY_JSON);
+
+    collector = zipkin_collector_new(conf);
+
+    zipkin_conf_free(conf);
   }
 
-  return tracer;
+  return collector;
 }
 
 int main(int argc, char **argv)
 {
   int c;
+  zipkin_collector_t collector = NULL;
+  zipkin_tracer_t tracer = NULL;
   const char *kafka_uri = NULL;
   int binary_encoding = 0;
 
@@ -407,6 +403,7 @@ int main(int argc, char **argv)
     case 'h':
     case '?':
       printf("%s [options]\n\n", argv[0]);
+      printf("-b\tEncode message in binary\n");
       printf("-t <uri>\tKafka for tracing\n");
 
       return 1;
@@ -435,7 +432,10 @@ int main(int argc, char **argv)
 
   if (kafka_uri)
   {
-    mgr.user_data = create_tracer(kafka_uri, binary_encoding);
+    if (NULL != (collector = create_collector(kafka_uri, binary_encoding)))
+    {
+      mgr.user_data = tracer = zipkin_tracer_new(collector, APP_NAME);
+    }
   }
 
   mg_set_protocol_http_websocket(nc);
@@ -445,10 +445,11 @@ int main(int argc, char **argv)
     mg_mgr_poll(&mgr, 1000);
   }
 
-  if (mgr.user_data)
-  {
-    zipkin_collector_free(zipkin_tracer_collector((zipkin_tracer_t)mgr.user_data));
-  }
+  if (tracer)
+    zipkin_tracer_free(tracer);
+
+  if (collector)
+    zipkin_collector_free(collector);
 
   mg_mgr_free(&mgr);
 

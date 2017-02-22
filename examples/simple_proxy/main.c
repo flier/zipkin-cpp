@@ -380,10 +380,12 @@ zipkin_tracer_t create_collector(const char *kafka_uri, int binary_encoding)
 int main(int argc, char **argv)
 {
   int c;
-  zipkin_collector_t collector = NULL;
-  zipkin_tracer_t tracer = NULL;
+
   const char *kafka_uri = NULL;
   int binary_encoding = 0;
+
+  zipkin_collector_t collector = NULL;
+  zipkin_tracer_t tracer = NULL;
 
   struct mg_mgr mgr;
   struct mg_connection *nc;
@@ -417,41 +419,55 @@ int main(int argc, char **argv)
 
   signal(SIGTERM, signal_handler);
   signal(SIGINT, signal_handler);
-  setvbuf(stdout, NULL, _IOLBF, 0);
-  setvbuf(stderr, NULL, _IOLBF, 0);
 
-  mg_mgr_init(&mgr, NULL);
+  if (kafka_uri)
+  {
+    collector = create_collector(kafka_uri, binary_encoding);
+
+    if (!collector)
+    {
+      printf("Failed to create collector\n");
+      return -2;
+    }
+
+    tracer = zipkin_tracer_new(collector, APP_NAME);
+
+    if (!tracer)
+    {
+      printf("Failed to create tracer\n");
+      return -3;
+    }
+  }
+
+  mg_mgr_init(&mgr, tracer);
 
   printf("Starting proxy on port %s\n", s_http_port);
   nc = mg_bind(&mgr, s_http_port, ev_handler);
   if (nc == NULL)
   {
     printf("Failed to create listener\n");
-    return 1;
-  }
-
-  if (kafka_uri)
-  {
-    if (NULL != (collector = create_collector(kafka_uri, binary_encoding)))
-    {
-      mgr.user_data = tracer = zipkin_tracer_new(collector, APP_NAME);
-    }
+    return -4;
   }
 
   mg_set_protocol_http_websocket(nc);
 
   while (!s_signal_received)
   {
-    mg_mgr_poll(&mgr, 1000);
+    mg_mgr_poll(&mgr, 500);
   }
 
+  mg_mgr_free(&mgr);
+
   if (tracer)
+  {
     zipkin_tracer_free(tracer);
+  }
 
   if (collector)
+  {
+    zipkin_collector_flush(collector, 500);
     zipkin_collector_free(collector);
-
-  mg_mgr_free(&mgr);
+  }
 
   return 0;
 }

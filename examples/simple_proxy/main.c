@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -25,16 +26,19 @@
 #define HTTP_X_FORWARDED_PROTO "X-Forwarded-Proto"
 #define HTTP_X_SPAN_ID "X-Span-Id"
 
-#define MG_F_UPSTREAM MG_F_USER_1
-#define MG_F_TUNNEL MG_F_USER_2
+#define MG_F_PROXY MG_F_USER_1
+#define MG_F_UPSTREAM MG_F_USER_2
+#define MG_F_TUNNEL MG_F_USER_3
 
 static sig_atomic_t s_signal_received = 0;
-static const char *s_http_port = "8000";
 static struct mg_serve_http_opts s_http_server_opts;
 
 void signal_handler(int sig_num)
 {
+  ZF_LOGI("received `%s` signal", strsignal(sig_num));
+
   signal(sig_num, signal_handler); // Reinstantiate signal handler
+
   s_signal_received = sig_num;
 }
 
@@ -97,6 +101,8 @@ void forward_tcp_connection(struct mg_connection *nc, struct http_message *hm)
 
   cc = mg_connect_opt(nc->mgr, addr, ev_handler, opts);
 
+  ZF_LOGI("TCP tunnel to `%.*s` created, conn=%p", (int)hm->uri.len, hm->uri.p, cc);
+
   zipkin_span_annotate_str(span, ZIPKIN_HTTP_URL, hm->uri.p, hm->uri.len, endpoint);
   zipkin_span_set_userdata(span, cc);
 
@@ -127,7 +133,7 @@ void forward_http_request(struct mg_connection *nc, struct http_message *hm)
   zipkin_endpoint_t endpoint = create_session_endpoint(nc, "proxy"), peer_endpoint;
   zipkin_span_t span = create_session_span(nc, hm, endpoint);
   struct mg_connection *cc;
-  int i, req_len;
+  int i;
   const char *errmsg = NULL;
   struct mg_connect_opts opts = {nc, MG_F_UPSTREAM, &errmsg};
   char *uri = strndup(hm->uri.p, hm->uri.len);
@@ -169,16 +175,17 @@ void forward_http_request(struct mg_connection *nc, struct http_message *hm)
   mg_conn_addr_to_str(nc, local_addr, sizeof(local_addr), MG_SOCK_STRINGIFY_IP);
   mg_conn_addr_to_str(nc, peer_addr, sizeof(peer_addr), MG_SOCK_STRINGIFY_IP | MG_SOCK_STRINGIFY_REMOTE);
 
-  p += snprintf(p, end - p, HTTP_VIA ": 1.1 %s (%s/%s)\n", hostname, APP_NAME, APP_VERSION);
-  p += snprintf(p, end - p, HTTP_X_FORWARDED_FOR ": %s\n", peer_addr);
-  p += snprintf(p, end - p, HTTP_X_FORWARDED_PORT ": %d\n", nc->sa.sin.sin_port);
-  p += snprintf(p, end - p, HTTP_X_FORWARDED_PROTO ": %s\n", "http");
-  p += snprintf(p, end - p, HTTP_FORWARDED ": for=%s;proto=http;by=%s\n", peer_addr, local_addr);
-  p += snprintf(p, end - p, HTTP_X_SPAN_ID ": %llx", zipkin_span_id(span));
+  p += snprintf(p, end - p, HTTP_VIA ": 1.1 %s (%s/%s)\r\n", hostname, APP_NAME, APP_VERSION);
+  p += snprintf(p, end - p, HTTP_X_FORWARDED_FOR ": %s\r\n", peer_addr);
+  p += snprintf(p, end - p, HTTP_X_FORWARDED_PORT ": %d\r\n", nc->sa.sin.sin_port);
+  p += snprintf(p, end - p, HTTP_X_FORWARDED_PROTO ": %s\r\n", "http");
+  p += snprintf(p, end - p, HTTP_FORWARDED ": for=%s;proto=http;by=%s\r\n", peer_addr, local_addr);
+  p += snprintf(p, end - p, HTTP_X_SPAN_ID ": %llx\r\n", zipkin_span_id(span));
 
-  req_len = p - extra_headers;
+  cc = mg_connect_http_opt(nc->mgr, ev_handler, opts, uri, extra_headers, hm->body.len ? hm->body.p : NULL);
 
-  cc = mg_connect_http_opt(nc->mgr, ev_handler, opts, uri, extra_headers, hm->body.p);
+  ZF_LOGI("forward HTTP request to `%.*s`, conn=%p", (int)hm->uri.len, hm->uri.p, cc);
+  ZF_LOGD("headers:\n%s", extra_headers);
 
   zipkin_span_annotate_str(span, ZIPKIN_HTTP_URL, hm->uri.p, hm->uri.len, endpoint);
   zipkin_span_set_userdata(span, cc);
@@ -191,7 +198,7 @@ void forward_http_request(struct mg_connection *nc, struct http_message *hm)
     span = zipkin_span_new_child(span, uri, nc);
 
     zipkin_span_annotate(span, ZIPKIN_CLIENT_SEND, -1, peer_endpoint);
-    zipkin_span_annotate_int32(span, ZIPKIN_HTTP_REQUEST_SIZE, req_len, peer_endpoint);
+    zipkin_span_annotate_int32(span, ZIPKIN_HTTP_REQUEST_SIZE, cc->send_mbuf.size, peer_endpoint);
 
     zipkin_endpoint_free(peer_endpoint);
 
@@ -260,13 +267,21 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
   switch (ev)
   {
   case MG_EV_HTTP_REQUEST:
+    ZF_LOGI("received HTTP request from %s:%d, method=%.*s, uri=%.*s, conn=%p", inet_ntoa(nc->sa.sin.sin_addr), nc->sa.sin.sin_port, (int)hm->method.len, hm->method.p, (int)hm->uri.len, hm->uri.p, nc);
+
+    ZF_LOG_IF(hm->body.len, ZF_LOGD_MEM(hm->body.p, hm->body.len, "received %zu bytes body", hm->body.len));
+
     if (!mg_vcasecmp(&hm->method, "CONNECT"))
     {
       forward_tcp_connection(nc, hm);
+
+      nc->flags |= MG_F_PROXY;
     }
     else if (mg_get_http_header(hm, HTTP_PROXY_CONNECTION))
     {
       forward_http_request(nc, hm);
+
+      nc->flags |= MG_F_PROXY;
     }
     else
     {
@@ -276,6 +291,8 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
     break;
 
   case MG_EV_HTTP_REPLY:
+    ZF_LOGI("received HTTP response from %s:%d, conn=%p", inet_ntoa(nc->sa.sin.sin_addr), nc->sa.sin.sin_port, nc);
+
     zipkin_span_annotate(span, ZIPKIN_CLIENT_RECV, -1, NULL);
     zipkin_span_annotate_int16(span, ZIPKIN_HTTP_STATUS_CODE, hm->resp_code, NULL);
     zipkin_span_annotate_int32(span, ZIPKIN_HTTP_RESPONSE_SIZE, hm->message.len, NULL);
@@ -288,6 +305,8 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
     break;
 
   case MG_EV_CONNECT:
+    ZF_LOGI("connection to %s:%d was %s, conn=%p", inet_ntoa(nc->sa.sin.sin_addr), nc->sa.sin.sin_port, *(int *)ev_data ? "refused" : "accepted", nc);
+
     if (*(int *)ev_data != 0)
     {
       zipkin_span_annotate(span, "refused", -1, NULL);
@@ -301,6 +320,8 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
     break;
 
   case MG_EV_RECV:
+    ZF_LOGD("received TCP data %d bytes from %s:%d, conn=%p", *(int *)ev_data, inet_ntoa(nc->sa.sin.sin_addr), nc->sa.sin.sin_port, nc);
+
     if (span)
     {
       zipkin_span_annotate_int32(span, ZIPKIN_WIRE_RECV, *(int *)ev_data, NULL);
@@ -314,6 +335,8 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
     break;
 
   case MG_EV_SEND:
+    ZF_LOGD("sent TCP data %d bytes to %s:%d, conn=%p", *(int *)ev_data, inet_ntoa(nc->sa.sin.sin_addr), nc->sa.sin.sin_port, nc);
+
     if (span)
     {
       zipkin_span_annotate_int32(span, ZIPKIN_WIRE_SEND, *(int *)ev_data, NULL);
@@ -322,6 +345,8 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
     break;
 
   case MG_EV_CLOSE:
+    ZF_LOGI("connection closed, conn=%p", nc);
+
     if (cc)
     {
       cc->flags |= MG_F_SEND_AND_CLOSE;
@@ -347,6 +372,7 @@ zipkin_tracer_t create_collector(const char *kafka_uri, int binary_encoding)
   unsigned int port = 0;
   char broker[1024] = {0};
   char *topic;
+  const char *message_codec = binary_encoding ? ZIPKIN_ENCODING_BINARY : ZIPKIN_ENCODING_PRETTY_JSON;
   zipkin_conf_t conf = NULL;
   zipkin_collector_t collector = NULL;
 
@@ -368,9 +394,14 @@ zipkin_tracer_t create_collector(const char *kafka_uri, int binary_encoding)
 
   if (conf)
   {
-    zipkin_conf_set_message_codec(conf, binary_encoding ? ZIPKIN_ENCODING_BINARY : ZIPKIN_ENCODING_PRETTY_JSON);
+    zipkin_conf_set_message_codec(conf, message_codec);
 
     collector = zipkin_collector_new(conf);
+
+    if (collector)
+    {
+      ZF_LOGI("collector created, broker=%s, topic=%s, message_codec=%s", broker, topic, message_codec);
+    }
 
     zipkin_conf_free(conf);
   }
@@ -378,10 +409,26 @@ zipkin_tracer_t create_collector(const char *kafka_uri, int binary_encoding)
   return collector;
 }
 
+enum cs_log_level
+{
+  LL_NONE = -1,
+  LL_ERROR = 0,
+  LL_WARN = 1,
+  LL_INFO = 2,
+  LL_DEBUG = 3,
+  LL_VERBOSE_DEBUG = 4,
+
+  _LL_MIN = -2,
+  _LL_MAX = 5,
+};
+
+extern void cs_log_set_level(enum cs_log_level level);
+
 int main(int argc, char **argv)
 {
   int c;
 
+  const char *http_port = "8000";
   const char *kafka_uri = NULL;
   int binary_encoding = 0;
 
@@ -391,6 +438,7 @@ int main(int argc, char **argv)
   struct mg_mgr mgr;
   struct mg_connection *nc;
 
+  cs_log_set_level(LL_WARN);
   zf_log_set_output_level(ZF_LOG_WARN);
 
   while ((c = getopt(argc, argv, "dvp:bt:h")) != -1)
@@ -398,15 +446,17 @@ int main(int argc, char **argv)
     switch (c)
     {
     case 'd':
+      cs_log_set_level(LL_DEBUG);
       zf_log_set_output_level(ZF_LOG_DEBUG);
       break;
 
     case 'v':
+      cs_log_set_level(LL_INFO);
       zf_log_set_output_level(ZF_LOG_INFO);
       break;
 
     case 'p':
-      zf_log_set_tag_prefix(optarg);
+      http_port = optarg;
       break;
 
     case 't':
@@ -422,7 +472,7 @@ int main(int argc, char **argv)
       printf("%s [options]\n\n", argv[0]);
       printf("-d\t\tShow debug messages\n");
       printf("-v\t\tShow verbose messages\n");
-      printf("-p <prefix>\tTag prefix for logging\n");
+      printf("-p <port>\tListen on port (default: %s)\n", http_port);
       printf("-t <uri>\tKafka URI for tracing\n");
       printf("-b\t\tEncode message in binary\n");
 
@@ -444,7 +494,7 @@ int main(int argc, char **argv)
 
     if (!collector)
     {
-      printf("Failed to create collector\n");
+      ZF_LOGF("failed to create collector");
       return -2;
     }
 
@@ -452,18 +502,20 @@ int main(int argc, char **argv)
 
     if (!tracer)
     {
-      printf("Failed to create tracer\n");
+      ZF_LOGF("failed to create tracer");
       return -3;
     }
   }
 
   mg_mgr_init(&mgr, tracer);
 
-  printf("Starting proxy on port %s\n", s_http_port);
-  nc = mg_bind(&mgr, s_http_port, ev_handler);
-  if (nc == NULL)
+  ZF_LOGI("starting on port %s, pid=%d", http_port, getpid());
+
+  nc = mg_bind(&mgr, http_port, ev_handler);
+
+  if (!nc)
   {
-    printf("Failed to create listener\n");
+    ZF_LOGF("failed to create listener");
     return -4;
   }
 
@@ -476,6 +528,8 @@ int main(int argc, char **argv)
 
   mg_mgr_free(&mgr);
 
+  ZF_LOGI("proxy stopped");
+
   if (tracer)
   {
     zipkin_tracer_free(tracer);
@@ -483,7 +537,6 @@ int main(int argc, char **argv)
 
   if (collector)
   {
-    zipkin_collector_flush(collector, 500);
     zipkin_collector_free(collector);
   }
 

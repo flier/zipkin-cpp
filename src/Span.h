@@ -12,7 +12,8 @@
 
 typedef uint64_t span_id_t;
 typedef uint64_t trace_id_t;
-typedef uint64_t timestamp_t;
+typedef std::chrono::microseconds timestamp_t;
+typedef std::chrono::microseconds duration_t;
 typedef void *userdata_t;
 
 namespace zipkin
@@ -30,6 +31,20 @@ struct Tracer;
 
 class CachedTracer;
 
+/**
+* A trace is a series of spans (often RPC calls) which form a latency tree.
+*
+* <p>Spans are usually created by instrumentation in RPC clients or servers, but can also
+* represent in-process activity. Annotations in spans are similar to log statements, and are
+* sometimes created directly by application developers to indicate events of interest, such as a
+* cache miss.
+*
+* <p>The root span is where {@link #parent_id} is 0; it usually has the longest {@link #duration} in the
+* trace.
+*
+* <p>Span identifiers are packed into longs, but should be treated opaquely. ID encoding is
+* 16 or 32 character lower-hex, to avoid signed interpretation.
+*/
 struct Span
 {
   protected:
@@ -40,26 +55,84 @@ struct Span
     static const ::Endpoint host(const Endpoint *endpoint);
 
   public:
+    /**
+     * Construct a span
+     */
     Span(Tracer *tracer, const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr);
 
+    /**
+     * Reset a span
+     */
     void reset(const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr);
 
+    /**
+     * Submit a span to {@link Tracer}
+     */
     void submit(void);
 
+    /**
+     * Associated {@link Tracer}
+     */
     Tracer *tracer(void) const { return m_tracer; }
+
     const ::Span &message(void) const { return m_span; }
 
+    /**
+     * Unique 8-byte identifier for a trace, set on all spans within it.
+     */
     trace_id_t trace_id(void) const { return m_span.trace_id; }
 
+    /** @see Span#trace_id */
+    void set_trace_id(trace_id_t trace_id) { m_span.trace_id = trace_id; }
+
+    /**
+    * Unique 8-byte identifier of this span within a trace.
+    *
+    * <p>A span is uniquely identified in storage by ({@linkplain #trace_id}, {@code #id}).
+    */
     span_id_t id(void) const { return m_span.id; }
+
+    /** @see Span#id */
     void set_id(span_id_t id) { m_span.id = id; }
 
+    /**
+    * Span name in lowercase, rpc method for example.
+    *
+    * <p>Conventionally, when the span name isn't known, name = "unknown".
+    */
     const std::string &name(void) const { return m_span.name; }
 
+    /** @see Span#name */
+    void set_name(const std::string &name) { m_span.name = name; }
+
+    /**
+    * The parent's {@link #id} or 0 if this the root span in a trace.
+    */
     span_id_t parent_id(void) const { return m_span.parent_id; }
+
+    /** @see Span#parent_id */
     void set_parent_id(span_id_t id) { m_span.parent_id = id; }
 
+    /**
+    * Epoch microseconds of the start of this span, possibly absent if this an incomplete span.
+    */
+    timestamp_t timestamp(void) const { return timestamp_t(m_span.timestamp); }
+
+    /** @see Span#timestamp */
+    void set_timestamp(timestamp_t timestamp) { m_span.timestamp = timestamp.count(); }
+
+    /**
+    * Measurement in microseconds of the critical path, if known. Durations of less than one
+    * microsecond must be rounded up to 1 microsecond.
+    */
+    duration_t duration(void) const { return duration_t(m_span.duration); }
+
+    /** @see Span#duration */
+    void set_duration(duration_t duration) { m_span.duration = duration.count(); }
+
     userdata_t userdata(void) const { return m_userdata; }
+
+    /** @see Span#userdata */
     void set_userdata(userdata_t userdata) { m_userdata = userdata; }
 
     virtual Span *span(const std::string &name, userdata_t userdata = nullptr) const
@@ -71,6 +144,9 @@ struct Span
 
     static timestamp_t now();
 
+    /**
+    * Associates events that explain latency with a timestamp.
+    */
     void annotate(const std::string &value, const Endpoint *endpoint = nullptr);
 
     inline void client_send(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.CLIENT_SEND, endpoint); }
@@ -84,6 +160,9 @@ struct Span
     inline void server_send_fragment(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.SERVER_SEND_FRAGMENT, endpoint); }
     inline void server_recv_fragment(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.SERVER_RECV_FRAGMENT, endpoint); }
 
+    /**
+    * Tags a span with context, usually to support query or aggregation.
+    */
     template <typename T>
     void annotate(const std::string &key, T value, const Endpoint *endpoint = nullptr);
 

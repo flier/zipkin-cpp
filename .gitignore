@@ -2,6 +2,7 @@
 .vscode
 bin
 build
+docs
 gen-cpp
 
 .sconsign.dblite

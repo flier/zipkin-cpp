@@ -52,12 +52,22 @@ typedef void *zipkin_collector_t;
 extern "C" {
 #endif
 
+enum zipkin_logger_level_t
+{
+    LOG_WARN = 0,
+    LOG_INFO = 1,
+    LOG_DEBUG = 2,
+    LOG_TRACE = 3,
+};
+
+void zipkin_set_logging_level(enum zipkin_logger_level_t level);
+
 zipkin_endpoint_t zipkin_endpoint_new(struct sockaddr_in *addr, const char *service, int len);
 void zipkin_endpoint_free(zipkin_endpoint_t endpoint);
 
 zipkin_span_t zipkin_span_new(zipkin_tracer_t tracer, const char *name, zipkin_userdata_t userdata);
 zipkin_span_t zipkin_span_new_child(zipkin_span_t span, const char *name, zipkin_userdata_t userdata);
-void zipkin_span_free(zipkin_span_t span);
+void zipkin_span_release(zipkin_span_t span);
 
 zipkin_span_id_t zipkin_span_id(zipkin_span_t span);
 void zipkin_span_set_id(zipkin_span_t span, zipkin_span_id_t id);

@@ -38,6 +38,7 @@ Span::Span(Tracer *tracer, const std::string &name, span_id_t parent_id, userdat
 
 void Span::reset(const std::string &name, span_id_t parent_id, userdata_t userdata)
 {
+    m_span.__isset = _Span__isset();
     m_span.__set_name(name);
     m_span.__set_id(next_id());
     m_span.__set_timestamp(now());
@@ -153,7 +154,7 @@ void *CachedSpan::operator new(size_t size, CachedTracer *tracer) noexcept
 
     VLOG(2) << "Span @ " << p << " allocated with " << sz << " bytes";
 
-    return ::operator new(sz, p);
+    return p;
 }
 
 void CachedSpan::operator delete(void *ptr, std::size_t sz) noexcept

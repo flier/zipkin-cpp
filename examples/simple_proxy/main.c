@@ -360,7 +360,6 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
       }
 
       zipkin_span_submit(span);
-      zipkin_span_free(span);
     }
     break;
   }
@@ -438,6 +437,7 @@ int main(int argc, char **argv)
   struct mg_mgr mgr;
   struct mg_connection *nc;
 
+  zipkin_set_logging_level(LOG_WARN);
   cs_log_set_level(LL_WARN);
   zf_log_set_output_level(ZF_LOG_WARN);
 
@@ -446,11 +446,13 @@ int main(int argc, char **argv)
     switch (c)
     {
     case 'd':
+      zipkin_set_logging_level(LOG_DEBUG);
       cs_log_set_level(LL_DEBUG);
       zf_log_set_output_level(ZF_LOG_DEBUG);
       break;
 
     case 'v':
+      zipkin_set_logging_level(LOG_INFO);
       cs_log_set_level(LL_INFO);
       zf_log_set_output_level(ZF_LOG_INFO);
       break;

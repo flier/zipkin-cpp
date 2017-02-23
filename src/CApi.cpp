@@ -1,5 +1,7 @@
 #include <strings.h>
 
+#include <glog/logging.h>
+
 #include "zipkin.h"
 
 #include "Span.h"
@@ -9,6 +11,11 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+void zipkin_set_logging_level(enum zipkin_logger_level_t level)
+{
+    FLAGS_v = (int)level;
+}
 
 zipkin_endpoint_t zipkin_endpoint_new(struct sockaddr_in *addr, const char *service, int len)
 {
@@ -27,9 +34,9 @@ zipkin_span_t zipkin_span_new_child(zipkin_span_t span, const char *name, zipkin
 {
     return static_cast<zipkin::Span *>(span)->span(name, userdata);
 }
-void zipkin_span_free(zipkin_span_t span)
+void zipkin_span_release(zipkin_span_t span)
 {
-    delete static_cast<zipkin::CachedSpan *>(span);
+    static_cast<zipkin::CachedSpan *>(span)->release();
 }
 
 zipkin_span_id_t zipkin_span_id(zipkin_span_t span)

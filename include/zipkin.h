@@ -70,17 +70,105 @@ zipkin_span_t zipkin_span_new_child(zipkin_span_t span, const char *name, zipkin
 void zipkin_span_release(zipkin_span_t span);
 
 zipkin_span_id_t zipkin_span_id(zipkin_span_t span);
-void zipkin_span_set_id(zipkin_span_t span, zipkin_span_id_t id);
+zipkin_span_t zipkin_span_set_id(zipkin_span_t span, zipkin_span_id_t id);
 
 const char *zipkin_span_name(zipkin_span_t span);
 
 zipkin_span_id_t zipkin_span_parent_id(zipkin_span_t span);
-void zipkin_span_set_parent_id(zipkin_span_t span, zipkin_span_id_t id);
+zipkin_span_t zipkin_span_set_parent_id(zipkin_span_t span, zipkin_span_id_t id);
 
 zipkin_tracer_t zipkin_span_tracer(zipkin_span_t span);
 
 zipkin_userdata_t zipkin_span_userdata(zipkin_span_t span);
-void zipkin_span_set_userdata(zipkin_span_t span, zipkin_userdata_t userdata);
+zipkin_span_t zipkin_span_set_userdata(zipkin_span_t span, zipkin_userdata_t userdata);
+
+#define ANNOTATE(span, value, endpoint)                  \
+    if (span)                                            \
+    {                                                    \
+        zipkin_span_annotate(span, value, -1, endpoint); \
+    }
+#define ANNOTATE_IF(expr, span, value, endpoint)         \
+    if (span && (expr))                                  \
+    {                                                    \
+        zipkin_span_annotate(span, value, -1, endpoint); \
+    }
+
+#define ANNOTATE_BOOL(span, key, value, endpoint)              \
+    if (span)                                                  \
+    {                                                          \
+        zipkin_span_annotate_bool(span, key, value, endpoint); \
+    }
+#define ANNOTATE_BOOL_IF(expr, span, key, value, endpoint)     \
+    if (span && (expr))                                        \
+    {                                                          \
+        zipkin_span_annotate_bool(span, key, value, endpoint); \
+    }
+
+#define ANNOTATE_BYTES(span, key, value, len, endpoint)              \
+    if (span)                                                        \
+    {                                                                \
+        zipkin_span_annotate_bytes(span, key, value, len, endpoint); \
+    }
+#define ANNOTATE_BYTES_IF(expr, span, key, value, len, endpoint)     \
+    if (span && (expr))                                              \
+    {                                                                \
+        zipkin_span_annotate_bytes(span, key, value, len, endpoint); \
+    }
+
+#define ANNOTATE_INT16(span, key, value, endpoint)              \
+    if (span)                                                   \
+    {                                                           \
+        zipkin_span_annotate_int16(span, key, value, endpoint); \
+    }
+#define ANNOTATE_INT16_IF(expr, span, key, value, endpoint)     \
+    if (span && (expr))                                         \
+    {                                                           \
+        zipkin_span_annotate_int16(span, key, value, endpoint); \
+    }
+
+#define ANNOTATE_INT32(span, key, value, endpoint)              \
+    if (span)                                                   \
+    {                                                           \
+        zipkin_span_annotate_int32(span, key, value, endpoint); \
+    }
+#define ANNOTATE_INT32_IF(expr, span, key, value, endpoint)     \
+    if (span && (expr))                                         \
+    {                                                           \
+        zipkin_span_annotate_int32(span, key, value, endpoint); \
+    }
+
+#define ANNOTATE_INT64(span, key, value, endpoint)              \
+    if (span)                                                   \
+    {                                                           \
+        zipkin_span_annotate_int64(span, key, value, endpoint); \
+    }
+#define ANNOTATE_INT64_IF(expr, span, key, value, endpoint)     \
+    if (span && (expr))                                         \
+    {                                                           \
+        zipkin_span_annotate_int64(span, key, value, endpoint); \
+    }
+
+#define ANNOTATE_DOUBLE(span, key, value, endpoint)              \
+    if (span)                                                    \
+    {                                                            \
+        zipkin_span_annotate_double(span, key, value, endpoint); \
+    }
+#define ANNOTATE_DOUBLE_IF(expr, span, key, value, endpoint)     \
+    if (span && (expr))                                          \
+    {                                                            \
+        zipkin_span_annotate_double(span, key, value, endpoint); \
+    }
+
+#define ANNOTATE_STR(span, key, value, len, endpoint)              \
+    if (span)                                                      \
+    {                                                              \
+        zipkin_span_annotate_str(span, key, value, len, endpoint); \
+    }
+#define ANNOTATE_STR_IF(expr, span, key, value, len, endpoint)     \
+    if (span && (expr))                                            \
+    {                                                              \
+        zipkin_span_annotate_str(span, key, value, len, endpoint); \
+    }
 
 void zipkin_span_annotate(zipkin_span_t span, const char *value, int len, zipkin_endpoint_t endpoint);
 void zipkin_span_annotate_bool(zipkin_span_t span, const char *key, int value, zipkin_endpoint_t endpoint);

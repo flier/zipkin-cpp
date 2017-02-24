@@ -12,16 +12,18 @@ namespace zipkin
 {
 
 /**
-* \brief Push messages to transport
+* \brief Push Span as messages to transport
 */
 struct Collector
 {
   virtual ~Collector() = default;
 
   /**
-  * \brief Async submit a Span as message to a transport
+  * \brief Async submit Span to transport
   *
-  * The Span will be encoded to message, and {@link Span::release} after the message was sent.
+  * \param span encoded to message and send to the transport,
+  *
+  * {@link Span::release} will be call after the message was sent.
   */
   virtual void submit(Span *span) = 0;
 
@@ -91,10 +93,23 @@ public:
     flush();
   }
 
+  /**
+  * \brief Kafka producer
+  */
   RdKafka::Producer *producer(void) const { return m_producer.get(); }
+
+  /**
+  * \brief Kafka topic
+  */
   RdKafka::Topic *topic(void) const { return m_topic.get(); }
 
+  /**
+  * \brief Kafka topic partition
+  */
+  int partition(void) const { return m_partition; }
+
   // Implement Collector
+
   virtual void submit(Span *span) override;
 
   virtual bool flush(std::chrono::milliseconds timeout = 500ms) override

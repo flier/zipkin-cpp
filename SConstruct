@@ -3,10 +3,11 @@ import os.path
 import itertools
 from distutils.util import strtobool
 
-from SCons.Script import SConscript, Environment, Configure, Exit, ARGUMENTS
+from SCons.Script import SConscript, Environment, Glob, Configure, Depends, Exit, FindFile, ARGUMENTS
 
 debug_mode = strtobool(ARGUMENTS.get('debug', 'true'))
 release_mode = strtobool(ARGUMENTS.get('release', 'false'))
+gen_doc = strtobool(ARGUMENTS.get('doc', 'false'))
 build_dir = ARGUMENTS.get('build_dir', 'build')
 gen_dir = ARGUMENTS.get('gen_dir', 'gen-cpp')
 
@@ -15,6 +16,7 @@ src_dir = 'src'
 test_dir = 'test'
 inc_dir = 'include'
 example_dir = 'examples'
+doc_dir = os.path.join(build_dir, 'docs')
 obj_dir = os.path.join(build_dir, 'obj')
 
 env = Environment(CXXFLAGS=['-std=c++14', '-Wno-invalid-offsetof'],
@@ -157,3 +159,16 @@ env.Append(LIBS=['c++'])
 
 env.Program(target=os.path.join(bin_dir, 'simple_proxy',),
             source=list(zipkinSimpleProxyObjects) + [zipkinLib])
+
+header_files = list(itertools.chain([Glob(os.path.join(dir, '*.h'))
+                                     for dir in [src_dir, inc_dir, gen_dir]]))
+
+doxygen = env.Command(target=doc_dir,
+                      source=['Doxyfile'] + header_files,
+                      action=['doxygen'])
+
+Depends(doxygen, zipkinLib)
+
+if gen_doc:
+    print "Generating API documents ..."
+    env.AlwaysBuild(doxygen)

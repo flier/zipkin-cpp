@@ -33,6 +33,7 @@ class zipkinCoreConstants {
   std::string HTTP_REQUEST_SIZE;
   std::string HTTP_RESPONSE_SIZE;
   std::string LOCAL_COMPONENT;
+  std::string ERROR;
   std::string CLIENT_ADDR;
   std::string SERVER_ADDR;
 };

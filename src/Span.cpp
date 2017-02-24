@@ -14,8 +14,6 @@
 namespace zipkin
 {
 
-const std::string TraceKeys::ERROR = std::string("error");
-
 Span::Span(Tracer *tracer, const std::string &name, span_id_t parent_id, userdata_t userdata) : m_tracer(tracer)
 {
     if (tracer)

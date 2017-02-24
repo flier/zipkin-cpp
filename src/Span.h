@@ -173,26 +173,163 @@ using AnnotationType = ::AnnotationType::type;
 * \enum AnnotationType
 *
 * \var AnnotationType AnnotationType::BOOL
-* bool
+* \p Set to 0x01 when key is CLIENT_ADDR or SERVER_ADDR
 *
 * \var AnnotationType AnnotationType::BYTES
 * No encoding, or type is unknown.
 *
 * \var AnnotationType AnnotationType::I16
-* int16_t
+* \p int16_t
 *
 * \var AnnotationType AnnotationType::I32
-* int32_t
+* \p int32_t
 *
 * \var AnnotationType AnnotationType::I64
-* int64_t
+* \p int64_t
 *
 * \var AnnotationType AnnotationType::DOUBLE
-* double
+* \p double
 *
 * \var AnnotationType AnnotationType::STRING
 * The only type zipkin v1 supports search against.
 */
+
+#define DEF_TRACE_KEY(name) static constexpr const std::string &name = g_zipkinCore_constants.name;
+
+/**
+* \brief Span tracing key
+*/
+struct TraceKeys
+{
+    /**
+    * \brief The client sent ("cs") a request to a server.
+    *
+    * There is only one send per span. For example, if there's a transport error,
+    * each attempt can be logged as a #WIRE_SEND annotation.
+    */
+    DEF_TRACE_KEY(CLIENT_SEND)
+    /**
+    * \brief The client received ("cr") a response from a server.
+    *
+    * There is only one receive per span. For example, if duplicate responses were received,
+    * each can be logged as a #WIRE_RECV annotation.
+    */
+    DEF_TRACE_KEY(CLIENT_RECV)
+    /**
+    * \brief The server sent ("ss") a response to a client.
+    *
+    * There is only one response per span. If there's a transport error,
+    * each attempt can be logged as a #WIRE_SEND annotation.
+    */
+    DEF_TRACE_KEY(SERVER_SEND)
+    /**
+    * \brief The server received ("sr") a request from a client.
+    *
+    * There is only one request per span.  For example, if duplicate responses were received,
+    * each can be logged as a #WIRE_RECV annotation.
+    */
+    DEF_TRACE_KEY(SERVER_RECV)
+    /**
+    * \brief Optionally logs an attempt to send a message on the wire.
+    *
+    * Multiple wire send events could indicate network retries.
+    * A lag between client or server send and wire send might indicate
+    * queuing or processing delay.
+    */
+    DEF_TRACE_KEY(WIRE_SEND)
+    /**
+    * \brief Optionally logs an attempt to receive a message from the wire.
+    *
+    * Multiple wire receive events could indicate network retries.
+    * A lag between wire receive and client or server receive might
+    * indicate queuing or processing delay.
+    */
+    DEF_TRACE_KEY(WIRE_RECV)
+    /**
+    * \brief Optionally logs progress of a (#CLIENT_SEND, #WIRE_SEND).
+    *
+    * For example, this could be one chunk in a chunked request.
+    */
+    DEF_TRACE_KEY(CLIENT_SEND_FRAGMENT)
+    /**
+    * \brief Optionally logs progress of a (#CLIENT_RECV, #WIRE_RECV).
+    *
+    * For example, this could be one chunk in a chunked response.
+    */
+    DEF_TRACE_KEY(CLIENT_RECV_FRAGMENT)
+    /**
+    * \brief Optionally logs progress of a (#SERVER_SEND, #WIRE_SEND).
+    *
+    * For example, this could be one chunk in a chunked response.
+    */
+    DEF_TRACE_KEY(SERVER_SEND_FRAGMENT)
+    /**
+    * \brief Optionally logs progress of a (#SERVER_RECV, #WIRE_RECV).
+    *
+    * For example, this could be one chunk in a chunked request.
+    */
+    DEF_TRACE_KEY(SERVER_RECV_FRAGMENT)
+    /**
+    * \brief The {@link BinaryAnnotation#value value} of "lc" is the component or namespace of a local
+    * span.
+    *
+    * <p>{@link BinaryAnnotation#endpoint} adds service context needed to support queries.
+    *
+    * <p>Local Component("lc") supports three key features: flagging, query by service and filtering
+    * Span.name by namespace.
+    *
+    * <p>While structurally the same, local spans are fundamentally different than RPC spans in how
+    * they should be interpreted. For example, zipkin v1 tools center on RPC latency and service
+    * graphs. Root local-spans are neither indicative of critical path RPC latency, nor have impact
+    * on the shape of a service graph. By flagging with "lc", tools can special-case local spans.
+    *
+    * <p>Zipkin v1 Spans are unqueryable unless they can be indexed by service name. The only path
+    * to a {@link Endpoint#service_name service name} is via {@link BinaryAnnotation#endpoint
+    * host}. By logging "lc", a local span can be queried even if no other annotations are logged.
+    *
+    * <p>The value of "lc" is the namespace of {@link Span#name}. For example, it might be
+    * "finatra2", for a span named "bootstrap". "lc" allows you to resolves conflicts for the same
+    * Span.name, for example "finatra/bootstrap" vs "finch/bootstrap". Using local component, you'd
+    * search for spans named "bootstrap" where "lc=finch"
+    */
+    DEF_TRACE_KEY(LOCAL_COMPONENT)
+    /**
+    * \brief When present, {@link BinaryAnnotation#endpoint} indicates a client address ("ca") in a span.
+    * Most likely, there's only one. Multiple addresses are possible when a client changes its ip or
+    * port within a span.
+    */
+    DEF_TRACE_KEY(CLIENT_ADDR)
+    /**
+    * \brief When present, {@link BinaryAnnotation#endpoint} indicates a server address ("sa") in a span.
+    * Most likely, there's only one. Multiple addresses are possible when a client is redirected, or
+    * fails to a different server ip or port.
+    */
+    DEF_TRACE_KEY(SERVER_ADDR)
+    /**
+    * \brief When an {@link Annotation#value}, this indicates when an error occurred. When a {@link
+    * BinaryAnnotation#key}, the value is a human readable message associated with an error.
+    *
+    * <p>Due to transient errors, an ERROR annotation should not be interpreted as a span failure,
+    * even the annotation might explain additional latency. Instrumentation should add the ERROR
+    * binary annotation when the operation failed and couldn't be recovered.
+    *
+    * <p>Here's an example: A span has an ERROR annotation, added when a WIRE_SEND failed. Another
+    * WIRE_SEND succeeded, so there's no ERROR binary annotation on the span because the overall
+    * operation succeeded.
+    *
+    * <p>Note that RPC spans often include both client and server hosts: It is possible that only one
+    * side perceived the error.
+    */
+    DEF_TRACE_KEY(ERROR)
+
+    DEF_TRACE_KEY(HTTP_HOST)
+    DEF_TRACE_KEY(HTTP_METHOD)
+    DEF_TRACE_KEY(HTTP_PATH)
+    DEF_TRACE_KEY(HTTP_URL)
+    DEF_TRACE_KEY(HTTP_STATUS_CODE)
+    DEF_TRACE_KEY(HTTP_REQUEST_SIZE)
+    DEF_TRACE_KEY(HTTP_RESPONSE_SIZE)
+};
 
 /**
 * \brief Binary annotations are tags applied to a Span to give it context. For example, a binary
@@ -332,141 +469,6 @@ class BinaryAnnotation
     }
 };
 
-#define DEF_TRACE_KEY(name) static constexpr const std::string &name = g_zipkinCore_constants.name;
-#define DEF_TRACE_VALUE(name) static const std::string name;
-
-struct TraceKeys
-{
-    /**
-    * \brief The client sent ("cs") a request to a server.
-    *
-    * There is only one send per span. For example, if there's a transport error,
-    * each attempt can be logged as a #WIRE_SEND annotation.
-    */
-    DEF_TRACE_KEY(CLIENT_SEND)
-    /**
-    * \brief The client received ("cr") a response from a server.
-    *
-    * There is only one receive per span. For example, if duplicate responses were received,
-    * each can be logged as a #WIRE_RECV annotation.
-    */
-    DEF_TRACE_KEY(CLIENT_RECV)
-    /**
-    * \brief The server sent ("ss") a response to a client.
-    *
-    * There is only one response per span. If there's a transport error,
-    * each attempt can be logged as a #WIRE_SEND annotation.
-    */
-    DEF_TRACE_KEY(SERVER_SEND)
-    /**
-    * \brief The server received ("sr") a request from a client.
-    *
-    * There is only one request per span.  For example, if duplicate responses were received,
-    * each can be logged as a #WIRE_RECV annotation.
-    */
-    DEF_TRACE_KEY(SERVER_RECV)
-    /**
-    * \brief Optionally logs an attempt to send a message on the wire.
-    *
-    * Multiple wire send events could indicate network retries.
-    * A lag between client or server send and wire send might indicate
-    * queuing or processing delay.
-    */
-    DEF_TRACE_KEY(WIRE_SEND)
-    /**
-    * \brief Optionally logs an attempt to receive a message from the wire.
-    *
-    * Multiple wire receive events could indicate network retries.
-    * A lag between wire receive and client or server receive might
-    * indicate queuing or processing delay.
-    */
-    DEF_TRACE_KEY(WIRE_RECV)
-    /**
-    * \brief Optionally logs progress of a (#CLIENT_SEND, #WIRE_SEND).
-    *
-    * For example, this could be one chunk in a chunked request.
-    */
-    DEF_TRACE_KEY(CLIENT_SEND_FRAGMENT)
-    /**
-    * \brief Optionally logs progress of a (#CLIENT_RECV, #WIRE_RECV).
-    *
-    * For example, this could be one chunk in a chunked response.
-    */
-    DEF_TRACE_KEY(CLIENT_RECV_FRAGMENT)
-    /**
-    * \brief Optionally logs progress of a (#SERVER_SEND, #WIRE_SEND).
-    *
-    * For example, this could be one chunk in a chunked response.
-    */
-    DEF_TRACE_KEY(SERVER_SEND_FRAGMENT)
-    /**
-    * \brief Optionally logs progress of a (#SERVER_RECV, #WIRE_RECV).
-    *
-    * For example, this could be one chunk in a chunked request.
-    */
-    DEF_TRACE_KEY(SERVER_RECV_FRAGMENT)
-    /**
-    * \brief The {@link BinaryAnnotation#value value} of "lc" is the component or namespace of a local
-    * span.
-    *
-    * <p>{@link BinaryAnnotation#endpoint} adds service context needed to support queries.
-    *
-    * <p>Local Component("lc") supports three key features: flagging, query by service and filtering
-    * Span.name by namespace.
-    *
-    * <p>While structurally the same, local spans are fundamentally different than RPC spans in how
-    * they should be interpreted. For example, zipkin v1 tools center on RPC latency and service
-    * graphs. Root local-spans are neither indicative of critical path RPC latency, nor have impact
-    * on the shape of a service graph. By flagging with "lc", tools can special-case local spans.
-    *
-    * <p>Zipkin v1 Spans are unqueryable unless they can be indexed by service name. The only path
-    * to a {@link Endpoint#service_name service name} is via {@link BinaryAnnotation#endpoint
-    * host}. By logging "lc", a local span can be queried even if no other annotations are logged.
-    *
-    * <p>The value of "lc" is the namespace of {@link Span#name}. For example, it might be
-    * "finatra2", for a span named "bootstrap". "lc" allows you to resolves conflicts for the same
-    * Span.name, for example "finatra/bootstrap" vs "finch/bootstrap". Using local component, you'd
-    * search for spans named "bootstrap" where "lc=finch"
-    */
-    DEF_TRACE_KEY(LOCAL_COMPONENT)
-    /**
-    * \brief When present, {@link BinaryAnnotation#endpoint} indicates a client address ("ca") in a span.
-    * Most likely, there's only one. Multiple addresses are possible when a client changes its ip or
-    * port within a span.
-    */
-    DEF_TRACE_KEY(CLIENT_ADDR)
-    /**
-    * \brief When present, {@link BinaryAnnotation#endpoint} indicates a server address ("sa") in a span.
-    * Most likely, there's only one. Multiple addresses are possible when a client is redirected, or
-    * fails to a different server ip or port.
-    */
-    DEF_TRACE_KEY(SERVER_ADDR)
-    /**
-    * \brief When an {@link Annotation#value}, this indicates when an error occurred. When a {@link
-    * BinaryAnnotation#key}, the value is a human readable message associated with an error.
-    *
-    * <p>Due to transient errors, an ERROR annotation should not be interpreted as a span failure,
-    * even the annotation might explain additional latency. Instrumentation should add the ERROR
-    * binary annotation when the operation failed and couldn't be recovered.
-    *
-    * <p>Here's an example: A span has an ERROR annotation, added when a WIRE_SEND failed. Another
-    * WIRE_SEND succeeded, so there's no ERROR binary annotation on the span because the overall
-    * operation succeeded.
-    *
-    * <p>Note that RPC spans often include both client and server hosts: It is possible that only one
-    * side perceived the error.
-    */
-    DEF_TRACE_VALUE(ERROR)
-
-    DEF_TRACE_KEY(HTTP_HOST)
-    DEF_TRACE_KEY(HTTP_METHOD)
-    DEF_TRACE_KEY(HTTP_PATH)
-    DEF_TRACE_KEY(HTTP_URL)
-    DEF_TRACE_KEY(HTTP_STATUS_CODE)
-    DEF_TRACE_KEY(HTTP_REQUEST_SIZE)
-    DEF_TRACE_KEY(HTTP_RESPONSE_SIZE)
-};
-
 /**
 * \brief A trace is a series of spans (often RPC calls) which form a latency tree.
 *
@@ -597,7 +599,7 @@ class Span
     inline userdata_t userdata(void) const { return m_userdata; }
 
     /** \sa Span#userdata */
-    inline Span &set_userdata(userdata_t userdata)
+    inline Span &with_userdata(userdata_t userdata)
     {
         m_userdata = userdata;
         return *this;

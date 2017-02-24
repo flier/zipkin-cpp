@@ -43,10 +43,11 @@ class BinaryAnnotation;
 class Span;
 
 typedef struct _Endpoint__isset {
-  _Endpoint__isset() : ipv4(false), port(false), service_name(false) {}
+  _Endpoint__isset() : ipv4(false), port(false), service_name(false), ipv6(false) {}
   bool ipv4 :1;
   bool port :1;
   bool service_name :1;
+  bool ipv6 :1;
 } _Endpoint__isset;
 
 class Endpoint : public virtual ::apache::thrift::TBase {
@@ -54,13 +55,14 @@ class Endpoint : public virtual ::apache::thrift::TBase {
 
   Endpoint(const Endpoint&);
   Endpoint& operator=(const Endpoint&);
-  Endpoint() : ipv4(0), port(0), service_name() {
+  Endpoint() : ipv4(0), port(0), service_name(), ipv6() {
   }
 
   virtual ~Endpoint() throw();
   int32_t ipv4;
   int16_t port;
   std::string service_name;
+  std::string ipv6;
 
   _Endpoint__isset __isset;
 
@@ -70,6 +72,8 @@ class Endpoint : public virtual ::apache::thrift::TBase {
 
   void __set_service_name(const std::string& val);
 
+  void __set_ipv6(const std::string& val);
+
   bool operator == (const Endpoint & rhs) const
   {
     if (!(ipv4 == rhs.ipv4))
@@ -77,6 +81,10 @@ class Endpoint : public virtual ::apache::thrift::TBase {
     if (!(port == rhs.port))
       return false;
     if (!(service_name == rhs.service_name))
+      return false;
+    if (__isset.ipv6 != rhs.__isset.ipv6)
+      return false;
+    else if (__isset.ipv6 && !(ipv6 == rhs.ipv6))
       return false;
     return true;
   }
@@ -227,7 +235,7 @@ inline std::ostream& operator<<(std::ostream& out, const BinaryAnnotation& obj)
 }
 
 typedef struct _Span__isset {
-  _Span__isset() : trace_id(false), name(false), id(false), parent_id(false), annotations(false), binary_annotations(false), debug(true), timestamp(false), duration(false) {}
+  _Span__isset() : trace_id(false), name(false), id(false), parent_id(false), annotations(false), binary_annotations(false), debug(true), timestamp(false), duration(false), trace_id_high(false) {}
   bool trace_id :1;
   bool name :1;
   bool id :1;
@@ -237,6 +245,7 @@ typedef struct _Span__isset {
   bool debug :1;
   bool timestamp :1;
   bool duration :1;
+  bool trace_id_high :1;
 } _Span__isset;
 
 class Span : public virtual ::apache::thrift::TBase {
@@ -244,7 +253,7 @@ class Span : public virtual ::apache::thrift::TBase {
 
   Span(const Span&);
   Span& operator=(const Span&);
-  Span() : trace_id(0), name(), id(0), parent_id(0), debug(false), timestamp(0), duration(0) {
+  Span() : trace_id(0), name(), id(0), parent_id(0), debug(false), timestamp(0), duration(0), trace_id_high(0) {
   }
 
   virtual ~Span() throw();
@@ -257,6 +266,7 @@ class Span : public virtual ::apache::thrift::TBase {
   bool debug;
   int64_t timestamp;
   int64_t duration;
+  int64_t trace_id_high;
 
   _Span__isset __isset;
 
@@ -277,6 +287,8 @@ class Span : public virtual ::apache::thrift::TBase {
   void __set_timestamp(const int64_t val);
 
   void __set_duration(const int64_t val);
+
+  void __set_trace_id_high(const int64_t val);
 
   bool operator == (const Span & rhs) const
   {
@@ -305,6 +317,10 @@ class Span : public virtual ::apache::thrift::TBase {
     if (__isset.duration != rhs.__isset.duration)
       return false;
     else if (__isset.duration && !(duration == rhs.duration))
+      return false;
+    if (__isset.trace_id_high != rhs.__isset.trace_id_high)
+      return false;
+    else if (__isset.trace_id_high && !(trace_id_high == rhs.trace_id_high))
       return false;
     return true;
   }

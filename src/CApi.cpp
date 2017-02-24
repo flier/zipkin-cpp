@@ -115,7 +115,7 @@ zipkin_userdata_t zipkin_span_userdata(zipkin_span_t span)
 zipkin_span_t zipkin_span_set_userdata(zipkin_span_t span, zipkin_userdata_t userdata)
 {
     if (span)
-        static_cast<zipkin::Span *>(span)->set_userdata(userdata);
+        static_cast<zipkin::Span *>(span)->with_userdata(userdata);
 
     return span;
 }

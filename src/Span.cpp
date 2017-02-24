@@ -14,6 +14,59 @@
 namespace zipkin
 {
 
+std::unique_ptr<const sockaddr> Endpoint::addr(void)
+{
+    std::unique_ptr<sockaddr_storage> addr(new sockaddr_storage());
+
+    if (m_host.__isset.ipv6)
+    {
+        auto v6 = reinterpret_cast<sockaddr_in6 *>(addr.get());
+
+        v6->sin6_family = AF_INET6;
+        memcpy(v6->sin6_addr.s6_addr, m_host.ipv6.c_str(), m_host.ipv6.size());
+        v6->sin6_port = m_host.port;
+    }
+    else
+    {
+        auto v4 = reinterpret_cast<sockaddr_in *>(addr.get());
+
+        v4->sin_family = AF_INET;
+        v4->sin_addr.s_addr = m_host.ipv4;
+        v4->sin_port = m_host.port;
+    }
+
+    return std::unique_ptr<const sockaddr>(reinterpret_cast<const sockaddr *>(addr.release()));
+}
+
+Endpoint &Endpoint::with_addr(const sockaddr *addr)
+{
+    assert(addr);
+    assert(addr->sa_family);
+
+    switch (addr->sa_family)
+    {
+    case AF_INET:
+    {
+        auto v4 = reinterpret_cast<const sockaddr_in *>(addr);
+
+        m_host.__set_ipv4(v4->sin_addr.s_addr);
+        m_host.__set_port(v4->sin_port);
+        break;
+    }
+
+    case AF_INET6:
+    {
+        auto v6 = reinterpret_cast<const sockaddr_in6 *>(addr);
+
+        m_host.__set_ipv6(std::string(reinterpret_cast<const char *>(v6->sin6_addr.s6_addr), sizeof(v6->sin6_addr)));
+        m_host.__set_port(v6->sin6_port);
+        break;
+    }
+    }
+
+    return *this;
+}
+
 Span::Span(Tracer *tracer, const std::string &name, span_id_t parent_id, userdata_t userdata) : m_tracer(tracer)
 {
     if (tracer)

@@ -62,11 +62,11 @@ enum zipkin_logger_level_t
 
 void zipkin_set_logging_level(enum zipkin_logger_level_t level);
 
-zipkin_endpoint_t zipkin_endpoint_new(const char *service, struct sockaddr_in *addr);
+zipkin_endpoint_t zipkin_endpoint_new(const char *service, struct sockaddr *addr);
 void zipkin_endpoint_free(zipkin_endpoint_t endpoint);
 
 const char *zipkin_endpoint_service_name(zipkin_endpoint_t endpoint);
-void zipkin_endpoint_addr(zipkin_endpoint_t endpoint, struct sockaddr_in *addr);
+void zipkin_endpoint_addr(zipkin_endpoint_t endpoint, struct sockaddr *addr, size_t len);
 
 zipkin_span_t zipkin_span_new(zipkin_tracer_t tracer, const char *name, zipkin_userdata_t userdata);
 zipkin_span_t zipkin_span_new_child(zipkin_span_t span, const char *name, zipkin_userdata_t userdata);

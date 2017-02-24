@@ -323,12 +323,33 @@ struct TraceKeys
     */
     DEF_TRACE_KEY(ERROR)
 
+    /**
+    * \brief HTTP \p Host header
+    */
     DEF_TRACE_KEY(HTTP_HOST)
+    /**
+    * \brief HTTP request method
+    */
     DEF_TRACE_KEY(HTTP_METHOD)
+    /**
+    * \brief HTTP request path
+    */
     DEF_TRACE_KEY(HTTP_PATH)
+    /**
+    * \brief HTTP request URL
+    */
     DEF_TRACE_KEY(HTTP_URL)
+    /**
+    * \brief HTTP status code
+    */
     DEF_TRACE_KEY(HTTP_STATUS_CODE)
+    /**
+    * \brief HTTP request size
+    */
     DEF_TRACE_KEY(HTTP_REQUEST_SIZE)
+    /**
+    * \brief HTTP response size
+    */
     DEF_TRACE_KEY(HTTP_RESPONSE_SIZE)
 };
 

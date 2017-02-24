@@ -203,6 +203,32 @@ class BinaryAnnotation
     }
 };
 
+#define DEF_TRACE_KEY(name) static constexpr const std::string &name = g_zipkinCore_constants.name;
+
+struct TraceKeys
+{
+    DEF_TRACE_KEY(CLIENT_SEND)
+    DEF_TRACE_KEY(CLIENT_RECV)
+    DEF_TRACE_KEY(SERVER_SEND)
+    DEF_TRACE_KEY(SERVER_RECV)
+    DEF_TRACE_KEY(WIRE_SEND)
+    DEF_TRACE_KEY(WIRE_RECV)
+    DEF_TRACE_KEY(CLIENT_SEND_FRAGMENT)
+    DEF_TRACE_KEY(CLIENT_RECV_FRAGMENT)
+    DEF_TRACE_KEY(SERVER_SEND_FRAGMENT)
+    DEF_TRACE_KEY(SERVER_RECV_FRAGMENT)
+    DEF_TRACE_KEY(HTTP_HOST)
+    DEF_TRACE_KEY(HTTP_METHOD)
+    DEF_TRACE_KEY(HTTP_PATH)
+    DEF_TRACE_KEY(HTTP_URL)
+    DEF_TRACE_KEY(HTTP_STATUS_CODE)
+    DEF_TRACE_KEY(HTTP_REQUEST_SIZE)
+    DEF_TRACE_KEY(HTTP_RESPONSE_SIZE)
+    DEF_TRACE_KEY(LOCAL_COMPONENT)
+    DEF_TRACE_KEY(CLIENT_ADDR)
+    DEF_TRACE_KEY(SERVER_ADDR)
+};
+
 /**
 * A trace is a series of spans (often RPC calls) which form a latency tree.
 *
@@ -323,40 +349,40 @@ struct Span
 
     inline Annotation client_send(const Endpoint *endpoint = nullptr)
     {
-        return annotate(g_zipkinCore_constants.CLIENT_SEND, endpoint);
+        return annotate(TraceKeys::CLIENT_SEND, endpoint);
     }
     inline Annotation client_recv(const Endpoint *endpoint = nullptr)
     {
-        return annotate(g_zipkinCore_constants.CLIENT_RECV, endpoint);
+        return annotate(TraceKeys::CLIENT_RECV, endpoint);
     }
     inline Annotation server_send(const Endpoint *endpoint = nullptr)
     {
-        return annotate(g_zipkinCore_constants.SERVER_SEND, endpoint);
+        return annotate(TraceKeys::SERVER_SEND, endpoint);
     }
     inline Annotation server_recv(const Endpoint *endpoint = nullptr)
     {
-        return annotate(g_zipkinCore_constants.SERVER_RECV, endpoint);
+        return annotate(TraceKeys::SERVER_RECV, endpoint);
     }
     inline Annotation wire_send(const Endpoint *endpoint = nullptr)
     {
-        return annotate(g_zipkinCore_constants.WIRE_SEND, endpoint);
+        return annotate(TraceKeys::WIRE_SEND, endpoint);
     }
     inline Annotation wire_recv(const Endpoint *endpoint = nullptr)
     {
-        return annotate(g_zipkinCore_constants.WIRE_RECV, endpoint);
+        return annotate(TraceKeys::WIRE_RECV, endpoint);
     }
     inline Annotation client_send_fragment(const Endpoint *endpoint = nullptr)
     {
-        return annotate(g_zipkinCore_constants.CLIENT_SEND_FRAGMENT, endpoint);
+        return annotate(TraceKeys::CLIENT_SEND_FRAGMENT, endpoint);
     }
-    inline Annotation client_recv_fragment(const Endpoint *endpoint = nullptr) { return annotate(g_zipkinCore_constants.CLIENT_RECV_FRAGMENT, endpoint); }
+    inline Annotation client_recv_fragment(const Endpoint *endpoint = nullptr) { return annotate(TraceKeys::CLIENT_RECV_FRAGMENT, endpoint); }
     inline Annotation server_send_fragment(const Endpoint *endpoint = nullptr)
     {
-        return annotate(g_zipkinCore_constants.SERVER_SEND_FRAGMENT, endpoint);
+        return annotate(TraceKeys::SERVER_SEND_FRAGMENT, endpoint);
     }
     inline Annotation server_recv_fragment(const Endpoint *endpoint = nullptr)
     {
-        return annotate(g_zipkinCore_constants.SERVER_RECV_FRAGMENT, endpoint);
+        return annotate(TraceKeys::SERVER_RECV_FRAGMENT, endpoint);
     }
 
     /**
@@ -392,43 +418,43 @@ struct Span
 
     inline BinaryAnnotation http_host(const std::string &value, const Endpoint *endpoint = nullptr)
     {
-        return annotate(g_zipkinCore_constants.HTTP_HOST, value, endpoint);
+        return annotate(TraceKeys::HTTP_HOST, value, endpoint);
     }
     inline BinaryAnnotation http_method(const std::string &value, const Endpoint *endpoint = nullptr)
     {
-        return annotate(g_zipkinCore_constants.HTTP_METHOD, value, endpoint);
+        return annotate(TraceKeys::HTTP_METHOD, value, endpoint);
     }
     inline BinaryAnnotation http_path(const std::string &value, const Endpoint *endpoint = nullptr)
     {
-        return annotate(g_zipkinCore_constants.HTTP_PATH, value, endpoint);
+        return annotate(TraceKeys::HTTP_PATH, value, endpoint);
     }
     inline BinaryAnnotation http_url(const std::string &value, const Endpoint *endpoint = nullptr)
     {
-        return annotate(g_zipkinCore_constants.HTTP_URL, value, endpoint);
+        return annotate(TraceKeys::HTTP_URL, value, endpoint);
     }
     inline BinaryAnnotation http_status_code(const std::string &value, const Endpoint *endpoint = nullptr)
     {
-        return annotate(g_zipkinCore_constants.HTTP_STATUS_CODE, value, endpoint);
+        return annotate(TraceKeys::HTTP_STATUS_CODE, value, endpoint);
     }
     inline BinaryAnnotation http_request_size(const std::string &value, const Endpoint *endpoint = nullptr)
     {
-        return annotate(g_zipkinCore_constants.HTTP_REQUEST_SIZE, value, endpoint);
+        return annotate(TraceKeys::HTTP_REQUEST_SIZE, value, endpoint);
     }
     inline BinaryAnnotation http_response_size(const std::string &value, const Endpoint *endpoint = nullptr)
     {
-        return annotate(g_zipkinCore_constants.HTTP_RESPONSE_SIZE, value, endpoint);
+        return annotate(TraceKeys::HTTP_RESPONSE_SIZE, value, endpoint);
     }
     inline BinaryAnnotation local_component(const std::string &value, const Endpoint *endpoint = nullptr)
     {
-        return annotate(g_zipkinCore_constants.LOCAL_COMPONENT, value, endpoint);
+        return annotate(TraceKeys::LOCAL_COMPONENT, value, endpoint);
     }
     inline BinaryAnnotation client_addr(const std::string &value, const Endpoint *endpoint = nullptr)
     {
-        return annotate(g_zipkinCore_constants.CLIENT_ADDR, value, endpoint);
+        return annotate(TraceKeys::CLIENT_ADDR, value, endpoint);
     }
     inline BinaryAnnotation server_addr(const std::string &value, const Endpoint *endpoint = nullptr)
     {
-        return annotate(g_zipkinCore_constants.SERVER_ADDR, value, endpoint);
+        return annotate(TraceKeys::SERVER_ADDR, value, endpoint);
     }
 
     size_t serialize_binary(apache::thrift::protocol::TProtocol &protocol) const

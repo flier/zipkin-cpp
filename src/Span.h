@@ -139,8 +139,8 @@ class Annotation
     }
 
     /**
-    * \brief Usually a short tag indicating an event, like {@link Constants#SERVER_RECV "sr"}. or {@link
-    * Constants#ERROR "error"}
+    * \brief Usually a short tag indicating an event, like {@link TraceKeys#SERVER_RECV "sr"}. or {@link
+    * TraceKeys#ERROR "error"}
     */
     const std::string &value(void) const { return m_annotation.value; }
 
@@ -164,8 +164,35 @@ class Annotation
     }
 };
 
-/** A subset of thrift base types, except BYTES. */
+/**
+* \brief A subset of thrift base types, except BYTES.
+*/
 using AnnotationType = ::AnnotationType::type;
+
+/**
+* \enum AnnotationType
+*
+* \var AnnotationType AnnotationType::BOOL
+* bool
+*
+* \var AnnotationType AnnotationType::BYTES
+* No encoding, or type is unknown.
+*
+* \var AnnotationType AnnotationType::I16
+* int16_t
+*
+* \var AnnotationType AnnotationType::I32
+* int32_t
+*
+* \var AnnotationType AnnotationType::I64
+* int64_t
+*
+* \var AnnotationType AnnotationType::DOUBLE
+* double
+*
+* \var AnnotationType AnnotationType::STRING
+* The only type zipkin v1 supports search against.
+*/
 
 /**
 * \brief Binary annotations are tags applied to a Span to give it context. For example, a binary
@@ -188,7 +215,7 @@ class BinaryAnnotation
     BinaryAnnotation(::BinaryAnnotation &annotation) : m_annotation(annotation) {}
 
     /**
-    * The thrift type of value, most often AnnotationType#STRING.
+    * \brief The thrift type of value, most often AnnotationType#STRING.
     *
     * Note: type shouldn't vary for the same key.
     */
@@ -200,52 +227,104 @@ class BinaryAnnotation
     */
     const std::string &key(void) const { return m_annotation.key; }
     /**
-    * Serialized thrift bytes, in TBinaryProtocol format.
+    * \brief Serialized thrift bytes, in TBinaryProtocol format.
     *
     * For legacy reasons, byte order is big-endian. See THRIFT-3217.
     */
     const std::string &value(void) const { return m_annotation.value; }
 
+    /**
+    * \brief Annotate with value
+    *
+    * \sa BinaryAnnotation#value
+    */
     template <typename T>
     BinaryAnnotation &with_value(const T &value);
 
+    /**
+    * \brief Annotate with AnnotationType#BYTES
+    *
+    * \sa BinaryAnnotation#value
+    */
     inline BinaryAnnotation &with_value(const uint8_t *value, size_t size)
     {
         m_annotation.value = std::string(reinterpret_cast<const char *>(value), size);
         m_annotation.annotation_type = AnnotationType::BYTES;
         return *this;
     }
+    /**
+    * \brief Annotate with AnnotationType#BYTES
+    *
+    * \sa BinaryAnnotation#value
+    */
     template <size_t N>
     inline BinaryAnnotation &with_value(const uint8_t (&value)[N])
     {
         return with_value(value, N);
     }
+    /**
+    * \brief Annotate with AnnotationType#BYTES
+    *
+    * \sa BinaryAnnotation#value
+    */
     inline BinaryAnnotation &with_value(const std::vector<uint8_t> &value)
     {
         return with_value(value.data(), value.size());
     }
+    /**
+    * \brief Annotate with AnnotationType#STRING
+    *
+    * \sa BinaryAnnotation#value
+    */
     inline BinaryAnnotation &with_value(const std::string &value)
     {
         m_annotation.value = value;
         m_annotation.annotation_type = AnnotationType::STRING;
         return *this;
     }
+    /**
+    * \brief Annotate with AnnotationType#STRING
+    *
+    * \sa BinaryAnnotation#value
+    */
     inline BinaryAnnotation &with_value(const char *value, int len = -1)
     {
         return with_value(len >= 0 ? std::string(value, len) : std::string(value));
     }
+    /**
+    * \brief Annotate with AnnotationType#STRING
+    *
+    * \sa BinaryAnnotation#value
+    */
     inline BinaryAnnotation &with_value(const std::wstring &value)
     {
         std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
 
         return with_value(converter.to_bytes(value));
     }
+    /**
+    * \brief Annotate with AnnotationType#STRING
+    *
+    * \sa BinaryAnnotation#value
+    */
     inline BinaryAnnotation &with_value(const wchar_t *value, int len = -1)
     {
         return with_value(len >= 0 ? std::wstring(value, len) : std::wstring(value));
     }
 
+    /**
+    * \brief The host that recorded {@link #value}, allowing query by service name or address.
+    *
+    * There are two exceptions: when {@link #key} is {@link TraceKeys#CLIENT_ADDR} or {@link
+    * TraceKeys#SERVER_ADDR}, this is the source or destination of an RPC. This exception allows
+    * zipkin to display network context of uninstrumented services, such as browsers or databases.
+    */
     const Endpoint endpoint(void) const { return Endpoint(m_annotation.host); }
+    /**
+    * \brief Annotate with Endpoint
+    *
+    * \sa BinaryAnnotation#endpoint
+    */
     BinaryAnnotation &with_endpoint(const Endpoint &endpoint)
     {
         m_annotation.host = endpoint.host();
@@ -341,7 +420,7 @@ struct TraceKeys
     * on the shape of a service graph. By flagging with "lc", tools can special-case local spans.
     *
     * <p>Zipkin v1 Spans are unqueryable unless they can be indexed by service name. The only path
-    * to a {@link Endpoint#serviceName service name} is via {@link BinaryAnnotation#endpoint
+    * to a {@link Endpoint#service_name service name} is via {@link BinaryAnnotation#endpoint
     * host}. By logging "lc", a local span can be queried even if no other annotations are logged.
     *
     * <p>The value of "lc" is the namespace of {@link Span#name}. For example, it might be
@@ -554,7 +633,7 @@ class Span
     {
         return annotate(TraceKeys::CLIENT_RECV, endpoint);
     }
-    /// \briefsa Annotate TraceKeys#SERVER_SEND event
+    /// \brief Annotate TraceKeys#SERVER_SEND event
     inline Annotation server_send(const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::SERVER_SEND, endpoint);

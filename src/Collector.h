@@ -78,50 +78,70 @@ public:
 
 struct KafkaConf
 {
-  // metadata.broker.list - Initial list of brokers.
+  /**
+  * metadata.broker.list - Initial list of brokers.
+  */
   std::string brokers;
 
-  // the topic to produce to
+  /**
+  * the topic to produce to
+  */
   std::string topic_name;
 
-  // the partition to produce to.
-  //
-  // default: PARTITION_UA (UnAssigned)
+  /**
+  * the partition to produce to.
+  *
+  * default: PARTITION_UA (UnAssigned)
+  */
   int partition;
 
-  // compression.codec - compression codec to use for compressing message sets.
-  //
-  // default: none
+  /**
+  * compression.codec - compression codec to use for compressing message sets.
+  *
+  * default: none
+  */
   CompressionCodec compression_codec;
 
-  // message codec to use for encoding message sets.
-  //
-  // default: binary
+  /**
+  * message codec to use for encoding message sets.
+  *
+  * default: binary
+  */
   MessageCodec message_codec;
 
-  // batch.num.messages - the minimum number of messages to wait for to accumulate in the local queue before sending off a message set.
-  //
-  // default: 10000
+  /*
+  * batch.num.messages - the minimum number of messages to wait for to accumulate in the local queue before sending off a message set.
+  *
+  * default: 10000
+  */
   size_t batch_num_messages;
 
-  // queue.buffering.max.messages - Maximum number of messages allowed on the producer queue.
-  //
-  // default: 100000
+  /**
+  * queue.buffering.max.messages - Maximum number of messages allowed on the producer queue.
+  *
+  * default: 100000
+  */
   size_t queue_buffering_max_messages;
 
-  // queue.buffering.max.kbytes - Maximum total message size sum allowed on the producer queue.
-  //
-  // default: 4000000
+  /**
+  * queue.buffering.max.kbytes - Maximum total message size sum allowed on the producer queue.
+  *
+  * default: 4000000
+  */
   size_t queue_buffering_max_kbytes;
 
-  // queue.buffering.max.ms - how long to wait for batch.num.messages to fill up in the local queue.
-  //
-  // default: 1000ms
+  /*
+  * queue.buffering.max.ms - how long to wait for batch.num.messages to fill up in the local queue.
+  *
+  * default: 1000ms
+  */
   std::chrono::milliseconds queue_buffering_max_ms;
 
-  // message.send.max.retries - How many times to retry sending a failing MessageSet. Note: retrying may cause reordering.
-  //
-  // default: 2
+  /**
+  * message.send.max.retries - How many times to retry sending a failing MessageSet. Note: retrying may cause reordering.
+  *
+  * default: 2
+  */
   size_t message_send_max_retries;
 
   KafkaConf(const std::string &_brokers, const std::string &_topic_name, int _partition = RdKafka::Topic::PARTITION_UA)

@@ -27,7 +27,7 @@
 #define ZIPKIN_CLIENT_ADDR "ca"
 #define ZIPKIN_SERVER_ADDR "sa"
 
-#define ZIPKIN_ERROR "err"
+#define ZIPKIN_ERROR "error"
 
 #define ZIPKIN_COMPRESSION_GZIP "gzip"
 #define ZIPKIN_COMPRESSION_SNAPPY "snappy"

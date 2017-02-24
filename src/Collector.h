@@ -23,14 +23,14 @@ struct Collector
   *
   * \param span encoded to message and send to the transport,
   *
-  * {@link Span::release} will be call after the message was sent.
+  * Span#release will be call after the message was sent.
   */
   virtual void submit(Span *span) = 0;
 
   /**
   * \brief Wait until all outstanding messages, et.al, are sent.
   *
-  * \param timeout the maximum amount of time (in milliseconds) that the call will block waiting.
+  * \param timeout_ms the maximum amount of time (in milliseconds) that the call will block waiting.
   * \return \c true if all outstanding messages were sent, or \c false if the \p timeout_ms was reached.
   */
   virtual bool flush(std::chrono::milliseconds timeout_ms) = 0;
@@ -112,9 +112,9 @@ public:
 
   virtual void submit(Span *span) override;
 
-  virtual bool flush(std::chrono::milliseconds timeout = 500ms) override
+  virtual bool flush(std::chrono::milliseconds timeout_ms = 500ms) override
   {
-    return RdKafka::ERR_NO_ERROR == m_producer->flush(timeout.count());
+    return RdKafka::ERR_NO_ERROR == m_producer->flush(timeout_ms.count());
   }
 };
 

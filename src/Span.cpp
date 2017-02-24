@@ -14,6 +14,8 @@
 namespace zipkin
 {
 
+const std::string TraceKeys::ERROR = std::string("error");
+
 Span::Span(Tracer *tracer, const std::string &name, span_id_t parent_id, userdata_t userdata) : m_tracer(tracer)
 {
     if (tracer)
@@ -48,7 +50,7 @@ void Span::submit(void)
         m_tracer->submit(this);
 }
 
-uint64_t Span::next_id()
+span_id_t Span::next_id()
 {
     thread_local std::mt19937_64 rand_gen((std::chrono::system_clock::now().time_since_epoch().count() << 32) + std::random_device()());
 

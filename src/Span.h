@@ -22,7 +22,7 @@ namespace zipkin
 {
 
 /**
- * Indicates the network context of a service recording an annotation with two exceptions.
+ * \brief Indicates the network context of a service recording an annotation with two exceptions.
  */
 class Endpoint
 {
@@ -52,17 +52,17 @@ class Endpoint
     }
 
     /**
-    * Classifier of a source or destination in lowercase, such as "zipkin-server".
+    * \brief Classifier of a source or destination in lowercase, such as "zipkin-server".
     *
-    * <p>This is the primary parameter for trace lookup, so should be intuitive as possible, for
+    * This is the primary parameter for trace lookup, so should be intuitive as possible, for
     * example, matching names in service discovery.
     *
-    * <p>Conventionally, when the service name isn't known, service_name = "unknown". However, it is
+    * Conventionally, when the service name isn't known, service_name = "unknown". However, it is
     * also permissible to set service_name = "" (empty string). The difference in the latter usage is
     * that the span will not be queryable by service name unless more information is added to the
     * span with non-empty service name, e.g. an additional annotation from the server.
     *
-    * <p>Particularly clients may not have a reliable service name at ingest. One approach is to set
+    * Particularly clients may not have a reliable service name at ingest. One approach is to set
     * service_name to "" at ingest, and later assign a better label based on binary annotations, such
     * as user agent.
     */
@@ -114,6 +114,11 @@ struct Tracer;
 
 class CachedTracer;
 
+/**
+* \brief Associates an event that explains latency with a timestamp.
+*
+* Unlike log statements, annotations are often codes: Ex. {@link TraceKeys#SERVER_RECV "sr"}.
+*/
 class Annotation
 {
     ::Annotation &m_annotation;
@@ -121,21 +126,37 @@ class Annotation
   public:
     Annotation(::Annotation &annotation) : m_annotation(annotation) {}
 
+    /**
+    * \brief Microseconds from epoch.
+    */
     timestamp_t timestamp(void) const { return timestamp_t(m_annotation.timestamp); }
+
+    /** \sa Annotation#timestamp */
     Annotation &with_timestamp(timestamp_t timestamp)
     {
         m_annotation.timestamp = timestamp.count();
         return *this;
     }
 
+    /**
+    * \brief Usually a short tag indicating an event, like {@link Constants#SERVER_RECV "sr"}. or {@link
+    * Constants#ERROR "error"}
+    */
     const std::string &value(void) const { return m_annotation.value; }
+
+    /** \sa Annotation#value */
     Annotation &with_value(const std::string &value)
     {
         m_annotation.value = value;
         return *this;
     }
 
+    /**
+     * \brief The host that recorded #value, primarily for query by service name.
+     */
     const Endpoint endpoint(void) const { return Endpoint(m_annotation.host); }
+
+    /** \sa Annotation#endpoint */
     Annotation &with_endpoint(const Endpoint &endpoint)
     {
         m_annotation.host = endpoint.host();
@@ -143,8 +164,22 @@ class Annotation
     }
 };
 
+/** A subset of thrift base types, except BYTES. */
 using AnnotationType = ::AnnotationType::type;
 
+/**
+* \brief Binary annotations are tags applied to a Span to give it context. For example, a binary
+* annotation of {@link TraceKeys#HTTP_PATH "http.path"} could the path to a resource in a RPC call.
+*
+* <p>Binary annotations of type {@link AnnotationType#STRING} are always queryable, though more a historical
+* implementation detail than a structural concern.
+*
+* <p>Binary annotations can repeat, and vary on the host. Similar to Annotation, the host
+* indicates who logged the event. This allows you to tell the difference between the client and
+* server side of the same key. For example, the key "http.path" might be different on the client and
+* server side due to rewriting, like "/api/v1/myresource" vs "/myresource. Via the host field, you
+* can see the different points of view, which often help in debugging.
+*/
 class BinaryAnnotation
 {
     ::BinaryAnnotation &m_annotation;
@@ -152,8 +187,23 @@ class BinaryAnnotation
   public:
     BinaryAnnotation(::BinaryAnnotation &annotation) : m_annotation(annotation) {}
 
+    /**
+    * The thrift type of value, most often AnnotationType#STRING.
+    *
+    * Note: type shouldn't vary for the same key.
+    */
     AnnotationType type(void) const { return m_annotation.annotation_type; }
 
+    /**
+    * \brief Name used to lookup spans, such as {@link TraceKeys#HTTP_PATH "http.path"} or {@link
+    * TraceKeys#ERROR "error"}
+    */
+    const std::string &key(void) const { return m_annotation.key; }
+    /**
+    * Serialized thrift bytes, in TBinaryProtocol format.
+    *
+    * For legacy reasons, byte order is big-endian. See THRIFT-3217.
+    */
     const std::string &value(void) const { return m_annotation.value; }
 
     template <typename T>
@@ -204,19 +254,131 @@ class BinaryAnnotation
 };
 
 #define DEF_TRACE_KEY(name) static constexpr const std::string &name = g_zipkinCore_constants.name;
+#define DEF_TRACE_VALUE(name) static const std::string name;
 
 struct TraceKeys
 {
+    /**
+    * \brief The client sent ("cs") a request to a server.
+    *
+    * There is only one send per span. For example, if there's a transport error,
+    * each attempt can be logged as a #WIRE_SEND annotation.
+    */
     DEF_TRACE_KEY(CLIENT_SEND)
+    /**
+    * \brief The client received ("cr") a response from a server.
+    *
+    * There is only one receive per span. For example, if duplicate responses were received,
+    * each can be logged as a #WIRE_RECV annotation.
+    */
     DEF_TRACE_KEY(CLIENT_RECV)
+    /**
+    * \brief The server sent ("ss") a response to a client.
+    *
+    * There is only one response per span. If there's a transport error,
+    * each attempt can be logged as a #WIRE_SEND annotation.
+    */
     DEF_TRACE_KEY(SERVER_SEND)
+    /**
+    * \brief The server received ("sr") a request from a client.
+    *
+    * There is only one request per span.  For example, if duplicate responses were received,
+    * each can be logged as a #WIRE_RECV annotation.
+    */
     DEF_TRACE_KEY(SERVER_RECV)
+    /**
+    * \brief Optionally logs an attempt to send a message on the wire.
+    *
+    * Multiple wire send events could indicate network retries.
+    * A lag between client or server send and wire send might indicate
+    * queuing or processing delay.
+    */
     DEF_TRACE_KEY(WIRE_SEND)
+    /**
+    * \brief Optionally logs an attempt to receive a message from the wire.
+    *
+    * Multiple wire receive events could indicate network retries.
+    * A lag between wire receive and client or server receive might
+    * indicate queuing or processing delay.
+    */
     DEF_TRACE_KEY(WIRE_RECV)
+    /**
+    * \brief Optionally logs progress of a (#CLIENT_SEND, #WIRE_SEND).
+    *
+    * For example, this could be one chunk in a chunked request.
+    */
     DEF_TRACE_KEY(CLIENT_SEND_FRAGMENT)
+    /**
+    * \brief Optionally logs progress of a (#CLIENT_RECV, #WIRE_RECV).
+    *
+    * For example, this could be one chunk in a chunked response.
+    */
     DEF_TRACE_KEY(CLIENT_RECV_FRAGMENT)
+    /**
+    * \brief Optionally logs progress of a (#SERVER_SEND, #WIRE_SEND).
+    *
+    * For example, this could be one chunk in a chunked response.
+    */
     DEF_TRACE_KEY(SERVER_SEND_FRAGMENT)
+    /**
+    * \brief Optionally logs progress of a (#SERVER_RECV, #WIRE_RECV).
+    *
+    * For example, this could be one chunk in a chunked request.
+    */
     DEF_TRACE_KEY(SERVER_RECV_FRAGMENT)
+    /**
+    * \brief The {@link BinaryAnnotation#value value} of "lc" is the component or namespace of a local
+    * span.
+    *
+    * <p>{@link BinaryAnnotation#endpoint} adds service context needed to support queries.
+    *
+    * <p>Local Component("lc") supports three key features: flagging, query by service and filtering
+    * Span.name by namespace.
+    *
+    * <p>While structurally the same, local spans are fundamentally different than RPC spans in how
+    * they should be interpreted. For example, zipkin v1 tools center on RPC latency and service
+    * graphs. Root local-spans are neither indicative of critical path RPC latency, nor have impact
+    * on the shape of a service graph. By flagging with "lc", tools can special-case local spans.
+    *
+    * <p>Zipkin v1 Spans are unqueryable unless they can be indexed by service name. The only path
+    * to a {@link Endpoint#serviceName service name} is via {@link BinaryAnnotation#endpoint
+    * host}. By logging "lc", a local span can be queried even if no other annotations are logged.
+    *
+    * <p>The value of "lc" is the namespace of {@link Span#name}. For example, it might be
+    * "finatra2", for a span named "bootstrap". "lc" allows you to resolves conflicts for the same
+    * Span.name, for example "finatra/bootstrap" vs "finch/bootstrap". Using local component, you'd
+    * search for spans named "bootstrap" where "lc=finch"
+    */
+    DEF_TRACE_KEY(LOCAL_COMPONENT)
+    /**
+    * \brief When present, {@link BinaryAnnotation#endpoint} indicates a client address ("ca") in a span.
+    * Most likely, there's only one. Multiple addresses are possible when a client changes its ip or
+    * port within a span.
+    */
+    DEF_TRACE_KEY(CLIENT_ADDR)
+    /**
+    * \brief When present, {@link BinaryAnnotation#endpoint} indicates a server address ("sa") in a span.
+    * Most likely, there's only one. Multiple addresses are possible when a client is redirected, or
+    * fails to a different server ip or port.
+    */
+    DEF_TRACE_KEY(SERVER_ADDR)
+    /**
+    * \brief When an {@link Annotation#value}, this indicates when an error occurred. When a {@link
+    * BinaryAnnotation#key}, the value is a human readable message associated with an error.
+    *
+    * <p>Due to transient errors, an ERROR annotation should not be interpreted as a span failure,
+    * even the annotation might explain additional latency. Instrumentation should add the ERROR
+    * binary annotation when the operation failed and couldn't be recovered.
+    *
+    * <p>Here's an example: A span has an ERROR annotation, added when a WIRE_SEND failed. Another
+    * WIRE_SEND succeeded, so there's no ERROR binary annotation on the span because the overall
+    * operation succeeded.
+    *
+    * <p>Note that RPC spans often include both client and server hosts: It is possible that only one
+    * side perceived the error.
+    */
+    DEF_TRACE_VALUE(ERROR)
+
     DEF_TRACE_KEY(HTTP_HOST)
     DEF_TRACE_KEY(HTTP_METHOD)
     DEF_TRACE_KEY(HTTP_PATH)
@@ -224,26 +386,22 @@ struct TraceKeys
     DEF_TRACE_KEY(HTTP_STATUS_CODE)
     DEF_TRACE_KEY(HTTP_REQUEST_SIZE)
     DEF_TRACE_KEY(HTTP_RESPONSE_SIZE)
-    DEF_TRACE_KEY(LOCAL_COMPONENT)
-    DEF_TRACE_KEY(CLIENT_ADDR)
-    DEF_TRACE_KEY(SERVER_ADDR)
 };
 
 /**
-* A trace is a series of spans (often RPC calls) which form a latency tree.
+* \brief A trace is a series of spans (often RPC calls) which form a latency tree.
 *
-* <p>Spans are usually created by instrumentation in RPC clients or servers, but can also
+* Spans are usually created by instrumentation in RPC clients or servers, but can also
 * represent in-process activity. Annotations in spans are similar to log statements, and are
 * sometimes created directly by application developers to indicate events of interest, such as a
 * cache miss.
 *
-* <p>The root span is where {@link #parent_id} is 0; it usually has the longest {@link #duration} in the
-* trace.
+* The root span is where #parent_id is 0; it usually has the longest #duration in the trace.
 *
-* <p>Span identifiers are packed into longs, but should be treated opaquely. ID encoding is
+* Span identifiers are packed into longs, but should be treated opaquely. ID encoding is
 * 16 or 32 character lower-hex, to avoid signed interpretation.
 */
-struct Span
+class Span
 {
   protected:
     Tracer *m_tracer;
@@ -254,33 +412,36 @@ struct Span
 
   public:
     /**
-     * Construct a span
+     * \brief Construct a span
      */
     Span(Tracer *tracer, const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr);
 
     /**
-     * Reset a span
+     * \brief Reset a span
      */
     void reset(const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr);
 
     /**
-     * Submit a span to {@link Tracer}
+     * \brief Submit a span to Tracer
      */
     void submit(void);
 
     /**
-     * Associated {@link Tracer}
+     * \brief Associated Tracer
      */
     inline Tracer *tracer(void) const { return m_tracer; }
 
+    /**
+     * \brief Raw thrift message
+     */
     inline const ::Span &message(void) const { return m_span; }
 
     /**
-     * Unique 8-byte identifier for a trace, set on all spans within it.
+     * \brief Unique 8-byte identifier for a trace, set on all spans within it.
      */
     inline trace_id_t trace_id(void) const { return m_span.trace_id; }
 
-    /** @see Span#trace_id */
+    /** \sa Span#trace_id */
     inline Span &with_trace_id(trace_id_t trace_id)
     {
         m_span.trace_id = trace_id;
@@ -288,13 +449,11 @@ struct Span
     }
 
     /**
-    * Unique 8-byte identifier of this span within a trace.
-    *
-    * <p>A span is uniquely identified in storage by ({@linkplain #trace_id}, {@code #id}).
+    * \brief Unique 8-byte identifier of this span within a trace.
     */
     inline span_id_t id(void) const { return m_span.id; }
 
-    /** @see Span#id */
+    /** \sa Span#id */
     inline Span &with_id(span_id_t id)
     {
         m_span.id = id;
@@ -302,13 +461,13 @@ struct Span
     }
 
     /**
-    * Span name in lowercase, rpc method for example.
+    * \brief Span name in lowercase, rpc method for example.
     *
-    * <p>Conventionally, when the span name isn't known, name = "unknown".
+    * Conventionally, when the span name isn't known, name = "unknown".
     */
     inline const std::string &name(void) const { return m_span.name; }
 
-    /** @see Span#name */
+    /** \sa Span#name */
     inline Span &with_name(const std::string &name)
     {
         m_span.name = name;
@@ -316,11 +475,11 @@ struct Span
     }
 
     /**
-    * The parent's {@link #id} or 0 if this the root span in a trace.
+    * \brief The parent's #id or 0 if this the root span in a trace.
     */
     inline span_id_t parent_id(void) const { return m_span.parent_id; }
 
-    /** @see Span#parent_id */
+    /** \sa Span#parent_id */
     inline Span &with_parent_id(span_id_t id)
     {
         m_span.parent_id = id;
@@ -328,11 +487,11 @@ struct Span
     }
 
     /**
-    * Epoch microseconds of the start of this span, possibly absent if this an incomplete span.
+    * \brief Epoch microseconds of the start of this span, possibly absent if this an incomplete span.
     */
     inline timestamp_t timestamp(void) const { return timestamp_t(m_span.timestamp); }
 
-    /** @see Span#timestamp */
+    /** \sa Span#timestamp */
     inline Span &with_timestamp(timestamp_t timestamp)
     {
         m_span.timestamp = timestamp.count();
@@ -340,21 +499,25 @@ struct Span
     }
 
     /**
-    * Measurement in microseconds of the critical path, if known. Durations of less than one
-    * microsecond must be rounded up to 1 microsecond.
+    * \brief Measurement in microseconds of the critical path, if known.
+    *
+    * Durations of less than one microsecond must be rounded up to 1 microsecond.
     */
     inline duration_t duration(void) const { return duration_t(m_span.duration); }
 
-    /** @see Span#duration */
+    /** \sa Span#duration */
     inline Span &with_duration(duration_t duration)
     {
         m_span.duration = duration.count();
         return *this;
     }
 
+    /**
+     * \brief Associated user data
+     */
     inline userdata_t userdata(void) const { return m_userdata; }
 
-    /** @see Span#userdata */
+    /** \sa Span#userdata */
     inline Span &set_userdata(userdata_t userdata)
     {
         m_userdata = userdata;
@@ -367,63 +530,73 @@ struct Span
     };
 
     /**
-    * Generatea a random unique id for {@link Span} or {@link Tracer};
+    * \brief Generatea a random unique id for Span or Tracer;
     */
-    static uint64_t next_id();
+    static span_id_t next_id();
 
     /**
-    * Get the current time as {@link timestamp_t} type
+    * \brief Get the current time as #timestamp_t type
     */
     static timestamp_t now();
 
     /**
-    * Associates events that explain latency with a timestamp.
+    * \brief Associates events that explain latency with a timestamp.
     */
     Annotation annotate(const std::string &value, const Endpoint *endpoint = nullptr);
 
+    /// \brief Annotate TraceKeys#CLIENT_SEND event
     inline Annotation client_send(const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::CLIENT_SEND, endpoint);
     }
+    /// \brief Annotate TraceKeys#CLIENT_RECV event
     inline Annotation client_recv(const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::CLIENT_RECV, endpoint);
     }
+    /// \briefsa Annotate TraceKeys#SERVER_SEND event
     inline Annotation server_send(const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::SERVER_SEND, endpoint);
     }
+    /// \brief Annotate TraceKeys#CLIENT_RECV event
     inline Annotation server_recv(const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::SERVER_RECV, endpoint);
     }
+    /// \brief Annotate TraceKeys#WIRE_SEND event
     inline Annotation wire_send(const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::WIRE_SEND, endpoint);
     }
+    /// \brief Annotate TraceKeys#CLIENT_RECV event
     inline Annotation wire_recv(const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::WIRE_RECV, endpoint);
     }
+    /// \brief Annotate TraceKeys#CLIENT_SEND_FRAGMENT event
     inline Annotation client_send_fragment(const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::CLIENT_SEND_FRAGMENT, endpoint);
     }
+    /// \brief Annotate TraceKeys#CLIENT_RECV_FRAGMENT event
     inline Annotation client_recv_fragment(const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::CLIENT_RECV_FRAGMENT, endpoint);
     }
+    /// \brief Annotate TraceKeys#SERVER_SEND_FRAGMENT event
     inline Annotation server_send_fragment(const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::SERVER_SEND_FRAGMENT, endpoint);
     }
+    /// \brief Annotate TraceKeys#SERVER_RECV_FRAGMENT event
     inline Annotation server_recv_fragment(const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::SERVER_RECV_FRAGMENT, endpoint);
     }
 
     /**
-    * Tags a span with context, usually to support query or aggregation.
+    * \brief Tags a span with context, usually to support query or aggregation.
     */
     template <typename T>
     BinaryAnnotation annotate(const std::string &key, const T &value, const Endpoint *endpoint = nullptr);
@@ -454,45 +627,65 @@ struct Span
         return annotate(key, len >= 0 ? std::wstring(value, len) : std::wstring(value), endpoint);
     }
 
+    /// \brief Annotate TraceKeys#HTTP_HOST event
     inline BinaryAnnotation http_host(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::HTTP_HOST, value, endpoint);
     }
+    /// \brief Annotate TraceKeys#HTTP_METHOD event
     inline BinaryAnnotation http_method(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::HTTP_METHOD, value, endpoint);
     }
+    /// \brief Annotate TraceKeys#HTTP_PATH event
     inline BinaryAnnotation http_path(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::HTTP_PATH, value, endpoint);
     }
+    /// \brief Annotate TraceKeys#HTTP_URL event
     inline BinaryAnnotation http_url(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::HTTP_URL, value, endpoint);
     }
+    /// \brief Annotate TraceKeys#HTTP_STATUS_CODE event
     inline BinaryAnnotation http_status_code(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::HTTP_STATUS_CODE, value, endpoint);
     }
+    /// \brief Annotate TraceKeys#HTTP_REQUEST_SIZE event
     inline BinaryAnnotation http_request_size(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::HTTP_REQUEST_SIZE, value, endpoint);
     }
+    /// \brief Annotate TraceKeys#HTTP_REQUEST_SIZE event
     inline BinaryAnnotation http_response_size(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::HTTP_RESPONSE_SIZE, value, endpoint);
     }
+    /// \brief Annotate TraceKeys#LOCAL_COMPONENT event
     inline BinaryAnnotation local_component(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::LOCAL_COMPONENT, value, endpoint);
     }
+    /// \brief Annotate TraceKeys#CLIENT_ADDR event
     inline BinaryAnnotation client_addr(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::CLIENT_ADDR, value, endpoint);
     }
+    /// \brief Annotate TraceKeys#SERVER_ADDR event
     inline BinaryAnnotation server_addr(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::SERVER_ADDR, value, endpoint);
+    }
+    /// \brief Annotate TraceKeys#ERROR event
+    inline Annotation error(const Endpoint *endpoint = nullptr)
+    {
+        return annotate(TraceKeys::ERROR, endpoint);
+    }
+    /// \brief Annotate TraceKeys#ERROR event
+    inline BinaryAnnotation error(const std::string &value, const Endpoint *endpoint = nullptr)
+    {
+        return annotate(TraceKeys::ERROR, value, endpoint);
     }
 
     inline size_t serialize_binary(apache::thrift::protocol::TProtocol &protocol) const

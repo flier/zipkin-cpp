@@ -104,13 +104,16 @@ void KafkaCollector::submit(Span *span)
     {
         rapidjson::StringBuffer buffer;
 
-        if (m_message_codec == MessageCodec::pretty_json) {
-            rapidjson::PrettyWriter <rapidjson::StringBuffer> writer(buffer);
+        if (m_message_codec == MessageCodec::pretty_json)
+        {
+            rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
 
             writer.StartArray();
             span->serialize_json(writer);
             writer.EndArray(1);
-        } else {
+        }
+        else
+        {
             rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 
             writer.StartArray();
@@ -120,7 +123,7 @@ void KafkaCollector::submit(Span *span)
 
         buf->write((const uint8_t *)buffer.GetString(), buffer.GetSize());
 
-        wrote =  buffer.GetSize();
+        wrote = buffer.GetSize();
 
         break;
     }

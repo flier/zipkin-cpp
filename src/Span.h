@@ -271,75 +271,109 @@ struct Span
     /**
      * Associated {@link Tracer}
      */
-    Tracer *tracer(void) const { return m_tracer; }
+    inline Tracer *tracer(void) const { return m_tracer; }
 
-    const ::Span &message(void) const { return m_span; }
+    inline const ::Span &message(void) const { return m_span; }
 
     /**
      * Unique 8-byte identifier for a trace, set on all spans within it.
      */
-    trace_id_t trace_id(void) const { return m_span.trace_id; }
+    inline trace_id_t trace_id(void) const { return m_span.trace_id; }
 
     /** @see Span#trace_id */
-    void set_trace_id(trace_id_t trace_id) { m_span.trace_id = trace_id; }
+    inline Span &with_trace_id(trace_id_t trace_id)
+    {
+        m_span.trace_id = trace_id;
+        return *this;
+    }
 
     /**
     * Unique 8-byte identifier of this span within a trace.
     *
     * <p>A span is uniquely identified in storage by ({@linkplain #trace_id}, {@code #id}).
     */
-    span_id_t id(void) const { return m_span.id; }
+    inline span_id_t id(void) const { return m_span.id; }
 
     /** @see Span#id */
-    void set_id(span_id_t id) { m_span.id = id; }
+    inline Span &with_id(span_id_t id)
+    {
+        m_span.id = id;
+        return *this;
+    }
 
     /**
     * Span name in lowercase, rpc method for example.
     *
     * <p>Conventionally, when the span name isn't known, name = "unknown".
     */
-    const std::string &name(void) const { return m_span.name; }
+    inline const std::string &name(void) const { return m_span.name; }
 
     /** @see Span#name */
-    void set_name(const std::string &name) { m_span.name = name; }
+    inline Span &with_name(const std::string &name)
+    {
+        m_span.name = name;
+        return *this;
+    }
 
     /**
     * The parent's {@link #id} or 0 if this the root span in a trace.
     */
-    span_id_t parent_id(void) const { return m_span.parent_id; }
+    inline span_id_t parent_id(void) const { return m_span.parent_id; }
 
     /** @see Span#parent_id */
-    void set_parent_id(span_id_t id) { m_span.parent_id = id; }
+    inline Span &with_parent_id(span_id_t id)
+    {
+        m_span.parent_id = id;
+        return *this;
+    }
 
     /**
     * Epoch microseconds of the start of this span, possibly absent if this an incomplete span.
     */
-    timestamp_t timestamp(void) const { return timestamp_t(m_span.timestamp); }
+    inline timestamp_t timestamp(void) const { return timestamp_t(m_span.timestamp); }
 
     /** @see Span#timestamp */
-    void set_timestamp(timestamp_t timestamp) { m_span.timestamp = timestamp.count(); }
+    inline Span &with_timestamp(timestamp_t timestamp)
+    {
+        m_span.timestamp = timestamp.count();
+        return *this;
+    }
 
     /**
     * Measurement in microseconds of the critical path, if known. Durations of less than one
     * microsecond must be rounded up to 1 microsecond.
     */
-    duration_t duration(void) const { return duration_t(m_span.duration); }
+    inline duration_t duration(void) const { return duration_t(m_span.duration); }
 
     /** @see Span#duration */
-    void set_duration(duration_t duration) { m_span.duration = duration.count(); }
+    inline Span &with_duration(duration_t duration)
+    {
+        m_span.duration = duration.count();
+        return *this;
+    }
 
-    userdata_t userdata(void) const { return m_userdata; }
+    inline userdata_t userdata(void) const { return m_userdata; }
 
     /** @see Span#userdata */
-    void set_userdata(userdata_t userdata) { m_userdata = userdata; }
+    inline Span &set_userdata(userdata_t userdata)
+    {
+        m_userdata = userdata;
+        return *this;
+    }
 
-    virtual Span *span(const std::string &name, userdata_t userdata = nullptr) const
+    virtual inline Span *span(const std::string &name, userdata_t userdata = nullptr) const
     {
         return new Span(m_tracer, name, m_span.id, userdata ? userdata : m_userdata);
     };
 
+    /**
+    * Generatea a random unique id for {@link Span} or {@link Tracer};
+    */
     static uint64_t next_id();
 
+    /**
+    * Get the current time as {@link timestamp_t} type
+    */
     static timestamp_t now();
 
     /**
@@ -375,7 +409,10 @@ struct Span
     {
         return annotate(TraceKeys::CLIENT_SEND_FRAGMENT, endpoint);
     }
-    inline Annotation client_recv_fragment(const Endpoint *endpoint = nullptr) { return annotate(TraceKeys::CLIENT_RECV_FRAGMENT, endpoint); }
+    inline Annotation client_recv_fragment(const Endpoint *endpoint = nullptr)
+    {
+        return annotate(TraceKeys::CLIENT_RECV_FRAGMENT, endpoint);
+    }
     inline Annotation server_send_fragment(const Endpoint *endpoint = nullptr)
     {
         return annotate(TraceKeys::SERVER_SEND_FRAGMENT, endpoint);
@@ -390,6 +427,7 @@ struct Span
     */
     template <typename T>
     BinaryAnnotation annotate(const std::string &key, const T &value, const Endpoint *endpoint = nullptr);
+
     BinaryAnnotation annotate(const std::string &key, const uint8_t *value, size_t size, const Endpoint *endpoint = nullptr);
 
     template <size_t N>
@@ -457,13 +495,13 @@ struct Span
         return annotate(TraceKeys::SERVER_ADDR, value, endpoint);
     }
 
-    size_t serialize_binary(apache::thrift::protocol::TProtocol &protocol) const
+    inline size_t serialize_binary(apache::thrift::protocol::TProtocol &protocol) const
     {
         return m_span.write(&protocol);
     }
 
-    template <class Writer>
-    void serialize_json(Writer &writer) const;
+    template <class RapidJsonWriter>
+    void serialize_json(RapidJsonWriter &writer) const;
 };
 
 class CachedSpan : public Span
@@ -552,8 +590,8 @@ inline BinaryAnnotation Span::annotate(const std::string &key, const T &value, c
     return BinaryAnnotation(m_span.binary_annotations.back());
 }
 
-template <class Writer>
-void Span::serialize_json(Writer &writer) const
+template <class RapidJsonWriter>
+void Span::serialize_json(RapidJsonWriter &writer) const
 {
     auto serialize_endpoint = [&writer](const ::Endpoint &host) {
         writer.StartObject();

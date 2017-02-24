@@ -76,7 +76,7 @@ zipkin_span_id_t zipkin_span_id(zipkin_span_t span)
 zipkin_span_t zipkin_span_set_id(zipkin_span_t span, zipkin_span_id_t id)
 {
     if (span)
-        static_cast<zipkin::Span *>(span)->set_id(id);
+        static_cast<zipkin::Span *>(span)->with_id(id);
 
     return span;
 }
@@ -95,7 +95,7 @@ zipkin_span_id_t zipkin_span_parent_id(zipkin_span_t span)
 zipkin_span_t zipkin_span_set_parent_id(zipkin_span_t span, zipkin_span_id_t id)
 {
     if (span)
-        static_cast<zipkin::Span *>(span)->set_parent_id(id);
+        static_cast<zipkin::Span *>(span)->with_parent_id(id);
 
     return span;
 }

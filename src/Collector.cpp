@@ -209,7 +209,7 @@ KafkaCollector *KafkaConf::create(void) const
     std::unique_ptr<RdKafka::DeliveryReportCb> reporter(new SpanDeliveryReporter());
     std::unique_ptr<RdKafka::PartitionerCb> partitioner;
 
-    if (!kafka_conf_set(producer_conf, "metadata.broker.list", brokers))
+    if (!kafka_conf_set(producer_conf, "metadata.broker.list", initial_brokers))
         return nullptr;
 
     if (RdKafka::Conf::CONF_OK != producer_conf->set("dr_cb", reporter.get(), errstr))
@@ -236,7 +236,7 @@ KafkaCollector *KafkaConf::create(void) const
     if (message_send_max_retries && !kafka_conf_set(producer_conf, "message.send.max.retries", std::to_string(message_send_max_retries)))
         return nullptr;
 
-    if (partition == RdKafka::Topic::PARTITION_UA)
+    if (topic_partition == RdKafka::Topic::PARTITION_UA)
     {
         partitioner.reset(new HashPartitioner());
 
@@ -272,7 +272,7 @@ KafkaCollector *KafkaConf::create(void) const
 
     if (!producer)
     {
-        LOG(ERROR) << "fail to connect Kafka broker @ " << brokers << ", " << errstr;
+        LOG(ERROR) << "fail to connect Kafka broker @ " << initial_brokers << ", " << errstr;
 
         return nullptr;
     }
@@ -286,7 +286,7 @@ KafkaCollector *KafkaConf::create(void) const
         return nullptr;
     }
 
-    return new KafkaCollector(producer, topic, std::move(reporter), std::move(partitioner), partition, message_codec);
+    return new KafkaCollector(producer, topic, std::move(reporter), std::move(partitioner), topic_partition, message_codec);
 }
 
 } // namespace zipkin

@@ -241,7 +241,7 @@ void zipkin_conf_set_partition(zipkin_conf_t conf, int partition)
 {
     assert(conf);
 
-    static_cast<zipkin::KafkaConf *>(conf)->partition = partition;
+    static_cast<zipkin::KafkaConf *>(conf)->topic_partition = partition;
 }
 int zipkin_conf_set_compression_codec(zipkin_conf_t conf, const char *codec)
 {

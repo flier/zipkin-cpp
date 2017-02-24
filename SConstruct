@@ -167,6 +167,8 @@ doxygen = env.Command(target=doc_dir,
                       source=['Doxyfile'] + header_files,
                       action=['doxygen'])
 
+env.Clean(doxygen, doc_dir)
+
 Depends(doxygen, zipkinLib)
 
 if gen_doc:

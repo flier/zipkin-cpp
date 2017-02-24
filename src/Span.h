@@ -3,6 +3,8 @@
 #include <arpa/inet.h>
 
 #include <cstdint>
+#include <locale>
+#include <codecvt>
 #include <memory>
 #include <chrono>
 
@@ -27,6 +29,21 @@ class Endpoint
     ::Endpoint m_host;
 
   public:
+    Endpoint()
+    {
+    }
+    Endpoint(const ::Endpoint &host) : m_host(host)
+    {
+    }
+    Endpoint(const std::string &service)
+    {
+        m_host.__set_service_name(service);
+    }
+    Endpoint(const sockaddr_in &addr)
+    {
+        m_host.__set_ipv4(addr.sin_addr.s_addr);
+        m_host.__set_port(addr.sin_port);
+    }
     Endpoint(const std::string &service, const sockaddr_in &addr)
     {
         m_host.__set_service_name(service);
@@ -50,6 +67,11 @@ class Endpoint
     * as user agent.
     */
     inline const std::string &service_name(void) const { return m_host.service_name; }
+    inline Endpoint &with_service_name(const std::string &service_name)
+    {
+        m_host.service_name = service_name;
+        return *this;
+    }
 
     /**
     * IPv4 endpoint address
@@ -64,6 +86,26 @@ class Endpoint
 
         return addr;
     }
+    inline Endpoint &with_addr(const sockaddr_in &addr)
+    {
+        m_host.ipv4 = addr.sin_addr.s_addr;
+        m_host.port = addr.sin_port;
+
+        return *this;
+    }
+
+    inline Endpoint &with_ipv4(const std::string &ip)
+    {
+        m_host.ipv4 = inet_addr(ip.c_str());
+
+        return *this;
+    }
+    inline Endpoint &with_port(uint16_t port)
+    {
+        m_host.port = port;
+
+        return *this;
+    }
 
     inline const ::Endpoint &host(void) const { return m_host; }
 };
@@ -71,6 +113,95 @@ class Endpoint
 struct Tracer;
 
 class CachedTracer;
+
+class Annotation
+{
+    ::Annotation &m_annotation;
+
+  public:
+    Annotation(::Annotation &annotation) : m_annotation(annotation) {}
+
+    timestamp_t timestamp(void) const { return timestamp_t(m_annotation.timestamp); }
+    Annotation &with_timestamp(timestamp_t timestamp)
+    {
+        m_annotation.timestamp = timestamp.count();
+        return *this;
+    }
+
+    const std::string &value(void) const { return m_annotation.value; }
+    Annotation &with_value(const std::string &value)
+    {
+        m_annotation.value = value;
+        return *this;
+    }
+
+    const Endpoint endpoint(void) const { return Endpoint(m_annotation.host); }
+    Annotation &with_endpoint(const Endpoint &endpoint)
+    {
+        m_annotation.host = endpoint.host();
+        return *this;
+    }
+};
+
+using AnnotationType = ::AnnotationType::type;
+
+class BinaryAnnotation
+{
+    ::BinaryAnnotation &m_annotation;
+
+  public:
+    BinaryAnnotation(::BinaryAnnotation &annotation) : m_annotation(annotation) {}
+
+    AnnotationType type(void) const { return m_annotation.annotation_type; }
+
+    const std::string &value(void) const { return m_annotation.value; }
+
+    template <typename T>
+    BinaryAnnotation &with_value(const T &value);
+
+    inline BinaryAnnotation &with_value(const uint8_t *value, size_t size)
+    {
+        m_annotation.value = std::string(reinterpret_cast<const char *>(value), size);
+        m_annotation.annotation_type = AnnotationType::BYTES;
+        return *this;
+    }
+    template <size_t N>
+    inline BinaryAnnotation &with_value(const uint8_t (&value)[N])
+    {
+        return with_value(value, N);
+    }
+    inline BinaryAnnotation &with_value(const std::vector<uint8_t> &value)
+    {
+        return with_value(value.data(), value.size());
+    }
+    inline BinaryAnnotation &with_value(const std::string &value)
+    {
+        m_annotation.value = value;
+        m_annotation.annotation_type = AnnotationType::STRING;
+        return *this;
+    }
+    inline BinaryAnnotation &with_value(const char *value, int len = -1)
+    {
+        return with_value(len >= 0 ? std::string(value, len) : std::string(value));
+    }
+    inline BinaryAnnotation &with_value(const std::wstring &value)
+    {
+        std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+
+        return with_value(converter.to_bytes(value));
+    }
+    inline BinaryAnnotation &with_value(const wchar_t *value, int len = -1)
+    {
+        return with_value(len >= 0 ? std::wstring(value, len) : std::wstring(value));
+    }
+
+    const Endpoint endpoint(void) const { return Endpoint(m_annotation.host); }
+    BinaryAnnotation &with_endpoint(const Endpoint &endpoint)
+    {
+        m_annotation.host = endpoint.host();
+        return *this;
+    }
+};
 
 /**
 * A trace is a series of spans (often RPC calls) which form a latency tree.
@@ -188,84 +319,114 @@ struct Span
     /**
     * Associates events that explain latency with a timestamp.
     */
-    void annotate(const std::string &value, const Endpoint *endpoint = nullptr);
+    Annotation annotate(const std::string &value, const Endpoint *endpoint = nullptr);
 
-    inline void client_send(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.CLIENT_SEND, endpoint); }
-    inline void client_recv(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.CLIENT_RECV, endpoint); }
-    inline void server_send(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.SERVER_SEND, endpoint); }
-    inline void server_recv(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.SERVER_RECV, endpoint); }
-    inline void wire_send(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.WIRE_SEND, endpoint); }
-    inline void wire_recv(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.WIRE_RECV, endpoint); }
-    inline void client_send_fragment(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.CLIENT_SEND_FRAGMENT, endpoint); }
-    inline void client_recv_fragment(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.CLIENT_RECV_FRAGMENT, endpoint); }
-    inline void server_send_fragment(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.SERVER_SEND_FRAGMENT, endpoint); }
-    inline void server_recv_fragment(const Endpoint *endpoint = nullptr) { annotate(g_zipkinCore_constants.SERVER_RECV_FRAGMENT, endpoint); }
+    inline Annotation client_send(const Endpoint *endpoint = nullptr)
+    {
+        return annotate(g_zipkinCore_constants.CLIENT_SEND, endpoint);
+    }
+    inline Annotation client_recv(const Endpoint *endpoint = nullptr)
+    {
+        return annotate(g_zipkinCore_constants.CLIENT_RECV, endpoint);
+    }
+    inline Annotation server_send(const Endpoint *endpoint = nullptr)
+    {
+        return annotate(g_zipkinCore_constants.SERVER_SEND, endpoint);
+    }
+    inline Annotation server_recv(const Endpoint *endpoint = nullptr)
+    {
+        return annotate(g_zipkinCore_constants.SERVER_RECV, endpoint);
+    }
+    inline Annotation wire_send(const Endpoint *endpoint = nullptr)
+    {
+        return annotate(g_zipkinCore_constants.WIRE_SEND, endpoint);
+    }
+    inline Annotation wire_recv(const Endpoint *endpoint = nullptr)
+    {
+        return annotate(g_zipkinCore_constants.WIRE_RECV, endpoint);
+    }
+    inline Annotation client_send_fragment(const Endpoint *endpoint = nullptr)
+    {
+        return annotate(g_zipkinCore_constants.CLIENT_SEND_FRAGMENT, endpoint);
+    }
+    inline Annotation client_recv_fragment(const Endpoint *endpoint = nullptr) { return annotate(g_zipkinCore_constants.CLIENT_RECV_FRAGMENT, endpoint); }
+    inline Annotation server_send_fragment(const Endpoint *endpoint = nullptr)
+    {
+        return annotate(g_zipkinCore_constants.SERVER_SEND_FRAGMENT, endpoint);
+    }
+    inline Annotation server_recv_fragment(const Endpoint *endpoint = nullptr)
+    {
+        return annotate(g_zipkinCore_constants.SERVER_RECV_FRAGMENT, endpoint);
+    }
 
     /**
     * Tags a span with context, usually to support query or aggregation.
     */
     template <typename T>
-    void annotate(const std::string &key, T value, const Endpoint *endpoint = nullptr);
-
-    void annotate(const std::string &key, const uint8_t *value, size_t size, const Endpoint *endpoint = nullptr);
+    BinaryAnnotation annotate(const std::string &key, const T &value, const Endpoint *endpoint = nullptr);
+    BinaryAnnotation annotate(const std::string &key, const uint8_t *value, size_t size, const Endpoint *endpoint = nullptr);
 
     template <size_t N>
-    inline void annotate(const std::string &key, const uint8_t (&value)[N], const Endpoint *endpoint = nullptr)
+    inline BinaryAnnotation annotate(const std::string &key, const uint8_t (&value)[N], const Endpoint *endpoint = nullptr)
     {
-        annotate(key, value, N, endpoint);
+        return annotate(key, value, N, endpoint);
     }
-    inline void annotate(const std::string &key, const std::vector<uint8_t> &value, const Endpoint *endpoint = nullptr)
+    inline BinaryAnnotation annotate(const std::string &key, const std::vector<uint8_t> &value, const Endpoint *endpoint = nullptr)
     {
-        annotate(key, value.data(), value.size(), endpoint);
-    }
-    void annotate(const std::string &key, const std::string &value, const Endpoint *endpoint = nullptr);
-    inline void annotate(const std::string &key, const char *value, int len = -1, const Endpoint *endpoint = nullptr)
-    {
-        annotate(key, len >= 0 ? std::string(value, len) : std::string(value), endpoint);
-    }
-    void annotate(const std::string &key, const std::wstring &value, const Endpoint *endpoint = nullptr);
-    inline void annotate(const std::string &key, const wchar_t *value, int len = -1, const Endpoint *endpoint = nullptr)
-    {
-        annotate(key, len >= 0 ? std::wstring(value, len) : std::wstring(value), endpoint);
+        return annotate(key, value.data(), value.size(), endpoint);
     }
 
-    inline void http_host(const std::string &value, const Endpoint *endpoint = nullptr)
+    BinaryAnnotation annotate(const std::string &key, const std::string &value, const Endpoint *endpoint = nullptr);
+
+    inline BinaryAnnotation annotate(const std::string &key, const char *value, int len = -1, const Endpoint *endpoint = nullptr)
+    {
+        return annotate(key, len >= 0 ? std::string(value, len) : std::string(value), endpoint);
+    }
+
+    BinaryAnnotation annotate(const std::string &key, const std::wstring &value, const Endpoint *endpoint = nullptr);
+
+    inline BinaryAnnotation annotate(const std::string &key, const wchar_t *value, int len = -1, const Endpoint *endpoint = nullptr)
+    {
+        return annotate(key, len >= 0 ? std::wstring(value, len) : std::wstring(value), endpoint);
+    }
+
+    inline BinaryAnnotation http_host(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(g_zipkinCore_constants.HTTP_HOST, value, endpoint);
     }
-    inline void http_method(const std::string &value, const Endpoint *endpoint = nullptr)
+    inline BinaryAnnotation http_method(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(g_zipkinCore_constants.HTTP_METHOD, value, endpoint);
     }
-    inline void http_path(const std::string &value, const Endpoint *endpoint = nullptr)
+    inline BinaryAnnotation http_path(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(g_zipkinCore_constants.HTTP_PATH, value, endpoint);
     }
-    inline void http_url(const std::string &value, const Endpoint *endpoint = nullptr)
+    inline BinaryAnnotation http_url(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(g_zipkinCore_constants.HTTP_URL, value, endpoint);
     }
-    inline void http_status_code(const std::string &value, const Endpoint *endpoint = nullptr)
+    inline BinaryAnnotation http_status_code(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(g_zipkinCore_constants.HTTP_STATUS_CODE, value, endpoint);
     }
-    inline void http_request_size(const std::string &value, const Endpoint *endpoint = nullptr)
+    inline BinaryAnnotation http_request_size(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(g_zipkinCore_constants.HTTP_REQUEST_SIZE, value, endpoint);
     }
-    inline void http_response_size(const std::string &value, const Endpoint *endpoint = nullptr)
+    inline BinaryAnnotation http_response_size(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(g_zipkinCore_constants.HTTP_RESPONSE_SIZE, value, endpoint);
     }
-    inline void local_component(const std::string &value, const Endpoint *endpoint = nullptr)
+    inline BinaryAnnotation local_component(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(g_zipkinCore_constants.LOCAL_COMPONENT, value, endpoint);
     }
-    inline void client_addr(const std::string &value, const Endpoint *endpoint = nullptr)
+    inline BinaryAnnotation client_addr(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(g_zipkinCore_constants.CLIENT_ADDR, value, endpoint);
     }
-    inline void server_addr(const std::string &value, const Endpoint *endpoint = nullptr)
+    inline BinaryAnnotation server_addr(const std::string &value, const Endpoint *endpoint = nullptr)
     {
         return annotate(g_zipkinCore_constants.SERVER_ADDR, value, endpoint);
     }
@@ -312,40 +473,47 @@ struct __annotation
 template <>
 struct __annotation<bool>
 {
-    static const AnnotationType::type type = AnnotationType::type::BOOL;
+    static const AnnotationType type = AnnotationType::BOOL;
 };
 template <>
 struct __annotation<int16_t>
 {
-    static const AnnotationType::type type = AnnotationType::type::I16;
+    static const AnnotationType type = AnnotationType::I16;
 };
 template <>
 struct __annotation<int32_t>
 {
-    static const AnnotationType::type type = AnnotationType::type::I32;
+    static const AnnotationType type = AnnotationType::I32;
 };
 template <>
 struct __annotation<int64_t>
 {
-    static const AnnotationType::type type = AnnotationType::type::I64;
+    static const AnnotationType type = AnnotationType::I64;
 };
 template <>
 struct __annotation<double>
 {
-    static const AnnotationType::type type = AnnotationType::type::DOUBLE;
+    static const AnnotationType type = AnnotationType::DOUBLE;
 };
 } // namespace __impl
 
 template <typename T>
-inline void Span::annotate(const std::string &key, T value, const Endpoint *endpoint)
+BinaryAnnotation &BinaryAnnotation::with_value(const T &value)
 {
     auto ptr = reinterpret_cast<uint8_t *>(&value);
-    std::string data(reinterpret_cast<char *>(ptr), sizeof(T));
 
+    m_annotation.value = std::string(reinterpret_cast<char *>(ptr), sizeof(T));
+
+    return *this;
+}
+
+template <typename T>
+inline BinaryAnnotation Span::annotate(const std::string &key, const T &value, const Endpoint *endpoint)
+{
     ::BinaryAnnotation annotation;
 
     annotation.__set_key(key);
-    annotation.__set_value(data);
+    annotation.__set_value(std::string(reinterpret_cast<const char *>(&value), sizeof(T)));
     annotation.__set_annotation_type(__impl::__annotation<T>::type);
 
     if (endpoint)
@@ -354,6 +522,8 @@ inline void Span::annotate(const std::string &key, T value, const Endpoint *endp
     }
 
     m_span.binary_annotations.push_back(annotation);
+
+    return BinaryAnnotation(m_span.binary_annotations.back());
 }
 
 template <class Writer>
@@ -374,30 +544,30 @@ void Span::serialize_json(Writer &writer) const
         writer.EndObject();
     };
 
-    auto serialize_value = [&writer](const std::string &data, AnnotationType::type type) {
+    auto serialize_value = [&writer](const std::string &data, AnnotationType type) {
         switch (type)
         {
-        case AnnotationType::type::BOOL:
+        case AnnotationType::BOOL:
             writer.Bool(*reinterpret_cast<const bool *>(data.c_str()));
             break;
 
-        case AnnotationType::type::I16:
+        case AnnotationType::I16:
             writer.Int(*reinterpret_cast<const int16_t *>(data.c_str()));
             break;
 
-        case AnnotationType::type::I32:
+        case AnnotationType::I32:
             writer.Int(*reinterpret_cast<const int32_t *>(data.c_str()));
             break;
 
-        case AnnotationType::type::I64:
+        case AnnotationType::I64:
             writer.Int64(*reinterpret_cast<const int64_t *>(data.c_str()));
             break;
 
-        case AnnotationType::type::DOUBLE:
+        case AnnotationType::DOUBLE:
             writer.Double(*reinterpret_cast<const double *>(data.c_str()));
             break;
 
-        case AnnotationType::type::BYTES:
+        case AnnotationType::BYTES:
             writer.StartArray();
 
             for (auto c : data)
@@ -409,7 +579,7 @@ void Span::serialize_json(Writer &writer) const
 
             break;
 
-        case AnnotationType::type::STRING:
+        case AnnotationType::STRING:
             writer.String(data);
             break;
         }

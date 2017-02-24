@@ -3,9 +3,6 @@
 
 #include <ios>
 #include <cstdlib>
-#include <string>
-#include <locale>
-#include <codecvt>
 
 #include <arpa/inet.h>
 
@@ -63,7 +60,7 @@ timestamp_t Span::now()
     return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
 }
 
-void Span::annotate(const std::string &value, const Endpoint *endpoint)
+Annotation Span::annotate(const std::string &value, const Endpoint *endpoint)
 {
     ::Annotation annotation;
 
@@ -76,15 +73,17 @@ void Span::annotate(const std::string &value, const Endpoint *endpoint)
     }
 
     m_span.annotations.push_back(annotation);
+
+    return Annotation(m_span.annotations.back());
 }
 
-void Span::annotate(const std::string &key, const uint8_t *value, size_t size, const Endpoint *endpoint)
+BinaryAnnotation Span::annotate(const std::string &key, const uint8_t *value, size_t size, const Endpoint *endpoint)
 {
     ::BinaryAnnotation annotation;
 
     annotation.__set_key(key);
     annotation.__set_value(std::string(reinterpret_cast<const char *>(value), size));
-    annotation.__set_annotation_type(AnnotationType::type::BYTES);
+    annotation.__set_annotation_type(AnnotationType::BYTES);
 
     if (endpoint)
     {
@@ -92,15 +91,17 @@ void Span::annotate(const std::string &key, const uint8_t *value, size_t size, c
     }
 
     m_span.binary_annotations.push_back(annotation);
+
+    return BinaryAnnotation(m_span.binary_annotations.back());
 }
 
-void Span::annotate(const std::string &key, const std::string &value, const Endpoint *endpoint)
+BinaryAnnotation Span::annotate(const std::string &key, const std::string &value, const Endpoint *endpoint)
 {
     ::BinaryAnnotation annotation;
 
     annotation.__set_key(key);
     annotation.__set_value(value);
-    annotation.__set_annotation_type(AnnotationType::type::STRING);
+    annotation.__set_annotation_type(AnnotationType::STRING);
 
     if (endpoint)
     {
@@ -108,9 +109,11 @@ void Span::annotate(const std::string &key, const std::string &value, const Endp
     }
 
     m_span.binary_annotations.push_back(annotation);
+
+    return BinaryAnnotation(m_span.binary_annotations.back());
 }
 
-void Span::annotate(const std::string &key, const std::wstring &value, const Endpoint *endpoint)
+BinaryAnnotation Span::annotate(const std::string &key, const std::wstring &value, const Endpoint *endpoint)
 {
     std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
     const std::string utf8 = converter.to_bytes(value);
@@ -118,7 +121,7 @@ void Span::annotate(const std::string &key, const std::wstring &value, const End
 
     annotation.__set_key(key);
     annotation.__set_value(utf8);
-    annotation.__set_annotation_type(AnnotationType::type::STRING);
+    annotation.__set_annotation_type(AnnotationType::STRING);
 
     if (endpoint)
     {
@@ -126,6 +129,8 @@ void Span::annotate(const std::string &key, const std::wstring &value, const End
     }
 
     m_span.binary_annotations.push_back(annotation);
+
+    return BinaryAnnotation(m_span.binary_annotations.back());
 }
 
 size_t CachedSpan::cache_size(void) const

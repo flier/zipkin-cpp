@@ -17,17 +17,6 @@
 namespace zipkin
 {
 
-const ::Endpoint Endpoint::host() const
-{
-    ::Endpoint host;
-
-    host.__set_ipv4(addr.sin_addr.s_addr);
-    host.__set_port(addr.sin_port);
-    host.__set_service_name(service);
-
-    return host;
-}
-
 Span::Span(Tracer *tracer, const std::string &name, span_id_t parent_id, userdata_t userdata) : m_tracer(tracer)
 {
     if (tracer)
@@ -41,7 +30,7 @@ void Span::reset(const std::string &name, span_id_t parent_id, userdata_t userda
     m_span.__isset = _Span__isset();
     m_span.__set_name(name);
     m_span.__set_id(next_id());
-    m_span.__set_timestamp(now());
+    m_span.__set_timestamp(now().count());
     m_span.annotations.clear();
     m_span.binary_annotations.clear();
 
@@ -56,7 +45,7 @@ void Span::reset(const std::string &name, span_id_t parent_id, userdata_t userda
 void Span::submit(void)
 {
     if (m_span.timestamp)
-        m_span.__set_duration(now() - m_span.timestamp);
+        m_span.__set_duration(now().count() - m_span.timestamp);
 
     if (m_tracer)
         m_tracer->submit(this);
@@ -71,14 +60,14 @@ uint64_t Span::next_id()
 
 timestamp_t Span::now()
 {
-    return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+    return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
 }
 
 void Span::annotate(const std::string &value, const Endpoint *endpoint)
 {
     ::Annotation annotation;
 
-    annotation.__set_timestamp(now());
+    annotation.__set_timestamp(now().count());
     annotation.__set_value(value);
 
     if (endpoint)

@@ -18,18 +18,30 @@ void zipkin_set_logging_level(enum zipkin_logger_level_t level)
     FLAGS_v = (int)level;
 }
 
-zipkin_endpoint_t zipkin_endpoint_new(struct sockaddr_in *addr, const char *service, int len)
+zipkin_endpoint_t zipkin_endpoint_new(const char *service, struct sockaddr_in *addr)
 {
-    return new zipkin::Endpoint{
-        addr ? *addr : sockaddr_in(),
-        service ? std::string(service, len < 0 ? strlen(service) : len) : std::string(),
-    };
+    assert(addr);
+
+    return new zipkin::Endpoint(service ? std::string(service) : std::string(), *addr);
 }
 void zipkin_endpoint_free(zipkin_endpoint_t endpoint)
 {
     assert(endpoint);
 
     delete static_cast<zipkin::Endpoint *>(endpoint);
+}
+const char *zipkin_endpoint_service_name(zipkin_endpoint_t endpoint)
+{
+    assert(endpoint);
+
+    return static_cast<zipkin::Endpoint *>(endpoint)->service_name().c_str();
+}
+void zipkin_endpoint_addr(zipkin_endpoint_t endpoint, struct sockaddr_in *addr)
+{
+    assert(endpoint);
+
+    if (addr)
+        *addr = static_cast<zipkin::Endpoint *>(endpoint)->addr();
 }
 
 zipkin_span_t zipkin_span_new(zipkin_tracer_t tracer, const char *name, zipkin_userdata_t userdata)

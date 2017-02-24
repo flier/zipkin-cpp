@@ -19,12 +19,53 @@ typedef void *userdata_t;
 namespace zipkin
 {
 
-struct Endpoint
+/**
+ * Indicates the network context of a service recording an annotation with two exceptions.
+ */
+class Endpoint
 {
-    sockaddr_in addr;
-    const std::string service;
+    ::Endpoint m_host;
 
-    const ::Endpoint host(void) const;
+  public:
+    Endpoint(const std::string &service, const sockaddr_in &addr)
+    {
+        m_host.__set_service_name(service);
+        m_host.__set_ipv4(addr.sin_addr.s_addr);
+        m_host.__set_port(addr.sin_port);
+    }
+
+    /**
+    * Classifier of a source or destination in lowercase, such as "zipkin-server".
+    *
+    * <p>This is the primary parameter for trace lookup, so should be intuitive as possible, for
+    * example, matching names in service discovery.
+    *
+    * <p>Conventionally, when the service name isn't known, service_name = "unknown". However, it is
+    * also permissible to set service_name = "" (empty string). The difference in the latter usage is
+    * that the span will not be queryable by service name unless more information is added to the
+    * span with non-empty service name, e.g. an additional annotation from the server.
+    *
+    * <p>Particularly clients may not have a reliable service name at ingest. One approach is to set
+    * service_name to "" at ingest, and later assign a better label based on binary annotations, such
+    * as user agent.
+    */
+    inline const std::string &service_name(void) const { return m_host.service_name; }
+
+    /**
+    * IPv4 endpoint address
+    */
+    inline const sockaddr_in addr(void) const
+    {
+        sockaddr_in addr;
+
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = m_host.ipv4;
+        addr.sin_port = m_host.port;
+
+        return addr;
+    }
+
+    inline const ::Endpoint &host(void) const { return m_host; }
 };
 
 struct Tracer;

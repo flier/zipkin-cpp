@@ -95,12 +95,12 @@ zipkin_endpoint_t create_session_endpoint(struct mg_connection *nc, const char *
 
   if (MG_F_UPSTREAM == (nc->flags & MG_F_UPSTREAM))
   {
-    return zipkin_endpoint_new(&nc->sa.sin, service, -1);
+    return zipkin_endpoint_new(service, &nc->sa.sin);
   }
 
   getsockname(nc->sock, &addr.sa, &addr_len);
 
-  return zipkin_endpoint_new(&addr.sin, service, -1);
+  return zipkin_endpoint_new(service, &addr.sin);
 }
 
 void forward_tcp_connection(struct mg_connection *nc, struct http_message *hm)

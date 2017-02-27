@@ -2,12 +2,13 @@
 .vscode
 bin
 build
+dist
 docs
 gen-cpp
 
 .sconsign.dblite
+.conan*
 *_conan
-conan*info.txt
 config.log
 tags
 

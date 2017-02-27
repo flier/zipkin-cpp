@@ -1,0 +1,49 @@
+[settings]
+    arch=x86_64
+    build_type=Release
+    compiler=apple-clang
+    compiler.libcxx=libc++
+    compiler.version=8.0
+    os=Macos
+
+[requires]
+    RapidJSON/1.Y.Z
+    gflags/2.Y.Z
+    glog/0.3.4
+    gtest/1.Y.Z
+
+[options]
+    fPIC=False
+    shared=False
+
+[full_settings]
+    arch=x86_64
+    build_type=Release
+    compiler=apple-clang
+    compiler.libcxx=libc++
+    compiler.version=8.0
+    os=Macos
+
+[full_requires]
+    RapidJSON/1.0.2@SamuelMarks/stable:5ab84d6acfe1f23c4fae0ab88f26e3a396351ac9
+    gflags/2.2.0@eliaskousk/stable:7dff12bab40a10dd8c873d3dbf82684002aa1587
+    glog/0.3.4@eliaskousk/stable:829511b02c14e41921dcc864178ab0b97ab6e020
+    gtest/1.8.0@eliaskousk/stable:6930affda001dc28b1deb6ad58e56385dec517ad
+
+[full_options]
+    fPIC=False
+    shared=False
+    gflags:fpic=True
+    gflags:shared=True
+    glog:fpic=True
+    glog:gflags=True
+    glog:multithreaded=True
+    glog:shared=True
+    gtest:cygwin_msvc=False
+    gtest:shared=True
+
+[scope]
+    dev=True
+
+[recipe_hash]
+None

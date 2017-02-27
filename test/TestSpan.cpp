@@ -201,6 +201,6 @@ TEST(span, serialize_json)
 })###",
                            span.trace_id(), span.id(), span.parent_id(), span.message().annotations[0].timestamp, span.message().timestamp);
 
-    ASSERT_EQ(buffer.GetSize(), 1197);
+    ASSERT_EQ(buffer.GetSize(), 1193);
     ASSERT_EQ(std::string(buffer.GetString(), buffer.GetSize()), std::string(str, str_len));
 }

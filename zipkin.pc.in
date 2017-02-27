@@ -1,0 +1,10 @@
+prefix=$PREFIX$
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: zipkin
+Description: Zipkin tracing library for C/C++
+Version: $VERSION$
+Libs: -L${libdir} -lzipkin
+Cflags: -I${includedir}

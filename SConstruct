@@ -3,13 +3,14 @@ import os.path
 import itertools
 from distutils.util import strtobool
 
-from SCons.Script import SConscript, Environment, Glob, Configure, Depends, Exit, FindFile, ARGUMENTS
+from SCons.Script import SConscript, Environment, Glob, Configure, Depends, Delete, Exit, FindFile, FindInstalledFiles, ARGUMENTS, COMMAND_LINE_TARGETS
 
 debug_mode = strtobool(ARGUMENTS.get('debug', 'true'))
 release_mode = strtobool(ARGUMENTS.get('release', 'false'))
-gen_doc = strtobool(ARGUMENTS.get('doc', 'false'))
 build_dir = ARGUMENTS.get('build_dir', 'build')
 gen_dir = ARGUMENTS.get('gen_dir', 'gen-cpp')
+prefix = ARGUMENTS.get('prefix', os.getenv('PREFIX', '/usr/local'))
+version = '0.1.0'
 
 bin_dir = 'bin'
 src_dir = 'src'
@@ -116,6 +117,7 @@ env.Command(target=zipkinCoreFiles,
             source=zipkinCoreThrift,
             action=['thrift -r --gen cpp ' + zipkinCoreThrift])
 
+zipkinHeaders = ['Span.h', 'Tracer.h', 'Collector.h']
 zipkinSources = ['Span.cpp', 'Tracer.cpp', 'Collector.cpp', 'CApi.cpp']
 zipkinObjects = obj_files(zipkinSources, base_dir=src_dir)
 
@@ -123,6 +125,22 @@ zipkinLibObjects = itertools.chain(zipkinCoreObjects, zipkinObjects)
 
 zipkinLib = env.StaticLibrary(target=os.path.join(build_dir, 'zipkin'),
                               source=list(zipkinLibObjects))
+
+pkgConfigFile = os.path.join(build_dir, 'zipkin.pc')
+
+env.Alias('install-inc', env.Install(os.path.join(prefix, 'include', 'zipkin'),
+                                     [os.path.join(inc_dir, header) for header in ['zipkin.h', 'zipkin.hpp']] +
+                                     [os.path.join(src_dir, header) for header in zipkinHeaders]))
+env.Alias('install-lib', env.Install(os.path.join(prefix, 'lib'), zipkinLib))
+env.Alias('install-cfg', env.Install(os.path.join(prefix, 'lib', 'pkgconfig'), os.path.join(pkgConfigFile)))
+env.Alias('install', ['install-inc', 'install-lib', 'install-cfg'])
+
+if 'install' in COMMAND_LINE_TARGETS:
+    with open(pkgConfigFile, 'w') as f:
+        f.write(open('zipkin.pc.in').read().replace('$PREFIX$', prefix).replace('$VERSION$', version))
+
+if 'uninstall' in COMMAND_LINE_TARGETS:
+    env.Command("uninstall", None, Delete(FindInstalledFiles()))
 
 test_env = env.Clone()
 test_env.MergeFlags(conan_libs['conan'])
@@ -167,10 +185,12 @@ doxygen = env.Command(target=doc_dir,
                       source=['Doxyfile'] + header_files,
                       action=['doxygen'])
 
+env.Alias('doc', doxygen)
+
 env.Clean(doxygen, doc_dir)
 
 Depends(doxygen, zipkinLib)
 
-if gen_doc:
+if 'doc' in COMMAND_LINE_TARGETS:
     print "Generating API documents ..."
     env.AlwaysBuild(doxygen)

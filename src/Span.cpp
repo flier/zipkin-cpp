@@ -117,7 +117,7 @@ span_id_t Span::next_id()
 
 timestamp_t Span::now()
 {
-    return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now().time_since_epoch());
+    return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch());
 }
 
 Annotation Span::annotate(const std::string &value, const Endpoint *endpoint)

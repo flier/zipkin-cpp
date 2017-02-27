@@ -217,3 +217,42 @@ TEST(span, serialize_json)
 
     ASSERT_EQ(std::string(buffer.GetString(), buffer.GetSize()), std::string(str, str_len));
 }
+
+TEST(span, scope)
+{
+    MockTracer tracer;
+
+    EXPECT_CALL(tracer, id())
+        .Times(1)
+        .WillOnce(Return(zipkin::Span::next_id()));
+
+    EXPECT_CALL(tracer, id_high())
+        .Times(1)
+        .WillOnce(Return(0));
+
+    zipkin::Span span(&tracer, "test");
+
+    EXPECT_CALL(tracer, submit(&span))
+        .Times(1);
+
+    zipkin::Span::Scope scope(span);
+}
+
+TEST(span, scope_cancel)
+{
+    MockTracer tracer;
+
+    EXPECT_CALL(tracer, id())
+        .Times(1)
+        .WillOnce(Return(zipkin::Span::next_id()));
+
+    EXPECT_CALL(tracer, id_high())
+        .Times(1)
+        .WillOnce(Return(0));
+
+    zipkin::Span *span = new zipkin::Span(&tracer, "test");
+
+    zipkin::Span::Scope scope(*span);
+
+    scope.cancel();
+}

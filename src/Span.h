@@ -525,9 +525,18 @@ class Span
     void reset(const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr);
 
     /**
-     * \brief Submit a span to Tracer
+     * \brief Submit a Span to Tracer
+     *
+     * \sa Tracer#submit
      */
-    void submit(void);
+    virtual void submit(void);
+
+    /**
+     * \brief Release the Span to Tracer
+     *
+     * \sa Tracer#release
+     */
+    virtual void release(void) { delete this; }
 
     /**
      * \brief Associated Tracer
@@ -803,6 +812,31 @@ class Span
 
     template <class RapidJsonWriter>
     void serialize_json(RapidJsonWriter &writer) const;
+
+    class Scope
+    {
+        Span &m_span;
+        bool m_canceled;
+
+      public:
+        Scope(Span &span) : m_span(span), m_canceled(false)
+        {
+        }
+
+        ~Scope()
+        {
+            if (m_canceled)
+            {
+                m_span.release();
+            }
+            else
+            {
+                m_span.submit();
+            }
+        }
+
+        void cancel(void) { m_canceled = true; }
+    };
 };
 
 class CachedSpan : public Span
@@ -823,7 +857,7 @@ class CachedSpan : public Span
     uint8_t *cache_ptr(void) { return &m_buf[0]; }
     size_t cache_size(void) const;
 
-    void release(void);
+    virtual void release(void) override;
 
     virtual Span *span(const std::string &name, userdata_t userdata = nullptr) const override;
 

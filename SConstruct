@@ -10,6 +10,8 @@ release_mode = strtobool(ARGUMENTS.get('release', 'false'))
 build_dir = ARGUMENTS.get('build_dir', 'build')
 gen_dir = ARGUMENTS.get('gen_dir', 'gen-cpp')
 prefix = ARGUMENTS.get('prefix', os.getenv('PREFIX', '/usr/local'))
+shared_lib = strtobool(ARGUMENTS.get('shared', 'false'))
+fpic = strtobool(ARGUMENTS.get('fpic', 'false'))
 version = '0.1.0'
 
 bin_dir = 'bin'
@@ -22,7 +24,7 @@ obj_dir = os.path.join(build_dir, 'obj')
 
 env = Environment(CXXFLAGS=['-std=c++14', '-Wno-invalid-offsetof'],
                   CPPPATH=[inc_dir],
-                  ENV={'TERM': os.getenv('TERM', 'xterm-256color')})
+                  ENV=dict(TERM=os.getenv('TERM', 'xterm-256color')))
 
 env.VariantDir(build_dir, '.', duplicate=0)
 
@@ -99,6 +101,8 @@ if debug_mode:
     env.Append(CXXFLAGS=['-g'], CFLAGS=['-g'])
 if release_mode:
     env.Append(CXXFLAGS=['-O2'], CFLAGS=['-O2'])
+if not shared_lib and fpic:
+    env.Append(CXXFLAGS=['-fPIC'], CFLAGS=['-fPIC'])
 
 
 def obj_files(source_files, base_dir, target_dir=obj_dir, env=env):
@@ -106,7 +110,10 @@ def obj_files(source_files, base_dir, target_dir=obj_dir, env=env):
         source = os.path.join(base_dir, filename)
         target = os.path.join(target_dir, os.path.splitext(filename)[0])
 
-        yield env.StaticObject(target=target, source=source)
+        if shared_lib:
+            yield env.SharedObject(target=target, source=source)
+        else:
+            yield env.StaticObject(target=target, source=source)
 
 zipkinCoreThrift = os.path.join(src_dir, 'zipkinCore.thrift')
 zipkinCoreSources = ['zipkinCore_constants.cpp', 'zipkinCore_types.cpp']
@@ -123,8 +130,12 @@ zipkinObjects = obj_files(zipkinSources, base_dir=src_dir)
 
 zipkinLibObjects = itertools.chain(zipkinCoreObjects, zipkinObjects)
 
-zipkinLib = env.StaticLibrary(target=os.path.join(build_dir, 'zipkin'),
-                              source=list(zipkinLibObjects))
+if shared_lib:
+    zipkinLib = env.SharedLibrary(target=os.path.join(build_dir, 'zipkin'),
+                                  source=list(zipkinLibObjects))
+else:
+    zipkinLib = env.StaticLibrary(target=os.path.join(build_dir, 'zipkin'),
+                                  source=list(zipkinLibObjects))
 
 pkgConfigFile = os.path.join(build_dir, 'zipkin.pc')
 
@@ -162,9 +173,8 @@ unittest = test_env.Program(target=os.path.join(bin_dir, 'unittest'),
 
 runtest = test_env.Command(target='runtest',
                            source=unittest,
-                           action=['unittest'],
-                           DYLD_LIBRARY_PATH=bin_dir,
-                           chdir=bin_dir)
+                           action=[os.path.join(bin_dir, 'unittest')],
+                           DYLD_LIBRARY_PATH=bin_dir)
 
 test_env.Execute(runtest)
 

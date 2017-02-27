@@ -8,7 +8,8 @@ gen-cpp
 
 .sconsign.dblite
 .conan*
-*_conan
+SConscript_conan
+conan*info.txt
 config.log
 tags
 

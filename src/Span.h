@@ -1081,12 +1081,12 @@ void Span::serialize_json(RapidJsonWriter &writer) const
     writer.StartObject();
 
     writer.Key("traceId");
-    writer.String(str, snprintf(str, sizeof(str), "%016llx", m_span.trace_id));
-
     if (m_span.trace_id_high)
     {
-        writer.Key("traceIdHigh");
-        writer.String(str, snprintf(str, sizeof(str), "%016llx", m_span.trace_id_high));
+        writer.String(str, snprintf(str, sizeof(str), "%016llx%016llx", m_span.trace_id_high, m_span.trace_id));
+    } else
+    {
+        writer.String(str, snprintf(str, sizeof(str), "%016llx", m_span.trace_id));
     }
 
     writer.Key("name");

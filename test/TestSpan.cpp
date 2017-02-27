@@ -122,8 +122,7 @@ TEST(span, annotate)
 }
 
 static const char *json_template = R"###({
-    "traceId": "%016llx",
-    "traceIdHigh": "%016llx",
+    "traceId": "%016llx%016llx",
     "name": "test",
     "id": "%016llx",
     "parentId": "%016llx",
@@ -215,7 +214,8 @@ TEST(span, serialize_json)
     span.serialize_json(writer);
 
     char str[2048] = {0};
-    int str_len = snprintf(str, sizeof(str), json_template, span.trace_id(), span.trace_id_high(), span.id(), span.parent_id(), span.message().annotations[0].timestamp, span.message().timestamp);
+    int str_len = snprintf(str, sizeof(str), json_template, span.trace_id_high(), span.trace_id(), span.id(), span.parent_id(),
+                           span.message().annotations[0].timestamp, span.message().timestamp);
 
     ASSERT_EQ(std::string(buffer.GetString(), buffer.GetSize()), std::string(str, str_len));
 }

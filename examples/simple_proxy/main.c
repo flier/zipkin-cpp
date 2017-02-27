@@ -171,7 +171,7 @@ void forward_http_request(struct mg_connection *nc, struct http_message *hm)
     }
     else if (0 == mg_vcmp(hn, HTTP_X_SPAN_ID))
     {
-      zipkin_span_set_parent_id(span, strtoll(hv->p, NULL, 16));
+      zipkin_span_set_parent_id(span, strtoull(hv->p, NULL, 16));
     }
     else
     {
@@ -192,7 +192,7 @@ void forward_http_request(struct mg_connection *nc, struct http_message *hm)
   p += snprintf(p, end - p, HTTP_FORWARDED ": for=%s;proto=http;by=%s" CRLF, peer_addr, local_addr);
 
   if (span)
-    p += snprintf(p, end - p, HTTP_X_SPAN_ID ": %llx" CRLF, zipkin_span_id(span));
+    p += snprintf(p, end - p, HTTP_X_SPAN_ID ": %016llx" CRLF, zipkin_span_id(span));
 
   cc = mg_connect_http_opt(nc->mgr, ev_handler, opts, uri, extra_headers, hm->body.len ? hm->body.p : NULL);
 
@@ -250,6 +250,11 @@ void reply_json_response(struct mg_connection *nc, struct http_message *hm)
     struct mg_str *hv = &hm->header_values[i];
 
     ANNOTATE_STR_IF(0 == mg_vcasecmp(hn, HTTP_HOST), span, ZIPKIN_HTTP_HOST, hv->p, hv->len, endpoint);
+
+    if (0 == mg_vcmp(hn, HTTP_X_SPAN_ID))
+    {
+      zipkin_span_set_parent_id(span, strtoull(hv->p, NULL, 16));
+    }
 
     mg_printf(nc, "%s\"%.*s\": \"%.*s\"", (i != 0 ? "," : ""), (int)hn->len, hn->p, (int)hv->len, hv->p);
   }

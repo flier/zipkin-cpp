@@ -548,6 +548,8 @@ class Span
      */
     inline const ::Span &message(void) const { return m_span; }
 
+    inline ::Span &message(void) { return m_span; }
+
     /**
      * \brief Unique 8-byte identifier for a trace, set on all spans within it.
      */
@@ -839,6 +841,54 @@ class Span
     };
 };
 
+static inline Span &operator<<(Span &span, const std::string &value)
+{
+    span.annotate(value);
+
+    return span;
+}
+
+namespace __impl
+{
+
+template <typename K, typename V>
+struct Annotation
+{
+    static void apply(Span &span, const std::pair<K, V> &value)
+    {
+        span.annotate(value.first, value.second);
+    }
+};
+
+template <>
+struct Annotation<const char *, Endpoint *>
+{
+    static void apply(Span &span, const std::pair<const char *, Endpoint *> &value)
+    {
+        ::Annotation annotation;
+
+        annotation.__set_timestamp(Span::now().count());
+        annotation.__set_value(value.first);
+
+        if (value.second)
+        {
+            annotation.__set_host(value.second->host());
+        }
+
+        span.message().annotations.push_back(annotation);
+    }
+};
+
+} // namespace __impl
+
+template <typename K, typename V>
+Span &operator<<(Span &span, const std::pair<K, V> &value)
+{
+    __impl::Annotation<K, V>::apply(span, value);
+
+    return span;
+}
+
 class CachedSpan : public Span
 {
     uint8_t m_buf[0] __attribute__((aligned));
@@ -909,6 +959,7 @@ namespace __impl
 template <typename T>
 struct __annotation
 {
+    static size_t size_of(bool *) { return sizeof(T); }
 };
 template <>
 struct __annotation<bool>

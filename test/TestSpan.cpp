@@ -1,5 +1,7 @@
 #include "Mocks.hpp"
 
+#include <utility>
+
 #define RAPIDJSON_HAS_STDSTRING 1
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/prettywriter.h>
@@ -255,4 +257,39 @@ TEST(span, scope_cancel)
     zipkin::Span::Scope scope(*span);
 
     scope.cancel();
+}
+
+TEST(span, annotate_stream)
+{
+    MockTracer tracer;
+
+    EXPECT_CALL(tracer, id())
+        .Times(1)
+        .WillOnce(Return(zipkin::Span::next_id()));
+
+    EXPECT_CALL(tracer, id_high())
+        .Times(1)
+        .WillOnce(Return(0));
+
+    zipkin::Span span(&tracer, "test");
+
+    sockaddr_in addr;
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    addr.sin_port = 80;
+    zipkin::Endpoint host("host", addr);
+
+    span << zipkin::TraceKeys::CLIENT_SEND
+         << std::string("hello")
+         << std::make_pair("world", &host)
+         << std::make_pair("key", "hello")
+         << std::make_pair("key", std::string("world"))
+         << std::make_pair("bool", true)
+         << std::make_pair("i16", (int16_t)123)
+         << std::make_pair("i32", (int32_t)123)
+         << std::make_pair("i64", (int64_t)123)
+         << std::make_pair("double", (double)12.3)
+         << std::make_pair("string", L"测试");
+
+    ASSERT_EQ(span.message().annotations.size(), 3);
+    ASSERT_EQ(span.message().binary_annotations.size(), 8);
 }

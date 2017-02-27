@@ -170,6 +170,8 @@ class Annotation
 */
 using AnnotationType = ::AnnotationType::type;
 
+const char *to_string(AnnotationType type);
+
 /**
 * \enum AnnotationType
 *
@@ -1017,6 +1019,15 @@ inline BinaryAnnotation Span::annotate(const std::string &key, const T &value, c
     return BinaryAnnotation(m_span.binary_annotations.back());
 }
 
+namespace base64
+{
+
+const std::string encode(const char *bytes_to_encode, size_t in_len);
+
+const std::string decode(const std::string &encoded_string);
+
+} // namespace base64
+
 template <class RapidJsonWriter>
 void Span::serialize_json(RapidJsonWriter &writer) const
 {
@@ -1059,15 +1070,7 @@ void Span::serialize_json(RapidJsonWriter &writer) const
             break;
 
         case AnnotationType::BYTES:
-            writer.StartArray();
-
-            for (auto c : data)
-            {
-                writer.Int(c);
-            }
-
-            writer.EndArray(data.size());
-
+            writer.String(base64::encode(data.c_str(), data.size()));
             break;
 
         case AnnotationType::STRING:
@@ -1084,7 +1087,8 @@ void Span::serialize_json(RapidJsonWriter &writer) const
     if (m_span.trace_id_high)
     {
         writer.String(str, snprintf(str, sizeof(str), "%016llx%016llx", m_span.trace_id_high, m_span.trace_id));
-    } else
+    }
+    else
     {
         writer.String(str, snprintf(str, sizeof(str), "%016llx", m_span.trace_id));
     }
@@ -1143,6 +1147,12 @@ void Span::serialize_json(RapidJsonWriter &writer) const
 
         writer.Key("value");
         serialize_value(annotation.value, annotation.annotation_type);
+
+        if (annotation.annotation_type != AnnotationType::BOOL && annotation.annotation_type != AnnotationType::STRING)
+        {
+            writer.Key("type");
+            writer.String(to_string(annotation.annotation_type));
+        }
 
         writer.EndObject();
     }

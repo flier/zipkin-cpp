@@ -149,19 +149,23 @@ static const char *json_template = R"###({
         },
         {
             "key": "i16",
-            "value": 123
+            "value": 123,
+            "type": "I16"
         },
         {
             "key": "i32",
-            "value": 123
+            "value": 123,
+            "type": "I32"
         },
         {
             "key": "i64",
-            "value": 123
+            "value": 123,
+            "type": "I64"
         },
         {
             "key": "double",
-            "value": 12.3
+            "value": 12.3,
+            "type": "DOUBLE"
         },
         {
             "key": "string",
@@ -169,11 +173,8 @@ static const char *json_template = R"###({
         },
         {
             "key": "bytes",
-            "value": [
-                1,
-                2,
-                3
-            ]
+            "value": "AQID",
+            "type": "BYTES"
         }
     ],
     "debug": false,

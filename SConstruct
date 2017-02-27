@@ -22,7 +22,8 @@ example_dir = 'examples'
 doc_dir = os.path.join(build_dir, 'docs')
 obj_dir = os.path.join(build_dir, 'obj')
 
-os.makedirs(build_dir)
+if not os.path.isdir(build_dir):
+    os.makedirs(build_dir)
 
 env = Environment(CXXFLAGS=['-std=c++14', '-Wno-invalid-offsetof'],
                   CPPPATH=[inc_dir],
@@ -149,7 +150,9 @@ env.Alias('install-cfg', env.Install(os.path.join(prefix, 'lib', 'pkgconfig'), o
 env.Alias('install', ['install-inc', 'install-lib', 'install-cfg'])
 
 if 'install' in COMMAND_LINE_TARGETS:
-    os.makedirs(os.path.dirname(pkgConfigFile))
+    pkg_conf_dir = os.path.dirname(pkgConfigFile)
+    if not os.path.isdir(pkg_conf_dir):
+        os.makedirs(pkg_conf_dir)
 
     with open(pkgConfigFile, 'w') as f:
         f.write(open('zipkin.pc.in').read().replace('$PREFIX$', prefix).replace('$VERSION$', version))

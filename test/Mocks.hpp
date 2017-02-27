@@ -13,15 +13,19 @@ class MockTracer : public zipkin::Tracer
 public:
   MOCK_CONST_METHOD0(id, trace_id_t(void));
 
+  MOCK_CONST_METHOD0(id_high, trace_id_t(void));
+
+  MOCK_METHOD1(set_id_high, void(trace_id_t));
+
   MOCK_CONST_METHOD0(name, const std::string &(void));
 
   MOCK_CONST_METHOD0(collector, zipkin::Collector *(void));
 
-  MOCK_METHOD3(span, zipkin::Span *(const std::string &name, span_id_t parent_id, userdata_t userdata));
+  MOCK_METHOD3(span, zipkin::Span *(const std::string &, span_id_t, userdata_t));
 
-  MOCK_METHOD1(submit, void(zipkin::Span *span));
+  MOCK_METHOD1(submit, void(zipkin::Span *));
 
-  MOCK_METHOD1(release, void(zipkin::Span *span));
+  MOCK_METHOD1(release, void(zipkin::Span *));
 };
 
 class MockCollector : public zipkin::Collector

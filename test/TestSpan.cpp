@@ -11,6 +11,10 @@ TEST(span, properties)
     EXPECT_CALL(tracer, id())
         .Times(1)
         .WillOnce(Return(123));
+    EXPECT_CALL(tracer, id_high())
+        .Times(2)
+        .WillOnce(Return(456))
+        .WillOnce(Return(456));
 
     zipkin::Span span(&tracer, "test");
 
@@ -21,6 +25,7 @@ TEST(span, properties)
     const ::Span &msg = span.message();
 
     ASSERT_EQ(msg.trace_id, 123);
+    ASSERT_EQ(msg.trace_id_high, 456);
     ASSERT_EQ(msg.name, "test");
     ASSERT_EQ(msg.id, span.id());
     ASSERT_EQ(msg.parent_id, 0);
@@ -38,6 +43,9 @@ TEST(span, submit)
     EXPECT_CALL(tracer, id())
         .Times(1)
         .WillOnce(Return(123));
+    EXPECT_CALL(tracer, id_high())
+        .Times(1)
+        .WillOnce(Return(0));
 
     zipkin::Span span(&tracer, "test");
 
@@ -113,6 +121,7 @@ TEST(span, annotate)
 
 static const char *json_template = R"###({
     "traceId": "%016llx",
+    "traceIdHigh": "%016llx",
     "name": "test",
     "id": "%016llx",
     "parentId": "%016llx",
@@ -177,6 +186,10 @@ TEST(span, serialize_json)
     EXPECT_CALL(tracer, id())
         .Times(1)
         .WillOnce(Return(zipkin::Span::next_id()));
+    EXPECT_CALL(tracer, id_high())
+        .Times(2)
+        .WillOnce(Return(456))
+        .WillOnce(Return(456));
 
     zipkin::Span span(&tracer, "test", zipkin::Span::next_id());
 
@@ -200,8 +213,7 @@ TEST(span, serialize_json)
     span.serialize_json(writer);
 
     char str[2048] = {0};
-    int str_len = snprintf(str, sizeof(str), json_template,
-                           span.trace_id(), span.id(), span.parent_id(), span.message().annotations[0].timestamp, span.message().timestamp);
+    int str_len = snprintf(str, sizeof(str), json_template, span.trace_id(), span.trace_id_high(), span.id(), span.parent_id(), span.message().annotations[0].timestamp, span.message().timestamp);
 
     ASSERT_EQ(std::string(buffer.GetString(), buffer.GetSize()), std::string(str, str_len));
 }

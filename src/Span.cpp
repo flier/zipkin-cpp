@@ -70,7 +70,14 @@ Endpoint &Endpoint::with_addr(const sockaddr *addr)
 Span::Span(Tracer *tracer, const std::string &name, span_id_t parent_id, userdata_t userdata) : m_tracer(tracer)
 {
     if (tracer)
+    {
         m_span.__set_trace_id(tracer->id());
+
+        if (tracer->id_high())
+        {
+            m_span.__set_trace_id_high(tracer->id_high());
+        }
+    }
 
     reset(name, parent_id, userdata);
 }

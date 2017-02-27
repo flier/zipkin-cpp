@@ -544,6 +544,11 @@ class Span
      */
     inline trace_id_t trace_id(void) const { return m_span.trace_id; }
 
+    /**
+    * When non-zero, the trace containing this span uses 128-bit trace identifiers.
+    */
+    inline trace_id_t trace_id_high(void) const { return m_span.trace_id_high; }
+
     /** \sa Span#trace_id */
     inline Span &with_trace_id(trace_id_t trace_id)
     {
@@ -992,6 +997,12 @@ void Span::serialize_json(RapidJsonWriter &writer) const
 
     writer.Key("traceId");
     writer.String(str, snprintf(str, sizeof(str), "%016llx", m_span.trace_id));
+
+    if (m_span.trace_id_high)
+    {
+        writer.Key("traceIdHigh");
+        writer.String(str, snprintf(str, sizeof(str), "%016llx", m_span.trace_id_high));
+    }
 
     writer.Key("name");
     writer.String(m_span.name);

@@ -565,7 +565,7 @@ class Span
     /** \sa Span#trace_id */
     inline Span &with_trace_id(trace_id_t trace_id)
     {
-        m_span.trace_id = trace_id;
+        m_span.__set_trace_id(trace_id);
         return *this;
     }
 
@@ -577,7 +577,7 @@ class Span
     /** \sa Span#id */
     inline Span &with_id(span_id_t id)
     {
-        m_span.id = id;
+        m_span.__set_id(id);
         return *this;
     }
 
@@ -591,7 +591,7 @@ class Span
     /** \sa Span#name */
     inline Span &with_name(const std::string &name)
     {
-        m_span.name = name;
+        m_span.__set_name(name);
         return *this;
     }
 
@@ -603,7 +603,7 @@ class Span
     /** \sa Span#parent_id */
     inline Span &with_parent_id(span_id_t id)
     {
-        m_span.parent_id = id;
+        m_span.__set_parent_id(id);
         return *this;
     }
 
@@ -615,7 +615,7 @@ class Span
     /** \sa Span#timestamp */
     inline Span &with_timestamp(timestamp_t timestamp)
     {
-        m_span.timestamp = timestamp.count();
+        m_span.__set_timestamp(timestamp.count());
         return *this;
     }
 
@@ -629,7 +629,7 @@ class Span
     /** \sa Span#duration */
     inline Span &with_duration(duration_t duration)
     {
-        m_span.duration = duration.count();
+        m_span.__set_duration(duration.count());
         return *this;
     }
 

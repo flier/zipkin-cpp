@@ -42,8 +42,9 @@ python:
     - "2.7"
 
 env:
-    - THRIFT_VERSION=0.10.0
-    - RDKAFKA_VERSION=0.9.4
+    global:
+        - THRIFT_VERSION=0.10.0
+        - RDKAFKA_VERSION=0.9.4
 
 install:
     - pip install --upgrade pip

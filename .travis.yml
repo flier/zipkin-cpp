@@ -49,6 +49,7 @@ env:
 install:
     - pip install --upgrade pip
     - pip install conan
+    - export PATH=$PATH:~/.local/bin
 
 before_script:
     - .travis/install-dependencies.sh

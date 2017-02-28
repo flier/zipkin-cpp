@@ -19,7 +19,11 @@ addons:
             - clang
             - cmake
             - g++
-            - libboost-all-dev
+            - libboost-dev
+            - libboost-filesystem-dev
+            - libboost-program-options-dev
+            - libboost-system-dev
+            - libboost-test-dev
             - libevent-dev
             - libssl-dev
             - libtool

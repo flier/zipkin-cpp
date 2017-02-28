@@ -43,7 +43,9 @@ env:
 install:
     - pip install --upgrade pip
     - pip install conan
-    - docker pull thrift/thrift-build
+
+before_script:
+    - .travis/install-dependencies.sh
 
 script:
     - scons

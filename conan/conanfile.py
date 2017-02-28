@@ -19,8 +19,9 @@ class ZipkinConan(ConanFile):
     options = {
         "shared": [True, False],
         "fPIC": [True, False],
+        "branch": "ANY",
     }
-    default_options = 'shared=False', 'fPIC=False'
+    default_options = 'shared=False', 'fPIC=False', 'branch=develop'
     zip_name = "v%s.tar.gz" % version
     unzipped_name = "zipkin-cpp-%s" % version
     exports_sources = "*"
@@ -45,6 +46,9 @@ class ZipkinConan(ConanFile):
             elif os.path.isdir(os.path.join(self.unzipped_name, '.git')):
                 self.run("git pull", cwd=self.unzipped_name)
 
+            if os.path.isdir(os.path.join(self.unzipped_name, '.git')):
+                self.run("git checkout %s" % self.options.branch, cwd=self.unzipped_name)
+
     def build(self):
         build_dir = os.path.join(self.unzipped_name, 'build')
 
@@ -59,6 +63,7 @@ class ZipkinConan(ConanFile):
         dist_dir = os.path.join(self.unzipped_name, 'dist')
 
         self.copy(pattern="*.h", dst="include", src=os.path.join(dist_dir, 'include'))
+        self.copy(pattern="*.h", dst="include", src=os.path.join(dist_dir, 'gen-cpp'))
         self.copy(pattern="*.hpp", dst="include", src=os.path.join(dist_dir, 'include'))
         self.copy(pattern="*.lib", dst="lib", src=os.path.join(dist_dir, 'lib'))
         self.copy(pattern="*.a", dst="lib", src=os.path.join(dist_dir, 'lib'))

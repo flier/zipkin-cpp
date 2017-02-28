@@ -26,7 +26,6 @@ addons:
             - libboost-test-dev
             - libevent-dev
             - libssl-dev
-            - librdkafka-dev
             - libtool
             - make
             - pkg-config
@@ -44,6 +43,7 @@ python:
 
 env:
     - THRIFT_VERSION=0.10.0
+    - RDKAFKA_VERSION=0.9.4
 
 install:
     - pip install --upgrade pip

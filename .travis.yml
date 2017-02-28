@@ -1,0 +1,20 @@
+sudo: false
+
+os:
+    - linux
+    - osx
+
+language: cpp
+
+compiler:
+    - clang
+    - gcc
+
+python:
+    - "2.7"
+
+install:
+    - pip install conan
+
+script:
+    - scons

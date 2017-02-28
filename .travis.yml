@@ -26,6 +26,7 @@ addons:
             - libboost-test-dev
             - libevent-dev
             - libssl-dev
+            - librdkafka-dev
             - libtool
             - make
             - pkg-config

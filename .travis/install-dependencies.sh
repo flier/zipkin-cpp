@@ -3,7 +3,7 @@ set -e
 
 if [[ $TRAVIS_OS_NAME == 'osx' ]]; then
     brew update
-    brew install thrift
+    brew install thrift librdkafka
 else
     curl -sSL "http://apache.mirrors.spacedump.net/thrift/$THRIFT_VERSION/thrift-$THRIFT_VERSION.tar.gz" -o thrift.tar.gz
 

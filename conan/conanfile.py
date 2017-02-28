@@ -7,7 +7,7 @@ from conans.tools import download, unzip
 
 class ZipkinConan(ConanFile):
     name = "zipkin"
-    version = "0.1.0"
+    version = "0.2.0"
     description = "Zipkin tracing library for C/C++"
     license = "Apache-2.0"
     url = "https://github.com/flier/zipkin-cpp"
@@ -22,7 +22,7 @@ class ZipkinConan(ConanFile):
     }
     default_options = 'shared=False', 'fPIC=False'
     zip_name = "v%s.tar.gz" % version
-    unzipped_name = "zipkin-%s" % version
+    unzipped_name = "zipkin-cpp-%s" % version
     exports_sources = "*"
 
     def config_options(self):

@@ -18,6 +18,7 @@ bin_dir = 'bin'
 src_dir = 'src'
 test_dir = 'test'
 inc_dir = 'include'
+gen_dir = 'gen-cpp'
 example_dir = 'examples'
 doc_dir = os.path.join(build_dir, 'docs')
 obj_dir = os.path.join(build_dir, 'obj')
@@ -26,7 +27,7 @@ if not os.path.isdir(build_dir):
     os.makedirs(build_dir)
 
 env = Environment(CXXFLAGS=['-std=c++14', '-Wno-invalid-offsetof'],
-                  CPPPATH=[inc_dir],
+                  CPPPATH=[inc_dir, gen_dir],
                   ENV=dict(TERM=os.getenv('TERM', 'xterm-256color')))
 
 env.VariantDir(build_dir, '.', duplicate=0)

@@ -11,7 +11,7 @@
 
 #include <thrift/protocol/TProtocol.h>
 
-#include "../gen-cpp/zipkinCore_constants.h"
+#include "zipkinCore_constants.h"
 
 typedef uint64_t span_id_t;
 typedef uint64_t trace_id_t;

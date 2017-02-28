@@ -19,7 +19,7 @@
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/prettywriter.h>
 
-#include "../gen-cpp/zipkinCore_types.h"
+#include "zipkinCore_types.h"
 
 #include "Tracer.h"
 

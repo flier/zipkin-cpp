@@ -7,6 +7,7 @@
 #include <codecvt>
 #include <memory>
 #include <chrono>
+#include <tuple>
 
 #include <thrift/protocol/TProtocol.h>
 
@@ -854,16 +855,21 @@ namespace __impl
 {
 
 template <typename K, typename V>
-struct Annotation
+struct __annotation
 {
     static void apply(Span &span, const std::pair<K, V> &value)
     {
         span.annotate(value.first, value.second);
     }
+
+    static void apply(Span &span, const std::tuple<K, V, Endpoint *> &value)
+    {
+        span.annotate(std::get<0>(value), std::get<1>(value), std::get<2>(value));
+    }
 };
 
 template <>
-struct Annotation<const char *, Endpoint *>
+struct __annotation<const char *, Endpoint *>
 {
     static void apply(Span &span, const std::pair<const char *, Endpoint *> &value)
     {
@@ -881,12 +887,48 @@ struct Annotation<const char *, Endpoint *>
     }
 };
 
+template <typename K>
+struct __annotation<K, const char *>
+{
+    static void apply(Span &span, const std::pair<K, const char *> &value)
+    {
+        span.annotate(value.first, value.second);
+    }
+
+    static void apply(Span &span, const std::tuple<K, const char *, Endpoint *> &value)
+    {
+        span.annotate(std::get<0>(value), std::get<1>(value), -1, std::get<2>(value));
+    }
+};
+
+template <typename K>
+struct __annotation<K, const wchar_t *>
+{
+    static void apply(Span &span, const std::pair<K, const wchar_t *> &value)
+    {
+        span.annotate(value.first, value.second);
+    }
+
+    static void apply(Span &span, const std::tuple<K, const wchar_t *, Endpoint *> &value)
+    {
+        span.annotate(std::get<0>(value), std::get<1>(value), -1, std::get<2>(value));
+    }
+};
+
 } // namespace __impl
 
 template <typename K, typename V>
 Span &operator<<(Span &span, const std::pair<K, V> &value)
 {
-    __impl::Annotation<K, V>::apply(span, value);
+    __impl::__annotation<K, V>::apply(span, value);
+
+    return span;
+}
+
+template <typename K, typename V>
+Span &operator<<(Span &span, const std::tuple<K, V, Endpoint *> &value)
+{
+    __impl::__annotation<K, V>::apply(span, value);
 
     return span;
 }
@@ -959,32 +1001,31 @@ Endpoint &Endpoint::with_ipv6(const std::string &ip)
 namespace __impl
 {
 template <typename T>
-struct __annotation
+struct __binary_annotation
 {
-    static size_t size_of(bool *) { return sizeof(T); }
 };
 template <>
-struct __annotation<bool>
+struct __binary_annotation<bool>
 {
     static const AnnotationType type = AnnotationType::BOOL;
 };
 template <>
-struct __annotation<int16_t>
+struct __binary_annotation<int16_t>
 {
     static const AnnotationType type = AnnotationType::I16;
 };
 template <>
-struct __annotation<int32_t>
+struct __binary_annotation<int32_t>
 {
     static const AnnotationType type = AnnotationType::I32;
 };
 template <>
-struct __annotation<int64_t>
+struct __binary_annotation<int64_t>
 {
     static const AnnotationType type = AnnotationType::I64;
 };
 template <>
-struct __annotation<double>
+struct __binary_annotation<double>
 {
     static const AnnotationType type = AnnotationType::DOUBLE;
 };
@@ -1007,7 +1048,7 @@ inline BinaryAnnotation Span::annotate(const std::string &key, const T &value, c
 
     annotation.__set_key(key);
     annotation.__set_value(std::string(reinterpret_cast<const char *>(&value), sizeof(T)));
-    annotation.__set_annotation_type(__impl::__annotation<T>::type);
+    annotation.__set_annotation_type(__impl::__binary_annotation<T>::type);
 
     if (endpoint)
     {

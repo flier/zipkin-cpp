@@ -1,6 +1,7 @@
 #include "Mocks.hpp"
 
 #include <utility>
+#include <tuple>
 
 #define RAPIDJSON_HAS_STDSTRING 1
 #include <rapidjson/stringbuffer.h>
@@ -283,14 +284,22 @@ TEST(span, annotate_stream)
          << std::string("hello")
          << std::make_pair("world", &host)
          << std::make_pair("key", "hello")
+         << std::make_pair("string", L"测试")
          << std::make_pair("key", std::string("world"))
          << std::make_pair("bool", true)
          << std::make_pair("i16", (int16_t)123)
          << std::make_pair("i32", (int32_t)123)
          << std::make_pair("i64", (int64_t)123)
          << std::make_pair("double", (double)12.3)
-         << std::make_pair("string", L"测试");
+         << std::make_tuple("key", "hello", &host)
+         << std::make_tuple("string", L"测试", &host)
+         << std::make_tuple("key", std::string("world"), &host)
+         << std::make_tuple("bool", true, &host)
+         << std::make_tuple("i16", (int16_t)123, &host)
+         << std::make_tuple("i32", (int32_t)123, &host)
+         << std::make_tuple("i64", (int64_t)123, &host)
+         << std::make_tuple("double", (double)12.3, &host);
 
     ASSERT_EQ(span.message().annotations.size(), 3);
-    ASSERT_EQ(span.message().binary_annotations.size(), 8);
+    ASSERT_EQ(span.message().binary_annotations.size(), 16);
 }

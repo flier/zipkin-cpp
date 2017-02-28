@@ -21,7 +21,7 @@ class ZipkinConan(ConanFile):
         "fPIC": [True, False],
         "branch": "ANY",
     }
-    default_options = 'shared=False', 'fPIC=False', 'branch=develop'
+    default_options = 'shared=False', 'fPIC=False', 'branch=develop', 'glog:shared=False', 'gflags:shared=False', 'gtest:shared=False'
     zip_name = "v%s.tar.gz" % version
     unzipped_name = "zipkin-cpp-%s" % version
     exports_sources = "*"
@@ -50,23 +50,16 @@ class ZipkinConan(ConanFile):
                 self.run("git checkout %s" % self.options.branch, cwd=self.unzipped_name)
 
     def build(self):
-        build_dir = os.path.join(self.unzipped_name, 'build')
-
-        if not os.path.isdir(build_dir):
-            os.makedirs(build_dir)
-
-        self.run('scons install prefix=`pwd`/../dist shared=%s fpic=%s build_dir=build' %
-                 (self.options.shared, self.options.fPIC),
+        self.run('scons install prefix=`pwd`/../dist shared=%s fpic=%s build_dir=%s' %
+                 (self.options.shared, self.options.fPIC, self.unzipped_name),
                  cwd=self.unzipped_name)
 
     def package(self):
-        dist_dir = os.path.join(self.unzipped_name, 'dist')
-
-        self.copy(pattern="*.h", dst="include", src=os.path.join(dist_dir, 'include'))
-        self.copy(pattern="*.hpp", dst="include", src=os.path.join(dist_dir, 'include'))
-        self.copy(pattern="*.lib", dst="lib", src=os.path.join(dist_dir, 'lib'))
-        self.copy(pattern="*.a", dst="lib", src=os.path.join(dist_dir, 'lib'))
-        self.copy(pattern="*.pc", dst="lib/pkgconfig", src=os.path.join(dist_dir, 'lib', 'pkgconfig'))
+        self.copy(pattern="*.h", dst="include", src='dist/include')
+        self.copy(pattern="*.hpp", dst="include", src='dist/include')
+        self.copy(pattern="*.lib", dst="lib", src='dist/lib')
+        self.copy(pattern="*.a", dst="lib", src='dist/lib')
+        self.copy(pattern="*.pc", dst="lib/pkgconfig", src='dist/lib/pkgconfig')
 
     def package_info(self):
         self.cpp_info.libs = ["zipkin"]

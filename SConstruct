@@ -156,7 +156,7 @@ if 'install' in COMMAND_LINE_TARGETS:
         os.makedirs(pkg_conf_dir)
 
     with open(pkgConfigFile, 'w') as f:
-        f.write(open('zipkin.pc.in').read().replace('$PREFIX$', prefix).replace('$VERSION$', version))
+        f.write(open('zipkin.pc.in').read().replace('@PREFIX@', prefix).replace('@VERSION@', version))
 
 if 'uninstall' in COMMAND_LINE_TARGETS:
     env.Command("uninstall", None, Delete(FindInstalledFiles()))

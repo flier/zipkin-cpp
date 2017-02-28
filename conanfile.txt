@@ -10,5 +10,6 @@ gflags:shared=False
 gtest:shared=False
 
 [generators]
+cmake
 scons
 txt

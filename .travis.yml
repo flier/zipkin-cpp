@@ -4,6 +4,13 @@ os:
     - linux
     - osx
 
+addons:
+    apt:
+        packages:
+            - libffi-dev
+            - libssl-dev
+            - tree
+
 language: cpp
 
 compiler:
@@ -14,7 +21,12 @@ python:
     - "2.7"
 
 install:
+    - pip install requests[security]
     - pip install conan
 
 script:
     - scons
+
+after_failure:
+    - echo `pwd`
+    - tree -h

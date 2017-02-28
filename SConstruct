@@ -128,7 +128,6 @@ env.Command(target=zipkinCoreFiles,
             source=zipkinCoreThrift,
             action=['thrift -r --gen cpp ' + zipkinCoreThrift])
 
-zipkinHeaders = ['Span.h', 'Tracer.h', 'Collector.h']
 zipkinSources = ['Span.cpp', 'Tracer.cpp', 'Collector.cpp', 'CApi.cpp']
 zipkinObjects = obj_files(zipkinSources, base_dir=src_dir)
 
@@ -145,7 +144,8 @@ pkgConfigFile = os.path.join(build_dir, 'zipkin.pc')
 
 env.Alias('install-inc', env.Install(os.path.join(prefix, 'include', 'zipkin'),
                                      [os.path.join(inc_dir, header) for header in ['zipkin.h', 'zipkin.hpp']] +
-                                     [os.path.join(src_dir, header) for header in zipkinHeaders]))
+                                     Glob(os.path.join(gen_dir, '*.h')) +
+                                     Glob(os.path.join(src_dir, '*.h'))))
 env.Alias('install-lib', env.Install(os.path.join(prefix, 'lib'), zipkinLib))
 env.Alias('install-cfg', env.Install(os.path.join(prefix, 'lib', 'pkgconfig'), os.path.join(pkgConfigFile)))
 env.Alias('install', ['install-inc', 'install-lib', 'install-cfg'])

@@ -63,7 +63,6 @@ class ZipkinConan(ConanFile):
         dist_dir = os.path.join(self.unzipped_name, 'dist')
 
         self.copy(pattern="*.h", dst="include", src=os.path.join(dist_dir, 'include'))
-        self.copy(pattern="*.h", dst="include", src=os.path.join(dist_dir, 'gen-cpp'))
         self.copy(pattern="*.hpp", dst="include", src=os.path.join(dist_dir, 'include'))
         self.copy(pattern="*.lib", dst="lib", src=os.path.join(dist_dir, 'lib'))
         self.copy(pattern="*.a", dst="lib", src=os.path.join(dist_dir, 'lib'))

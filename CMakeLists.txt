@@ -7,28 +7,8 @@ set (zipkin_VERSION_MINOR 2)
 set (zipkin_VERSION_PATCH 0)
 set (zipkin_VERSION ${zipkin_VERSION_MAJOR}.${zipkin_VERSION_MINOR}.${zipkin_VERSION_PATCH})
 
-option (WITH_FPIC "Build with -fPIC for shared library" OFF)
-option (SHARED_LIB "Build shared library" OFF)
-
-if (APPLE)
-    set (CMAKE_MACOSX_RPATH ON)
-endif ()
-
 include(${PROJECT_SOURCE_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
-
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
-
-include (${CMAKE_MODULE_PATH}/FindThrift.cmake)
-include (${CMAKE_MODULE_PATH}/FindLibRDKafka.cmake)
-
-if (NOT THRIFT_FOUND)
-    message(FATAL_ERROR "Thrift runtime not found")
-endif()
-
-if (NOT LIBRDKAFKA_FOUND)
-    message(FATAL_ERROR "librdkafka not found")
-endif()
 
 if (NOT CMAKE_BUILD_TYPE)
     message(STATUS "Default build type 'Release with debug info'")
@@ -43,6 +23,39 @@ if(CMAKE_BUILD_TYPE MATCHES RELEASE|RELWITHDEBINFO)
 else()
     set(RELEASE_BUILD FALSE)
 endif()
+
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+
+find_package(Boost)
+find_package(Thrift)
+find_package(LibRDKafka)
+find_package(Doxygen)
+
+if (NOT Boost_FOUND)
+    message(FATAL_ERROR "boost not found")
+endif()
+
+if (NOT THRIFT_FOUND)
+    message(FATAL_ERROR "Thrift runtime not found")
+endif()
+
+if (NOT LIBRDKAFKA_FOUND)
+    message(FATAL_ERROR "librdkafka not found")
+endif()
+
+if (${DOXYGEN_FOUND} AND ${RELEASE_BUILD})
+    set (BUILD_DOCS ON)
+else()
+    set (BUILD_DOCS OFF)
+endif()
+
+option (WITH_FPIC "Build with -fPIC for shared library" OFF)
+option (SHARED_LIB "Build shared library" OFF)
+option (BUILD_DOCS "Build API documentation (requires Doxygen)" BUILD_DOCS)
+
+if (APPLE)
+    set (CMAKE_MACOSX_RPATH ON)
+endif ()
 
 if (RELEASE_BUILD)
     add_compile_options(-O2)
@@ -79,6 +92,7 @@ set(zipkin_DEPENDENCIES
 
 enable_testing()
 
+add_subdirectory(docs)
 add_subdirectory(src)
 add_subdirectory(test)
 add_subdirectory(examples)

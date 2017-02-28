@@ -3,7 +3,6 @@
 bin
 build
 dist
-docs
 gen-cpp
 
 .sconsign.dblite

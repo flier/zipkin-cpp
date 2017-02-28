@@ -2,6 +2,9 @@ sudo: required
 
 dist: trusty
 
+services:
+    - docker
+
 os:
     - linux
     - osx
@@ -9,8 +12,20 @@ os:
 addons:
     apt:
         packages:
-            - libffi-dev
+            - automake
+            - bison
+            - flex
+            - build-essential
+            - clang
+            - cmake
+            - g++
+            - libboost-all-dev
+            - libevent-dev
             - libssl-dev
+            - libtool
+            - make
+            - pkg-config
+            - curl
             - tree
 
 language: cpp
@@ -22,9 +37,13 @@ compiler:
 python:
     - "2.7"
 
+env:
+    - THRIFT_VERSION=0.10.0
+
 install:
-    - pip install requests[security]
+    - pip install --upgrade pip
     - pip install conan
+    - docker pull thrift/thrift-build
 
 script:
     - scons

@@ -5,6 +5,12 @@
 
 #include <sys/socket.h>
 
+#ifdef __APPLE__
+#define ZIPKIN_SPAN_ID_FMT "%016llx"
+#else
+#define ZIPKIN_SPAN_ID_FMT "%016lx"
+#endif
+
 #define ZIPKIN_CLIENT_SEND "cs"
 #define ZIPKIN_CLIENT_RECV "cr"
 #define ZIPKIN_SERVER_SEND "ss"

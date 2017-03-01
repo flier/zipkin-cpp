@@ -2,6 +2,7 @@
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <signal.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -111,9 +112,8 @@ void forward_tcp_connection(struct mg_connection *nc, struct http_message *hm)
   const char *errmsg = NULL;
   struct mg_connect_opts opts = {nc, MG_F_UPSTREAM | MG_F_TUNNEL, &errmsg};
   char addr[1024] = {0};
-  char *p = addr, *end = addr + sizeof(addr) + 1;
 
-  p += snprintf(p, end - p, "tcp://%.*s", (int)hm->uri.len, hm->uri.p);
+  snprintf(addr, sizeof(addr), "tcp://%.*s", (int)hm->uri.len, hm->uri.p);
 
   cc = mg_connect_opt(nc->mgr, addr, ev_handler, opts);
 
@@ -192,7 +192,7 @@ void forward_http_request(struct mg_connection *nc, struct http_message *hm)
   p += snprintf(p, end - p, HTTP_FORWARDED ": for=%s;proto=http;by=%s" CRLF, peer_addr, local_addr);
 
   if (span)
-    p += snprintf(p, end - p, HTTP_X_SPAN_ID ": %016llx" CRLF, zipkin_span_id(span));
+    p += snprintf(p, end - p, HTTP_X_SPAN_ID ": " ZIPKIN_SPAN_ID_FMT CRLF, zipkin_span_id(span));
 
   cc = mg_connect_http_opt(nc->mgr, ev_handler, opts, uri, extra_headers, hm->body.len ? hm->body.p : NULL);
 

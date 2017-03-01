@@ -26,10 +26,10 @@ endif()
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-find_package(Boost)
-find_package(Thrift)
-find_package(LibRDKafka)
-find_package(Doxygen)
+find_package(Boost REQUIRED)
+find_package(Thrift REQUIRED)
+find_package(LibRDKafka REQUIRED)
+find_package(Doxygen QUIET)
 
 if (NOT Boost_FOUND)
     message(FATAL_ERROR "boost not found")

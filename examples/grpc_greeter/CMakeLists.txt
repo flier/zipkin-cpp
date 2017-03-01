@@ -1,9 +1,12 @@
-# Protobuf
-find_package(Protobuf REQUIRED)
-include_directories(${PROTOBUF_INCLUDE_DIRS})
+find_package(Protobuf)
+find_package(GRPC)
 
-# gRPC
-find_package(GRPC REQUIRED)
+if (NOT(PROTOBUF_FOUND AND GRPC_FOUND))
+    message(STATUS "Not found protobuf and gRPC, skip the grpc_greeter example")
+    return()
+endif()
+
+include_directories(${PROTOBUF_INCLUDE_DIRS})
 
 # Proto file
 get_filename_component(hw_proto "helloworld.proto" ABSOLUTE)
@@ -28,8 +31,8 @@ foreach(_target
     greeter_async_client greeter_async_server
 )
     add_executable(${_target} "${_target}.cc"
-        ${greeter_PROTO_SRCS}
-        ${greeter_GRPC_SRCS}
+        ${greeter_PROTO_SRCS} ${greeter_PROTO_HDRS}
+        ${greeter_GRPC_SRCS} ${greeter_GRPC_HDRS}
     )
     target_link_libraries(${_target}
         ${PROTOBUF_LIBRARIES}

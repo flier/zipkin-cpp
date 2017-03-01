@@ -938,6 +938,25 @@ struct __annotation<const char *, Endpoint *>
     }
 };
 
+template <>
+struct __annotation<std::string, Endpoint *>
+{
+    static void apply(Span &span, const std::pair<std::string, Endpoint *> &value)
+    {
+        ::Annotation annotation;
+
+        annotation.__set_timestamp(Span::now().count());
+        annotation.__set_value(value.first);
+
+        if (value.second)
+        {
+            annotation.__set_host(value.second->host());
+        }
+
+        span.message().annotations.push_back(annotation);
+    }
+};
+
 template <typename K>
 struct __annotation<K, const char *>
 {

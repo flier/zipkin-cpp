@@ -4,6 +4,8 @@ set -e
 if [[ $TRAVIS_OS_NAME == 'osx' ]]; then
     brew update
     brew install thrift librdkafka
+
+    $HOME/.local/bin/conan install --build missing
 else
     curl -sSL "http://apache.mirrors.spacedump.net/thrift/$THRIFT_VERSION/thrift-$THRIFT_VERSION.tar.gz" -o thrift.tar.gz
     mkdir -p thrift-$THRIFT_VERSION
@@ -26,4 +28,10 @@ else
     sudo make install
     cd ..
     rm -rf librdkafka-$RDKAFKA_VERSION
+
+    if [ "$CXX" == "g++" ]; then
+        $HOME/.local/bin/conan install --build missing -s compiler=gcc -s compiler.libcxx=libstdc++11
+    else
+        $HOME/.local/bin/conan install --build missing -s compiler=clang -s compiler.libcxx=libc++11
+    fi
 fi

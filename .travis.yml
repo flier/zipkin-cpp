@@ -52,7 +52,6 @@ install:
 
 before_script:
     - .travis/install-dependencies.sh
-    - $HOME/.local/bin/conan install --build missing
 
 script:
     - scons

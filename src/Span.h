@@ -16,6 +16,7 @@
 
 typedef uint64_t span_id_t;
 typedef uint64_t trace_id_t;
+typedef std::pair<trace_id_t, trace_id_t> x_trace_id_t;
 typedef std::chrono::microseconds timestamp_t;
 typedef std::chrono::microseconds duration_t;
 typedef void *userdata_t;
@@ -565,15 +566,37 @@ class Span
      */
     inline trace_id_t trace_id(void) const { return m_span.trace_id; }
 
+    /** \sa Span#trace_id */
+    inline Span &with_trace_id(trace_id_t trace_id)
+    {
+        m_span.__set_trace_id(trace_id);
+        return *this;
+    }
+
     /**
     * When non-zero, the trace containing this span uses 128-bit trace identifiers.
     */
     inline trace_id_t trace_id_high(void) const { return m_span.trace_id_high; }
 
-    /** \sa Span#trace_id */
-    inline Span &with_trace_id(trace_id_t trace_id)
+    /** \sa Span#trace_id_high */
+    inline Span &with_trace_id_high(trace_id_t trace_id_high)
     {
-        m_span.__set_trace_id(trace_id);
+        m_span.__set_trace_id_high(trace_id_high);
+        return *this;
+    }
+
+    inline Span &with_trace_id(const std::string &trace_id)
+    {
+        if (trace_id.size() > 16)
+        {
+            m_span.__set_trace_id_high(strtoull(trace_id.substr(0, 16).c_str(), NULL, 16));
+            m_span.__set_trace_id(strtoull(trace_id.substr(16).c_str(), NULL, 16));
+        }
+        else
+        {
+            m_span.__set_trace_id(strtoull(trace_id.c_str(), NULL, 16));
+        }
+
         return *this;
     }
 
@@ -638,6 +661,18 @@ class Span
     inline Span &with_duration(duration_t duration)
     {
         m_span.__set_duration(duration.count());
+        return *this;
+    }
+
+    /**
+    * \brief Force a trace to be sampled
+    */
+    inline bool debug(void) const { return m_span.debug; }
+
+    /** \sa #debug */
+    inline Span &with_debug(bool debug = true)
+    {
+        m_span.__set_debug(debug);
         return *this;
     }
 

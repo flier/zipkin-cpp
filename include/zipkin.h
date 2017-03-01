@@ -44,6 +44,20 @@
 #define ZIPKIN_ENCODING_JSON "json"
 #define ZIPKIN_ENCODING_PRETTY_JSON "pretty_json"
 
+/**
+* HTTP headers are used to pass along trace information.
+*
+* The B3 portion of the header is so named for the original name of Zipkin: BigBrotherBird.
+*
+* Ids are encoded as hex strings
+*/
+
+#define ZIPKIN_X_TRACE_ID "X-B3-TraceId"            ///< 128 or 64 lower-hex encoded bits (required)
+#define ZIPKIN_X_SPAN_ID "X-B3-SpanId"              ///< 64 lower-hex encoded bits (required)
+#define ZIPKIN_X_PARENT_SPAN_ID "X-B3-ParentSpanId" ///< 64 lower-hex encoded bits (absent on root span)
+#define ZIPKIN_X_SAMPLED "X-B3-Sampled"             ///< Boolean (either “1” or “0”, can be absent)
+#define ZIPKIN_X_FLAGS "X-B3-Flags"                 ///< “1” means debug (can be absent)
+
 typedef uint64_t zipkin_span_id_t;
 typedef uint64_t zipkin_trace_id_t;
 typedef void *zipkin_userdata_t;
@@ -87,6 +101,16 @@ zipkin_span_id_t zipkin_span_parent_id(zipkin_span_t span);
 zipkin_span_t zipkin_span_set_parent_id(zipkin_span_t span, zipkin_span_id_t id);
 
 zipkin_tracer_t zipkin_span_tracer(zipkin_span_t span);
+
+zipkin_trace_id_t zipkin_span_trace_id(zipkin_span_t span);
+zipkin_span_t zipkin_span_set_trace_id(zipkin_span_t span, zipkin_trace_id_t id);
+
+zipkin_trace_id_t zipkin_span_trace_id_high(zipkin_span_t span);
+zipkin_span_t zipkin_span_set_trace_id_high(zipkin_span_t span, zipkin_trace_id_t id);
+
+zipkin_span_t zipkin_span_parse_trace_id(zipkin_span_t span, const char *str, size_t len);
+
+int zipkin_span_debug(zipkin_span_t span);
 
 zipkin_userdata_t zipkin_span_userdata(zipkin_span_t span);
 zipkin_span_t zipkin_span_set_userdata(zipkin_span_t span, zipkin_userdata_t userdata);

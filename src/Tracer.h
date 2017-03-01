@@ -24,6 +24,10 @@ struct Tracer
      * \sa #id_high
      */
     virtual trace_id_t id(void) const = 0;
+    /**
+    * \sa #id_high
+    */
+    virtual void set_id(trace_id_t id) = 0;
 
     /**
     * When non-zero, the trace containing this span uses 128-bit trace identifiers.
@@ -31,11 +35,15 @@ struct Tracer
     * orresponds to the high bits in big-endian format and #id corresponds to the low bits.
     */
     virtual trace_id_t id_high(void) const = 0;
-
     /**
     * \sa #id_high
     */
     virtual void set_id_high(trace_id_t id_high) = 0;
+
+    /**
+    * \sa #id and #id_high
+    */
+    virtual void set_id(const x_trace_id_t &id) = 0;
 
     /**
     * \brief Tracer name in lowercase.
@@ -146,8 +154,14 @@ class CachedTracer : public Tracer
     // Implement Tracer
 
     virtual trace_id_t id(void) const override { return m_id; }
+    virtual void set_id(trace_id_t id_high) override { m_id = id_high; }
     virtual trace_id_t id_high(void) const override { return m_id_high; }
     virtual void set_id_high(trace_id_t id_high) override { m_id_high = id_high; }
+    virtual void set_id(const x_trace_id_t &id) override
+    {
+        m_id = id.second;
+        m_id_high = id.first;
+    }
     virtual const std::string &name(void) const override { return m_name; }
     virtual Collector *collector(void) const override { return m_collector; }
 

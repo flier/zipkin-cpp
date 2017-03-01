@@ -27,7 +27,6 @@
 #define HTTP_X_FORWARDED_FOR "X-Forwarded-For"
 #define HTTP_X_FORWARDED_PORT "X-Forwarded-Port"
 #define HTTP_X_FORWARDED_PROTO "X-Forwarded-Proto"
-#define HTTP_X_SPAN_ID "X-Span-Id"
 
 #define MG_F_PROXY MG_F_USER_1
 #define MG_F_UPSTREAM MG_F_USER_2
@@ -169,7 +168,11 @@ void forward_http_request(struct mg_connection *nc, struct http_message *hm)
     {
       proxy_auth = hv;
     }
-    else if (0 == mg_vcmp(hn, HTTP_X_SPAN_ID))
+    else if (0 == mg_vcmp(hn, ZIPKIN_X_TRACE_ID))
+    {
+      zipkin_span_parse_trace_id(span, hv->p, hv->len);
+    }
+    else if (0 == mg_vcmp(hn, ZIPKIN_X_SPAN_ID))
     {
       zipkin_span_set_parent_id(span, strtoull(hv->p, NULL, 16));
     }
@@ -192,7 +195,28 @@ void forward_http_request(struct mg_connection *nc, struct http_message *hm)
   p += snprintf(p, end - p, HTTP_FORWARDED ": for=%s;proto=http;by=%s" CRLF, peer_addr, local_addr);
 
   if (span)
-    p += snprintf(p, end - p, HTTP_X_SPAN_ID ": " ZIPKIN_SPAN_ID_FMT CRLF, zipkin_span_id(span));
+  {
+    if (zipkin_span_trace_id_high(span))
+    {
+      p += snprintf(p, end - p, ZIPKIN_X_TRACE_ID ": " ZIPKIN_SPAN_ID_FMT ZIPKIN_SPAN_ID_FMT CRLF,
+                    zipkin_span_trace_id_high(span), zipkin_span_trace_id(span));
+    }
+    else
+    {
+      p += snprintf(p, end - p, ZIPKIN_X_TRACE_ID ": " ZIPKIN_SPAN_ID_FMT CRLF, zipkin_span_trace_id(span));
+    }
+
+    p += snprintf(p, end - p, ZIPKIN_X_SPAN_ID ": " ZIPKIN_SPAN_ID_FMT CRLF, zipkin_span_id(span));
+
+    if (zipkin_span_parent_id(span))
+    {
+      p += snprintf(p, end - p, ZIPKIN_X_PARENT_SPAN_ID ": " ZIPKIN_SPAN_ID_FMT CRLF, zipkin_span_parent_id(span));
+    }
+    if (zipkin_span_debug(span))
+    {
+      p += snprintf(p, end - p, ZIPKIN_X_FLAGS ": 1" CRLF);
+    }
+  }
 
   cc = mg_connect_http_opt(nc->mgr, ev_handler, opts, uri, extra_headers, hm->body.len ? hm->body.p : NULL);
 
@@ -251,7 +275,11 @@ void reply_json_response(struct mg_connection *nc, struct http_message *hm)
 
     ANNOTATE_STR_IF(0 == mg_vcasecmp(hn, HTTP_HOST), span, ZIPKIN_HTTP_HOST, hv->p, hv->len, endpoint);
 
-    if (0 == mg_vcmp(hn, HTTP_X_SPAN_ID))
+    if (0 == mg_vcmp(hn, ZIPKIN_X_TRACE_ID))
+    {
+      zipkin_span_parse_trace_id(span, hv->p, hv->len);
+    }
+    else if (0 == mg_vcmp(hn, ZIPKIN_X_SPAN_ID))
     {
       zipkin_span_set_parent_id(span, strtoull(hv->p, NULL, 16));
     }

@@ -105,6 +105,43 @@ zipkin_tracer_t zipkin_span_tracer(zipkin_span_t span)
 
     return static_cast<zipkin::Span *>(span)->tracer();
 }
+zipkin_trace_id_t zipkin_span_trace_id(zipkin_span_t span)
+{
+    assert(span);
+
+    return static_cast<zipkin::Span *>(span)->trace_id();
+}
+zipkin_span_t zipkin_span_set_trace_id(zipkin_span_t span, zipkin_trace_id_t id)
+{
+    if (span)
+        static_cast<zipkin::Span *>(span)->with_trace_id(id);
+
+    return span;
+}
+zipkin_trace_id_t zipkin_span_trace_id_high(zipkin_span_t span)
+{
+    assert(span);
+
+    return static_cast<zipkin::Span *>(span)->trace_id_high();
+}
+zipkin_span_t zipkin_span_set_trace_id_high(zipkin_span_t span, zipkin_trace_id_t id)
+{
+    if (span)
+        static_cast<zipkin::Span *>(span)->with_trace_id_high(id);
+
+    return span;
+}
+zipkin_span_t zipkin_span_parse_trace_id(zipkin_span_t span, const char *str, size_t len)
+{
+    if (span)
+        static_cast<zipkin::Span *>(span)->with_trace_id(std::string(str, len));
+
+    return span;
+}
+int zipkin_span_debug(zipkin_span_t span)
+{
+    return span ? static_cast<zipkin::Span *>(span)->debug() : false;
+}
 zipkin_userdata_t zipkin_span_userdata(zipkin_span_t span)
 {
     if (span)

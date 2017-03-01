@@ -2,7 +2,6 @@
 
 #include <string>
 #include <chrono>
-using namespace std::chrono_literals;
 
 #include <librdkafka/rdkafkacpp.h>
 
@@ -90,7 +89,7 @@ public:
   }
   virtual ~KafkaCollector() override
   {
-    flush();
+    flush(std::chrono::milliseconds(500));
   }
 
   /**
@@ -112,7 +111,7 @@ public:
 
   virtual void submit(Span *span) override;
 
-  virtual bool flush(std::chrono::milliseconds timeout_ms = 500ms) override
+  virtual bool flush(std::chrono::milliseconds timeout_ms) override
   {
     return RdKafka::ERR_NO_ERROR == m_producer->flush(timeout_ms.count());
   }

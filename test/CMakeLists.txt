@@ -1,6 +1,8 @@
-set(EXTRA_CXX_FLAGS "${EXTRA_CXX_FLAGS} -std=c++14 -Wno-invalid-offsetof")
+set(EXTRA_CXX_FLAGS "${EXTRA_CXX_FLAGS} -std=c++11 -Wno-invalid-offsetof")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXTRA_CXX_FLAGS}")
+
+add_definitions(-DUSE_BOOST_THREAD=1)
 
 set (zipkin_test_SRCS
     TestCollector.cpp

@@ -32,6 +32,6 @@ else
     if [ "$CXX" == "g++" ]; then
         $HOME/.local/bin/conan install --build missing -s compiler=gcc -s compiler.libcxx=libstdc++11
     else
-        $HOME/.local/bin/conan install --build missing -s compiler=clang -s compiler.libcxx=libc++11
+        $HOME/.local/bin/conan install --build missing -s compiler=clang -s compiler.libcxx=libstdc++11
     fi
 fi

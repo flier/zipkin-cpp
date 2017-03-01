@@ -50,6 +50,8 @@
 * The B3 portion of the header is so named for the original name of Zipkin: BigBrotherBird.
 *
 * Ids are encoded as hex strings
+*
+* \sa https://github.com/openzipkin/b3-propagation
 */
 
 #define ZIPKIN_X_TRACE_ID "X-B3-TraceId"            ///< 128 or 64 lower-hex encoded bits (required)

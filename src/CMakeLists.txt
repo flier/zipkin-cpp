@@ -16,6 +16,7 @@ add_custom_command (
     OUTPUT ${zipkin_core_INCS} ${zipkin_core_SRCS}
     COMMAND ${THRIFT_COMPILER} --gen cpp -o ${PROJECT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/zipkinCore.thrift
     DEPENDS zipkinCore.thrift
+    COMMENT "Generating Thrift binding files"
 )
 
 set (zipkin_INCS

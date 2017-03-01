@@ -1,7 +1,6 @@
 #include "Mocks.hpp"
 
 #include <utility>
-#include <tuple>
 
 #define RAPIDJSON_HAS_STDSTRING 1
 #include <rapidjson/stringbuffer.h>
@@ -118,7 +117,9 @@ TEST(span, annotate)
     ASSERT_EQ(msg.binary_annotations.back().value, "测试");
     ASSERT_EQ(msg.binary_annotations.back().annotation_type, AnnotationType::type::STRING);
 
-    span.annotate("bytes", {1, 2, 3});
+    uint8_t bytes[] = {1, 2, 3};
+
+    span.annotate("bytes", bytes);
     ASSERT_EQ(msg.binary_annotations.back().annotation_type, AnnotationType::type::BYTES);
 }
 
@@ -208,7 +209,10 @@ TEST(span, serialize_json)
     span.annotate("i64", (int64_t)123);
     span.annotate("double", 12.3);
     span.annotate("string", std::wstring(L"测试"));
-    span.annotate("bytes", {1, 2, 3});
+
+    uint8_t bytes[] = {1, 2, 3};
+
+    span.annotate("bytes", bytes);
 
     rapidjson::StringBuffer buffer;
     rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
@@ -291,14 +295,14 @@ TEST(span, annotate_stream)
          << std::make_pair("i32", (int32_t)123)
          << std::make_pair("i64", (int64_t)123)
          << std::make_pair("double", (double)12.3)
-         << std::make_tuple("key", "hello", &host)
-         << std::make_tuple("string", L"测试", &host)
-         << std::make_tuple("key", std::string("world"), &host)
-         << std::make_tuple("bool", true, &host)
-         << std::make_tuple("i16", (int16_t)123, &host)
-         << std::make_tuple("i32", (int32_t)123, &host)
-         << std::make_tuple("i64", (int64_t)123, &host)
-         << std::make_tuple("double", (double)12.3, &host);
+         << boost::make_tuple("key", "hello", &host)
+         << boost::make_tuple("string", L"测试", &host)
+         << boost::make_tuple("key", std::string("world"), &host)
+         << boost::make_tuple("bool", true, &host)
+         << boost::make_tuple("i16", (int16_t)123, &host)
+         << boost::make_tuple("i32", (int32_t)123, &host)
+         << boost::make_tuple("i64", (int64_t)123, &host)
+         << boost::make_tuple("double", (double)12.3, &host);
 
     ASSERT_EQ(span.message().annotations.size(), 3);
     ASSERT_EQ(span.message().binary_annotations.size(), 16);

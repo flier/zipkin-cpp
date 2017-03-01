@@ -7,7 +7,8 @@
 #include <codecvt>
 #include <memory>
 #include <chrono>
-#include <tuple>
+
+#include <boost/tuple/tuple.hpp>
 
 #include <thrift/protocol/TProtocol.h>
 
@@ -18,6 +19,12 @@ typedef uint64_t trace_id_t;
 typedef std::chrono::microseconds timestamp_t;
 typedef std::chrono::microseconds duration_t;
 typedef void *userdata_t;
+
+#ifdef __APPLE__
+#define SPAN_ID_FMT "%016llx"
+#else
+#define SPAN_ID_FMT "%016lx"
+#endif
 
 namespace zipkin
 {
@@ -737,13 +744,22 @@ class Span
 
     BinaryAnnotation annotate(const std::string &key, const std::string &value, const Endpoint *endpoint = nullptr);
 
+    template <size_t N>
+    inline BinaryAnnotation annotate(const std::string &key, char const (&value)[N], const Endpoint *endpoint = nullptr)
+    {
+        return annotate(key, std::string(value, N), endpoint);
+    }
     inline BinaryAnnotation annotate(const std::string &key, const char *value, int len = -1, const Endpoint *endpoint = nullptr)
     {
         return annotate(key, len >= 0 ? std::string(value, len) : std::string(value), endpoint);
     }
 
     BinaryAnnotation annotate(const std::string &key, const std::wstring &value, const Endpoint *endpoint = nullptr);
-
+    template <size_t N>
+    inline BinaryAnnotation annotate(const std::string &key, wchar_t const (&value)[N], const Endpoint *endpoint = nullptr)
+    {
+        return annotate(key, std::wstring(value, N), endpoint);
+    }
     inline BinaryAnnotation annotate(const std::string &key, const wchar_t *value, int len = -1, const Endpoint *endpoint = nullptr)
     {
         return annotate(key, len >= 0 ? std::wstring(value, len) : std::wstring(value), endpoint);
@@ -862,9 +878,9 @@ struct __annotation
         span.annotate(value.first, value.second);
     }
 
-    static void apply(Span &span, const std::tuple<K, V, Endpoint *> &value)
+    static void apply(Span &span, const boost::tuple<K, V, Endpoint *> &value)
     {
-        span.annotate(std::get<0>(value), std::get<1>(value), std::get<2>(value));
+        span.annotate(boost::get<0>(value), boost::get<1>(value), boost::get<2>(value));
     }
 };
 
@@ -895,9 +911,9 @@ struct __annotation<K, const char *>
         span.annotate(value.first, value.second);
     }
 
-    static void apply(Span &span, const std::tuple<K, const char *, Endpoint *> &value)
+    static void apply(Span &span, const boost::tuple<K, const char *, Endpoint *> &value)
     {
-        span.annotate(std::get<0>(value), std::get<1>(value), -1, std::get<2>(value));
+        span.annotate(boost::get<0>(value), boost::get<1>(value), -1, boost::get<2>(value));
     }
 };
 
@@ -909,9 +925,9 @@ struct __annotation<K, const wchar_t *>
         span.annotate(value.first, value.second);
     }
 
-    static void apply(Span &span, const std::tuple<K, const wchar_t *, Endpoint *> &value)
+    static void apply(Span &span, const boost::tuple<K, const wchar_t *, Endpoint *> &value)
     {
-        span.annotate(std::get<0>(value), std::get<1>(value), -1, std::get<2>(value));
+        span.annotate(boost::get<0>(value), boost::get<1>(value), -1, boost::get<2>(value));
     }
 };
 
@@ -926,7 +942,7 @@ Span &operator<<(Span &span, const std::pair<K, V> &value)
 }
 
 template <typename K, typename V>
-Span &operator<<(Span &span, const std::tuple<K, V, Endpoint *> &value)
+Span &operator<<(Span &span, const boost::tuple<K, V, Endpoint *> &value)
 {
     __impl::__annotation<K, V>::apply(span, value);
 
@@ -1127,23 +1143,23 @@ void Span::serialize_json(RapidJsonWriter &writer) const
     writer.Key("traceId");
     if (m_span.trace_id_high)
     {
-        writer.String(str, snprintf(str, sizeof(str), "%016llx%016llx", m_span.trace_id_high, m_span.trace_id));
+        writer.String(str, snprintf(str, sizeof(str), SPAN_ID_FMT SPAN_ID_FMT, m_span.trace_id_high, m_span.trace_id));
     }
     else
     {
-        writer.String(str, snprintf(str, sizeof(str), "%016llx", m_span.trace_id));
+        writer.String(str, snprintf(str, sizeof(str), SPAN_ID_FMT, m_span.trace_id));
     }
 
     writer.Key("name");
     writer.String(m_span.name);
 
     writer.Key("id");
-    writer.String(str, snprintf(str, sizeof(str), "%016llx", m_span.id));
+    writer.String(str, snprintf(str, sizeof(str), SPAN_ID_FMT, m_span.id));
 
     if (m_span.__isset.parent_id)
     {
         writer.Key("parentId");
-        writer.String(str, snprintf(str, sizeof(str), "%016llx", m_span.parent_id));
+        writer.String(str, snprintf(str, sizeof(str), SPAN_ID_FMT, m_span.parent_id));
     }
 
     writer.Key("annotations");

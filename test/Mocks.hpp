@@ -64,6 +64,12 @@ public:
                                                          int32_t partition,
                                                          int64_t *low, int64_t *high));
 
+  MOCK_METHOD2(offsetsForTimes, RdKafka::ErrorCode(std::vector<RdKafka::TopicPartition *> &offsets, int timeout_ms));
+
+  MOCK_METHOD1(get_partition_queue, RdKafka::Queue *(const RdKafka::TopicPartition *partition));
+
+  MOCK_METHOD1(set_log_queue, RdKafka::ErrorCode(RdKafka::Queue *queue));
+
   // Mock RdKafka::Producer
   MOCK_METHOD7(produce,
                RdKafka::ErrorCode(RdKafka::Topic *topic, int32_t partition,
@@ -76,6 +82,13 @@ public:
                                            int msgflags,
                                            void *payload, size_t len,
                                            const void *key, size_t key_len,
+                                           void *msg_opaque));
+
+  MOCK_METHOD9(produce, RdKafka::ErrorCode(const std::string topic_name, int32_t partition,
+                                           int msgflags,
+                                           void *payload, size_t len,
+                                           const void *key, size_t key_len,
+                                           int64_t timestamp,
                                            void *msg_opaque));
 
   MOCK_METHOD5(produce, RdKafka::ErrorCode(RdKafka::Topic *topic, int32_t partition,

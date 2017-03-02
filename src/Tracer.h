@@ -104,6 +104,8 @@ class SpanCache
 
     size_t message_size(void) const { return m_message_size; }
 
+    static constexpr size_t capacity(void) { return CAPACITY; }
+
     inline bool empty(void) const { return m_spans.empty(); }
 
     inline void purge_all(void)

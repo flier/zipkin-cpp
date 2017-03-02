@@ -5,6 +5,8 @@
 
 #include <sys/socket.h>
 
+#include "Version.h"
+
 #ifdef __APPLE__
 #define ZIPKIN_SPAN_ID_FMT "%016llx"
 #else

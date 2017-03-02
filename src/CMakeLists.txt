@@ -18,6 +18,7 @@ add_custom_command (
 )
 
 set (zipkin_INCS
+    ${CMAKE_CURRENT_BINARY_DIR}/Version.h
     Span.h
     Tracer.h
     Collector.h
@@ -54,6 +55,11 @@ set (VERSION ${zipkin_VERSION})
 
 configure_file (${PROJECT_SOURCE_DIR}/zipkin.pc.in
                 ${PROJECT_BINARY_DIR}/zipkin.pc
+                @ONLY
+                )
+
+configure_file (${CMAKE_CURRENT_SOURCE_DIR}/Version.h.in
+                ${CMAKE_CURRENT_BINARY_DIR}/Version.h
                 @ONLY
                 )
 

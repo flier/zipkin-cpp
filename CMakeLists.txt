@@ -1,15 +1,12 @@
-cmake_minimum_required (VERSION 2.8.12)
+cmake_minimum_required (VERSION 3.0.0)
 
-project(zipkin C CXX)
+project(zipkin-cpp
+    VERSION 0.2.0
+    LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
-set (zipkin_VERSION_MAJOR 0)
-set (zipkin_VERSION_MINOR 2)
-set (zipkin_VERSION_PATCH 0)
-set (zipkin_VERSION ${zipkin_VERSION_MAJOR}.${zipkin_VERSION_MINOR}.${zipkin_VERSION_PATCH})
 
 include(${PROJECT_SOURCE_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
@@ -80,8 +77,8 @@ endif()
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
 include_directories(${PROJECT_SOURCE_DIR}/include)
-include_directories(${PROJECT_SOURCE_DIR}/gen-cpp)
-include_directories(${PROJECT_BINARY_DIR})
+include_directories(${PROJECT_BINARY_DIR}/gen-cpp)
+include_directories(${PROJECT_BINARY_DIR}/src)
 include_directories(SYSTEM include)
 
 set(zipkin_DEPENDENCIES

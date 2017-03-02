@@ -9,6 +9,8 @@
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/prettywriter.h>
 
+#include "Version.h"
+
 namespace zipkin
 {
 
@@ -114,6 +116,7 @@ void HttpCollector::send_spans(void)
     else
     {
         CURLcode res;
+        long status_code = 0;
         struct curl_slist *headers = nullptr;
         char content_type[128] = {0}, err_msg[CURL_ERROR_SIZE] = {0};
         uint8_t *buf_ptr = nullptr;
@@ -138,17 +141,25 @@ void HttpCollector::send_spans(void)
         {
             LOG(WARNING) << "fail to set http header, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
         }
+        else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_USERAGENT, ZIPKIN_LIBNAME "/" ZIPKIN_VERSION)))
+        {
+             LOG(WARNING) << "fail to set http user agent, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+        }
         else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, buf_ptr)))
         {
-            LOG(WARNING) << "fail to set http body, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+            LOG(WARNING) << "fail to set http body data, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
         }
         else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, buf_size)))
         {
-            LOG(WARNING) << "fail to set http body, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+            LOG(WARNING) << "fail to set http body size, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
         }
         else if (CURLE_OK != (res = curl_easy_perform(curl)))
         {
             LOG(WARNING) << "fail to send http request, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+        }
+        else if (CURLE_OK != (res = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status_code)))
+        {
+            LOG(WARNING) << "fail to get status code, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
         }
 
         curl_slist_free_all(headers);

@@ -291,6 +291,10 @@ void reply_json_response(struct mg_connection *nc, struct http_message *hm)
     {
       zipkin_span_set_sampled(span, strtoul(hv->p, NULL, 10));
     }
+    else if (0 == mg_vcmp(hn, ZIPKIN_X_FLAGS))
+    {
+      zipkin_span_set_debug(span, strtoul(hv->p, NULL, 10) & ZIPKIN_X_FLAG_DEBUG);
+    }
 
     mg_printf(nc, "%s\"%.*s\": \"%.*s\"", (i != 0 ? "," : ""), (int)hn->len, hn->p, (int)hv->len, hv->p);
   }

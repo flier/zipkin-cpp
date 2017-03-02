@@ -60,6 +60,8 @@
 #define ZIPKIN_X_SAMPLED "X-B3-Sampled"             ///< Boolean (either “1” or “0”, can be absent)
 #define ZIPKIN_X_FLAGS "X-B3-Flags"                 ///< “1” means debug (can be absent)
 
+#define ZIPKIN_X_FLAG_DEBUG (1 << 0)
+
 typedef uint64_t zipkin_span_id_t;
 typedef uint64_t zipkin_trace_id_t;
 typedef void *zipkin_userdata_t;
@@ -113,6 +115,7 @@ zipkin_span_t zipkin_span_set_trace_id_high(zipkin_span_t span, zipkin_trace_id_
 zipkin_span_t zipkin_span_parse_trace_id(zipkin_span_t span, const char *str, size_t len);
 
 int zipkin_span_debug(zipkin_span_t span);
+zipkin_span_t zipkin_span_set_debug(zipkin_span_t span, int debug);
 
 int zipkin_span_sampled(zipkin_span_t span);
 zipkin_span_t zipkin_span_set_sampled(zipkin_span_t span, int sampled);

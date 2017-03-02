@@ -79,7 +79,7 @@ class GreeterClient
         // the server and/or tweak certain RPC behaviors.
         ClientContext context;
 
-        zipkin::Endpoint endpoint("greeter", context.peer());
+        zipkin::Endpoint endpoint("greeter");
 
         span << boost::make_tuple("name", user, &endpoint);
 

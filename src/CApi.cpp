@@ -8,7 +8,8 @@
 #include "Span.h"
 #include "Tracer.h"
 #include "Collector.h"
-#include "Kafka.h"
+#include "KafkaCollector.h"
+#include "HttpCollector.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -2,10 +2,84 @@
 
 #include <chrono>
 
+#include <thrift/transport/TBufferTransports.h>
+
 #include "Span.h"
 
 namespace zipkin
 {
+
+/**
+ * \brief use for compressing message sets.
+ *
+ * \sa https://cwiki.apache.org/confluence/display/KAFKA/Compression
+ */
+enum CompressionCodec
+{
+  none,   ///< No compression
+  gzip,   ///< GZIP compression
+  snappy, ///< Snappy compression
+  lz4     ///< LZ4 compression
+};
+
+CompressionCodec parse_compression_codec(const std::string &codec);
+const std::string to_string(CompressionCodec codec);
+
+class BinaryCodec;
+class JsonCodec;
+class PrettyJsonCodec;
+
+/**
+* \brief use for encoding message sets.
+*/
+class MessageCodec
+{
+public:
+  virtual ~MessageCodec(void) = default;
+
+  virtual const std::string name(void) const = 0;
+
+  virtual size_t encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) = 0;
+
+  static std::shared_ptr<MessageCodec> parse(const std::string &codec);
+
+  static std::shared_ptr<BinaryCodec> binary;
+  static std::shared_ptr<JsonCodec> json;
+  static std::shared_ptr<PrettyJsonCodec> pretty_json;
+};
+
+/**
+* \brief Thrift binary encoding
+*/
+class BinaryCodec : public MessageCodec
+{
+public:
+  virtual const std::string name(void) const override { return "binary"; }
+
+  virtual size_t encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) override;
+};
+
+/**
+* \brief JSON encoding
+*/
+class JsonCodec : public MessageCodec
+{
+public:
+  virtual const std::string name(void) const override { return "json"; }
+
+  virtual size_t encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) override;
+};
+
+/**
+* \brief Pretty print JSON encoding
+*/
+class PrettyJsonCodec : public MessageCodec
+{
+public:
+  virtual const std::string name(void) const override { return "pretty_json"; }
+
+  virtual size_t encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) override;
+};
 
 /**
 * \brief Push Span as messages to transport

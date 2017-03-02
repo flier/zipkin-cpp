@@ -35,6 +35,7 @@ if(Boost_FOUND)
   include_directories(${Boost_INCLUDE_DIRS})
 endif()
 
+find_package(CURL REQUIRED)
 find_package(Thrift REQUIRED)
 find_package(LibRDKafka REQUIRED)
 find_package(Doxygen QUIET)
@@ -82,6 +83,7 @@ include_directories(SYSTEM include)
 set(zipkin_DEPENDENCIES
     ${CONAN_LIBS_GLOG}
     ${CONAN_LIBS_GFLAGS}
+    ${CURL_LIBRARIES}
     ${THRIFT_LIBRARIES}
     ${LibRDKafka_LIBRARIES}
     ${Boost_LIBRARIES}

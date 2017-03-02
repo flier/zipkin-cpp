@@ -19,4 +19,5 @@
 #include "Span.h"
 #include "Tracer.h"
 #include "Collector.h"
-#include "Kafka.h"
+#include "KafkaCollector.h"
+#include "HttpCollector.h"

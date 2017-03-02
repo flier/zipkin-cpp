@@ -149,7 +149,7 @@ int main(int argc, char **argv)
 
         zipkin::KafkaConf conf(init_brokers, topic_name);
 
-        conf.message_codec = zipkin::parse_message_codec(FLAGS_msg_codec);
+        conf.message_codec = zipkin::MessageCodec::parse(FLAGS_msg_codec);
 
         collector.reset(conf.create());
     }

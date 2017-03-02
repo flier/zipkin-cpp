@@ -22,7 +22,8 @@ set (zipkin_INCS
     Span.h
     Tracer.h
     Collector.h
-    Kafka.h
+    KafkaCollector.h
+    HttpCollector.h
     ${INCDIR}/zipkin.h
     ${INCDIR}/zipkin.hpp
     )
@@ -31,7 +32,8 @@ set (zipkin_SRCS
     Span.cpp
     Tracer.cpp
     Collector.cpp
-    Kafka.cpp
+    KafkaCollector.cpp
+    HttpCollector.cpp
     CApi.cpp
     )
 

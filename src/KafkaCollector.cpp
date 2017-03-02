@@ -1,4 +1,4 @@
-#include "Kafka.h"
+#include "KafkaCollector.h"
 
 #include <ios>
 #include <algorithm>
@@ -83,52 +83,11 @@ class ReusableMemoryBuffer : public apache::thrift::transport::TMemoryBuffer
 void KafkaCollector::submit(Span *span)
 {
     boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new ReusableMemoryBuffer(static_cast<CachedSpan *>(span)));
+    std::vector<Span *> spans;
 
-    uint32_t wrote = 0;
+    spans.push_back(span);
 
-    switch (m_message_codec)
-    {
-    case MessageCodec::binary:
-    {
-        apache::thrift::protocol::TBinaryProtocol protocol(buf);
-
-        wrote = protocol.writeByte(12) + // type of the list elements: 12 == struct
-                protocol.writeI32(1);    // count of spans that will follow
-
-        wrote += span->serialize_binary(protocol);
-
-        break;
-    }
-
-    case MessageCodec::json:
-    case MessageCodec::pretty_json:
-    {
-        rapidjson::StringBuffer buffer;
-
-        if (m_message_codec == MessageCodec::pretty_json)
-        {
-            rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
-
-            writer.StartArray();
-            span->serialize_json(writer);
-            writer.EndArray(1);
-        }
-        else
-        {
-            rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-
-            writer.StartArray();
-            span->serialize_json(writer);
-            writer.EndArray(1);
-        }
-
-        buf->write((const uint8_t *)buffer.GetString(), buffer.GetSize());
-
-        wrote = buffer.GetSize();
-
-        break;
-    }
-    }
+    uint32_t wrote = m_message_codec->encode(buf, spans);
 
     VLOG(2) << "Span @ " << span << " wrote " << wrote << " bytes to message, id=" << std::hex << span->id();
     VLOG(3) << span->message();
@@ -156,56 +115,6 @@ void KafkaCollector::submit(Span *span)
     else
     {
         m_producer->poll(0);
-    }
-}
-
-CompressionCodec parse_compression_codec(const std::string &codec)
-{
-    if (codec == "gzip")
-        return CompressionCodec::gzip;
-    if (codec == "snappy")
-        return CompressionCodec::snappy;
-    if (codec == "lz4")
-        return CompressionCodec::lz4;
-
-    return CompressionCodec::none;
-}
-
-const std::string to_string(CompressionCodec codec)
-{
-    switch (codec)
-    {
-    case CompressionCodec::none:
-        return "none";
-    case CompressionCodec::gzip:
-        return "gzip";
-    case CompressionCodec::snappy:
-        return "snappy";
-    case CompressionCodec::lz4:
-        return "lz4";
-    }
-}
-
-MessageCodec parse_message_codec(const std::string &codec)
-{
-    if (codec == "binary")
-        return MessageCodec::binary;
-    if (codec == "json")
-        return MessageCodec::json;
-
-    return MessageCodec::pretty_json;
-}
-
-const std::string to_string(MessageCodec codec)
-{
-    switch (codec)
-    {
-    case MessageCodec::binary:
-        return "binary";
-    case MessageCodec::json:
-        return "json";
-    case MessageCodec::pretty_json:
-        return "pretty_json";
     }
 }
 

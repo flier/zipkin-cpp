@@ -105,6 +105,57 @@ void HttpCollector::send_spans(void)
         span->release();
     }
 
+    CURL *curl = curl_easy_init();
+
+    if (!curl)
+    {
+        LOG(ERROR) << "fail to create curl handle";
+    }
+    else
+    {
+        CURLcode res;
+        struct curl_slist *headers = nullptr;
+        char content_type[128] = {0}, err_msg[CURL_ERROR_SIZE] = {0};
+        uint8_t *buf_ptr = nullptr;
+        uint32_t buf_size = 0;
+
+        buf->getBuffer(&buf_ptr, &buf_size);
+
+        if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, err_msg)))
+        {
+            LOG(WARNING) << "fail to set curl error buffer, " << curl_easy_strerror(res);
+        }
+
+        snprintf(content_type, sizeof(content_type), "Content-Type: %s", m_conf.message_codec->mime_type().c_str());
+
+        headers = curl_slist_append(headers, content_type);
+
+        if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_URL, m_conf.url.c_str())))
+        {
+            LOG(WARNING) << "fail to set url, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+        }
+        else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers)))
+        {
+            LOG(WARNING) << "fail to set http header, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+        }
+        else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, buf_ptr)))
+        {
+            LOG(WARNING) << "fail to set http body, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+        }
+        else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, buf_size)))
+        {
+            LOG(WARNING) << "fail to set http body, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+        }
+        else if (CURLE_OK != (res = curl_easy_perform(curl)))
+        {
+            LOG(WARNING) << "fail to send http request, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+        }
+
+        curl_slist_free_all(headers);
+
+        curl_easy_cleanup(curl);
+    }
+
     m_sent.notify_all();
 }
 

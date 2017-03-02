@@ -39,6 +39,8 @@ public:
 
   virtual const std::string name(void) const = 0;
 
+  virtual const std::string mime_type(void) const = 0;
+
   virtual size_t encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) = 0;
 
   static std::shared_ptr<MessageCodec> parse(const std::string &codec);
@@ -56,6 +58,8 @@ class BinaryCodec : public MessageCodec
 public:
   virtual const std::string name(void) const override { return "binary"; }
 
+  virtual const std::string mime_type(void) const override { return "application/x-thrift"; }
+
   virtual size_t encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) override;
 };
 
@@ -67,6 +71,8 @@ class JsonCodec : public MessageCodec
 public:
   virtual const std::string name(void) const override { return "json"; }
 
+  virtual const std::string mime_type(void) const override { return "application/json"; }
+
   virtual size_t encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) override;
 };
 
@@ -77,6 +83,8 @@ class PrettyJsonCodec : public MessageCodec
 {
 public:
   virtual const std::string name(void) const override { return "pretty_json"; }
+
+  virtual const std::string mime_type(void) const override { return "application/json"; }
 
   virtual size_t encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) override;
 };

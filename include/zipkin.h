@@ -114,6 +114,9 @@ zipkin_span_t zipkin_span_parse_trace_id(zipkin_span_t span, const char *str, si
 
 int zipkin_span_debug(zipkin_span_t span);
 
+int zipkin_span_sampled(zipkin_span_t span);
+zipkin_span_t zipkin_span_set_sampled(zipkin_span_t span, int sampled);
+
 zipkin_userdata_t zipkin_span_userdata(zipkin_span_t span);
 zipkin_span_t zipkin_span_set_userdata(zipkin_span_t span, zipkin_userdata_t userdata);
 

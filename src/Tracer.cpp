@@ -28,12 +28,14 @@ Span *CachedTracer::span(const std::string &name, span_id_t parent_id, void *use
         span = new (this) CachedSpan(this, name, parent_id, userdata);
     }
 
+    span->with_sampled(m_total_spans++ % m_sample_rate == 0);
+
     return span;
 }
 
 void CachedTracer::submit(Span *span)
 {
-    if (m_collector)
+    if (m_collector && span->sampled())
     {
         VLOG(2) << "Span @ " << span << " submited to collector @ " << m_collector << ", id=" << span->id();
 

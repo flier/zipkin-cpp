@@ -212,6 +212,10 @@ void forward_http_request(struct mg_connection *nc, struct http_message *hm)
     {
       p += snprintf(p, end - p, ZIPKIN_X_PARENT_SPAN_ID ": " ZIPKIN_SPAN_ID_FMT CRLF, zipkin_span_parent_id(span));
     }
+    if (zipkin_span_sampled(span))
+    {
+      p += snprintf(p, end - p, ZIPKIN_X_SAMPLED ": 1" CRLF);
+    }
     if (zipkin_span_debug(span))
     {
       p += snprintf(p, end - p, ZIPKIN_X_FLAGS ": 1" CRLF);
@@ -282,6 +286,10 @@ void reply_json_response(struct mg_connection *nc, struct http_message *hm)
     else if (0 == mg_vcmp(hn, ZIPKIN_X_SPAN_ID))
     {
       zipkin_span_set_parent_id(span, strtoull(hv->p, NULL, 16));
+    }
+    else if (0 == mg_vcmp(hn, ZIPKIN_X_SAMPLED))
+    {
+      zipkin_span_set_sampled(span, strtoul(hv->p, NULL, 10));
     }
 
     mg_printf(nc, "%s\"%.*s\": \"%.*s\"", (i != 0 ? "," : ""), (int)hn->len, hn->p, (int)hv->len, hv->p);

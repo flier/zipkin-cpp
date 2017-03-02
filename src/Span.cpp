@@ -230,7 +230,7 @@ const std::string decode(const std::string &encoded_string)
 
 } // namespace base64
 
-Span::Span(Tracer *tracer, const std::string &name, span_id_t parent_id, userdata_t userdata) : m_tracer(tracer)
+Span::Span(Tracer *tracer, const std::string &name, span_id_t parent_id, userdata_t userdata, bool sampled) : m_tracer(tracer)
 {
     if (tracer)
     {
@@ -242,10 +242,10 @@ Span::Span(Tracer *tracer, const std::string &name, span_id_t parent_id, userdat
         }
     }
 
-    reset(name, parent_id, userdata);
+    reset(name, parent_id, userdata, sampled);
 }
 
-void Span::reset(const std::string &name, span_id_t parent_id, userdata_t userdata)
+void Span::reset(const std::string &name, span_id_t parent_id, userdata_t userdata, bool sampled)
 {
     m_span.__isset = _Span__isset();
     m_span.__set_name(name);
@@ -260,6 +260,7 @@ void Span::reset(const std::string &name, span_id_t parent_id, userdata_t userda
     }
 
     m_userdata = userdata;
+    m_sampled = sampled;
 }
 
 void Span::submit(void)

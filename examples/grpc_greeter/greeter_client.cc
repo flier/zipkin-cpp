@@ -94,16 +94,17 @@ class GreeterClient
 
         if (span.parent_id())
             send_header(ZIPKIN_X_PARENT_SPAN_ID, folly::to<std::string>(span.parent_id()));
-
+        if (span.sampled())
+            send_header(ZIPKIN_X_SAMPLED, "1");
         if (span.debug())
             send_header(ZIPKIN_X_FLAGS, "1");
 
-        span << zipkin::TraceKeys::CLIENT_SEND;
+        span << zipkin::TraceKeys::CLIENT_SEND << endpoint;
 
         // The actual RPC.
         Status status = stub_->SayHello(&context, request, &reply);
 
-        span << zipkin::TraceKeys::CLIENT_RECV;
+        span << zipkin::TraceKeys::CLIENT_RECV << endpoint;
 
         // Act upon its status.
         if (status.ok())

@@ -538,6 +538,7 @@ class Span
     Tracer *m_tracer;
     ::Span m_span;
     userdata_t m_userdata;
+    bool m_sampled;
 
     static const ::Endpoint host(const Endpoint *endpoint);
 
@@ -545,12 +546,12 @@ class Span
     /**
      * \brief Construct a span
      */
-    Span(Tracer *tracer, const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr);
+    Span(Tracer *tracer, const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr, bool sampled = true);
 
     /**
      * \brief Reset a span
      */
-    void reset(const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr);
+    void reset(const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr, bool sampled = true);
 
     /**
      * \brief Submit a Span to Tracer
@@ -702,6 +703,18 @@ class Span
     inline Span &with_userdata(userdata_t userdata)
     {
         m_userdata = userdata;
+        return *this;
+    }
+
+    /**
+    * \brief Report this span to the tracing system
+    */
+    inline bool sampled(void) const { return m_sampled; }
+
+    /** \sa Span#sampled */
+    inline Span &with_sampled(bool sampled = true)
+    {
+        m_sampled = sampled;
         return *this;
     }
 

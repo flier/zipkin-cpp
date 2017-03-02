@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <string>
+#include <atomic>
 
 #include <boost/lockfree/stack.hpp>
 
@@ -49,6 +50,14 @@ struct Tracer
     * \brief Tracer name in lowercase.
     */
     virtual const std::string &name(void) const = 0;
+
+    /**
+    * \brief Tracer sample rate
+    */
+    virtual size_t sample_rate(void) const = 0;
+
+    /** \sa Tracer#sample_rate */
+    virtual void set_sample_rate(size_t sample_rate) = 0;
 
     /**
      * \brief Associated Collector
@@ -135,6 +144,8 @@ class CachedTracer : public Tracer
 
     trace_id_t m_id, m_id_high;
     const std::string m_name;
+    size_t m_sample_rate;
+    std::atomic_size_t m_total_spans;
 
   public:
     typedef SpanCache<64> span_cache_t;
@@ -144,7 +155,7 @@ class CachedTracer : public Tracer
 
   public:
     CachedTracer(Collector *collector, const std::string &name, size_t cache_message_size = default_cache_message_size)
-        : m_collector(collector), m_id(Span::next_id()), m_id_high(0), m_name(name), m_cache(cache_message_size)
+        : m_collector(collector), m_id(Span::next_id()), m_id_high(0), m_name(name), m_sample_rate(1), m_cache(cache_message_size)
     {
     }
 
@@ -165,6 +176,9 @@ class CachedTracer : public Tracer
         m_id_high = id.first;
     }
     virtual const std::string &name(void) const override { return m_name; }
+    virtual size_t sample_rate(void) const override { return m_sample_rate; }
+    virtual void set_sample_rate(size_t sample_rate) override { m_sample_rate = sample_rate; }
+
     virtual Collector *collector(void) const override { return m_collector; }
 
     virtual Span *span(const std::string &name, span_id_t parent_id = 0, void *userdata = nullptr) override;

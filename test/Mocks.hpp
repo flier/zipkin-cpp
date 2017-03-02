@@ -23,6 +23,10 @@ public:
 
   MOCK_CONST_METHOD0(name, const std::string &(void));
 
+  MOCK_CONST_METHOD0(sample_rate, size_t(void));
+
+  MOCK_METHOD1(set_sample_rate, void(size_t sample_rate));
+
   MOCK_CONST_METHOD0(collector, zipkin::Collector *(void));
 
   MOCK_METHOD3(span, zipkin::Span *(const std::string &, span_id_t, userdata_t));

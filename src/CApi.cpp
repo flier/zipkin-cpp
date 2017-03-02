@@ -142,6 +142,17 @@ int zipkin_span_debug(zipkin_span_t span)
 {
     return span ? static_cast<zipkin::Span *>(span)->debug() : false;
 }
+int zipkin_span_sampled(zipkin_span_t span)
+{
+    return span ? static_cast<zipkin::Span *>(span)->sampled() : false;
+}
+zipkin_span_t zipkin_span_set_sampled(zipkin_span_t span, int sampled)
+{
+    if (span)
+        static_cast<zipkin::Span *>(span)->with_sampled(sampled);
+
+    return span;
+}
 zipkin_userdata_t zipkin_span_userdata(zipkin_span_t span)
 {
     if (span)

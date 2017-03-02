@@ -55,7 +55,7 @@ void bench_span_annonate_with_endpoint(benchmark::State &state)
 
     while (state.KeepRunning())
     {
-        span << std::make_pair(zipkin::TraceKeys::CLIENT_SEND, &endpoint);
+        span << zipkin::TraceKeys::CLIENT_SEND << endpoint;
     }
 
     state.SetItemsProcessed(span.message().annotations.size());
@@ -84,7 +84,7 @@ void bench_span_annonate_bool_with_endpoint(benchmark::State &state)
 
     while (state.KeepRunning())
     {
-        span << boost::make_tuple(zipkin::TraceKeys::CLIENT_SEND, false, &endpoint);
+        span << std::make_pair(zipkin::TraceKeys::CLIENT_SEND, false) << endpoint;
     }
 
     state.SetItemsProcessed(span.message().binary_annotations.size());
@@ -185,7 +185,7 @@ void bench_span_annonate_string_with_endpoint(benchmark::State &state)
 
     while (state.KeepRunning())
     {
-        span << boost::make_tuple(zipkin::TraceKeys::CLIENT_SEND, value, &endpoint);
+        span << std::make_pair(zipkin::TraceKeys::CLIENT_SEND, value) << endpoint;
     }
 
     state.SetItemsProcessed(span.message().binary_annotations.size());
@@ -228,7 +228,7 @@ void bench_span_serialize_binary(benchmark::State &state)
     zipkin::Endpoint endpoint("bench");
 
     span << zipkin::TraceKeys::CLIENT_SEND
-         << boost::make_tuple(zipkin::TraceKeys::CLIENT_SEND, false, &endpoint)
+         << std::make_pair(zipkin::TraceKeys::CLIENT_SEND, false) << endpoint
          << std::make_pair(zipkin::TraceKeys::CLIENT_SEND, L"hello world");
 
     boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer());
@@ -251,7 +251,7 @@ void bench_span_serialize_json(benchmark::State &state)
     zipkin::Endpoint endpoint("bench");
 
     span << zipkin::TraceKeys::CLIENT_SEND
-         << boost::make_tuple(zipkin::TraceKeys::CLIENT_SEND, false, &endpoint)
+         << std::make_pair(zipkin::TraceKeys::CLIENT_SEND, false) << endpoint
          << std::make_pair(zipkin::TraceKeys::CLIENT_SEND, L"hello world");
 
     rapidjson::StringBuffer buffer;
@@ -274,7 +274,7 @@ void bench_span_serialize_pretty_json(benchmark::State &state)
     zipkin::Endpoint endpoint("bench");
 
     span << zipkin::TraceKeys::CLIENT_SEND
-         << boost::make_tuple(zipkin::TraceKeys::CLIENT_SEND, false, &endpoint)
+         << std::make_pair(zipkin::TraceKeys::CLIENT_SEND, false) << endpoint
          << std::make_pair(zipkin::TraceKeys::CLIENT_SEND, L"hello world");
 
     rapidjson::StringBuffer buffer;

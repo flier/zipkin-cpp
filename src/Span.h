@@ -132,8 +132,8 @@ class Endpoint
 };
 
 struct Tracer;
-
 class CachedTracer;
+class Span;
 
 /**
 * \brief Associates an event that explains latency with a timestamp.
@@ -142,10 +142,13 @@ class CachedTracer;
 */
 class Annotation
 {
+    Span &m_span;
     ::Annotation &m_annotation;
 
   public:
-    Annotation(::Annotation &annotation) : m_annotation(annotation) {}
+    Annotation(Span &span, ::Annotation &annotation) : m_span(span), m_annotation(annotation) {}
+
+    Span &span(void) { return m_span; }
 
     /**
     * \brief Microseconds from epoch.
@@ -390,10 +393,13 @@ struct TraceKeys
 */
 class BinaryAnnotation
 {
+    Span &m_span;
     ::BinaryAnnotation &m_annotation;
 
   public:
-    BinaryAnnotation(::BinaryAnnotation &annotation) : m_annotation(annotation) {}
+    BinaryAnnotation(Span &span, ::BinaryAnnotation &annotation) : m_span(span), m_annotation(annotation) {}
+
+    Span &span(void) { return m_span; }
 
     /**
     * \brief The thrift type of value, most often AnnotationType#STRING.
@@ -906,112 +912,94 @@ class Span
     };
 };
 
-static inline Span &operator<<(Span &span, const std::string &value)
-{
-    span.annotate(value);
-
-    return span;
-}
-
 namespace __impl
 {
 
 template <typename K, typename V>
 struct __annotation
 {
-    static void apply(Span &span, const std::pair<K, V> &value)
+    static BinaryAnnotation apply(Span &span, const std::pair<K, V> &value)
     {
-        span.annotate(value.first, value.second);
+        return span.annotate(value.first, value.second);
     }
 
-    static void apply(Span &span, const boost::tuple<K, V, Endpoint *> &value)
+    static BinaryAnnotation apply(Span &span, const boost::tuple<K, V, Endpoint *> &value)
     {
-        span.annotate(boost::get<0>(value), boost::get<1>(value), boost::get<2>(value));
-    }
-};
-
-template <>
-struct __annotation<const char *, Endpoint *>
-{
-    static void apply(Span &span, const std::pair<const char *, Endpoint *> &value)
-    {
-        ::Annotation annotation;
-
-        annotation.__set_timestamp(Span::now().count());
-        annotation.__set_value(value.first);
-
-        if (value.second)
-        {
-            annotation.__set_host(value.second->host());
-        }
-
-        span.message().annotations.push_back(annotation);
-    }
-};
-
-template <>
-struct __annotation<std::string, Endpoint *>
-{
-    static void apply(Span &span, const std::pair<std::string, Endpoint *> &value)
-    {
-        ::Annotation annotation;
-
-        annotation.__set_timestamp(Span::now().count());
-        annotation.__set_value(value.first);
-
-        if (value.second)
-        {
-            annotation.__set_host(value.second->host());
-        }
-
-        span.message().annotations.push_back(annotation);
+        return span.annotate(boost::get<0>(value), boost::get<1>(value), boost::get<2>(value));
     }
 };
 
 template <typename K>
 struct __annotation<K, const char *>
 {
-    static void apply(Span &span, const std::pair<K, const char *> &value)
+    static BinaryAnnotation apply(Span &span, const std::pair<K, const char *> &value)
     {
-        span.annotate(value.first, value.second);
+        return span.annotate(value.first, value.second);
     }
 
-    static void apply(Span &span, const boost::tuple<K, const char *, Endpoint *> &value)
+    static BinaryAnnotation apply(Span &span, const boost::tuple<K, const char *, Endpoint *> &value)
     {
-        span.annotate(boost::get<0>(value), boost::get<1>(value), -1, boost::get<2>(value));
+        return span.annotate(boost::get<0>(value), boost::get<1>(value), -1, boost::get<2>(value));
     }
 };
 
 template <typename K>
 struct __annotation<K, const wchar_t *>
 {
-    static void apply(Span &span, const std::pair<K, const wchar_t *> &value)
+    static BinaryAnnotation apply(Span &span, const std::pair<K, const wchar_t *> &value)
     {
-        span.annotate(value.first, value.second);
+        return span.annotate(value.first, value.second);
     }
 
-    static void apply(Span &span, const boost::tuple<K, const wchar_t *, Endpoint *> &value)
+    static BinaryAnnotation apply(Span &span, const boost::tuple<K, const wchar_t *, Endpoint *> &value)
     {
-        span.annotate(boost::get<0>(value), boost::get<1>(value), -1, boost::get<2>(value));
+        return span.annotate(boost::get<0>(value), boost::get<1>(value), -1, boost::get<2>(value));
     }
 };
 
 } // namespace __impl
 
-template <typename K, typename V>
-Span &operator<<(Span &span, const std::pair<K, V> &value)
+static inline Annotation operator<<(Span &span, const std::string &value)
 {
-    __impl::__annotation<K, V>::apply(span, value);
+    return span.annotate(value);
+}
 
-    return span;
+static inline Annotation operator<<(Annotation annotation, const std::string &value)
+{
+    return annotation.span().annotate(value);
+}
+
+static inline Annotation operator<<(BinaryAnnotation annotation, const std::string &value)
+{
+    return annotation.span().annotate(value);
+}
+
+static inline Span &operator<<(Annotation annotation, const zipkin::Endpoint &endpoint)
+{
+    return annotation.with_endpoint(endpoint).span();
+}
+
+static inline Span &operator<<(BinaryAnnotation annotation, const zipkin::Endpoint &endpoint)
+{
+    return annotation.with_endpoint(endpoint).span();
 }
 
 template <typename K, typename V>
-Span &operator<<(Span &span, const boost::tuple<K, V, Endpoint *> &value)
+BinaryAnnotation operator<<(Span &span, const std::pair<K, V> &value)
 {
-    __impl::__annotation<K, V>::apply(span, value);
+    return __impl::__annotation<K, V>::apply(span, value);
+}
 
-    return span;
+template <typename K, typename V>
+BinaryAnnotation operator<<(Annotation annotation, const std::pair<K, V> &value)
+{
+    return __impl::__annotation<K, V>::apply(annotation.span(), value);
+}
+
+template <typename K, typename V>
+BinaryAnnotation operator<<(BinaryAnnotation annotation, const std::pair<K, V> &value)
+{
+    return __impl::__annotation<K, V>::apply(annotation.span(), value);
 }
 
 class CachedSpan : public Span
@@ -1143,7 +1131,7 @@ inline BinaryAnnotation Span::annotate(const std::string &key, const T &value, c
 
     m_span.binary_annotations.push_back(annotation);
 
-    return BinaryAnnotation(m_span.binary_annotations.back());
+    return BinaryAnnotation(*this, m_span.binary_annotations.back());
 }
 
 namespace base64

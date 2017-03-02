@@ -81,7 +81,7 @@ class GreeterClient
 
         zipkin::Endpoint endpoint("greeter");
 
-        span << boost::make_tuple("name", user, &endpoint);
+        span << std::make_pair("name", user) << endpoint;
 
         auto send_header = [&context](const char *key, const std::string &value) {
             std::string lower_key(key);

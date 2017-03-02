@@ -297,7 +297,7 @@ Annotation Span::annotate(const std::string &value, const Endpoint *endpoint)
 
     m_span.annotations.push_back(annotation);
 
-    return Annotation(m_span.annotations.back());
+    return Annotation(*this, m_span.annotations.back());
 }
 
 BinaryAnnotation Span::annotate(const std::string &key, const uint8_t *value, size_t size, const Endpoint *endpoint)
@@ -315,7 +315,7 @@ BinaryAnnotation Span::annotate(const std::string &key, const uint8_t *value, si
 
     m_span.binary_annotations.push_back(annotation);
 
-    return BinaryAnnotation(m_span.binary_annotations.back());
+    return BinaryAnnotation(*this, m_span.binary_annotations.back());
 }
 
 BinaryAnnotation Span::annotate(const std::string &key, const std::string &value, const Endpoint *endpoint)
@@ -333,7 +333,7 @@ BinaryAnnotation Span::annotate(const std::string &key, const std::string &value
 
     m_span.binary_annotations.push_back(annotation);
 
-    return BinaryAnnotation(m_span.binary_annotations.back());
+    return BinaryAnnotation(*this, m_span.binary_annotations.back());
 }
 
 BinaryAnnotation Span::annotate(const std::string &key, const std::wstring &value, const Endpoint *endpoint)
@@ -353,7 +353,7 @@ BinaryAnnotation Span::annotate(const std::string &key, const std::wstring &valu
 
     m_span.binary_annotations.push_back(annotation);
 
-    return BinaryAnnotation(m_span.binary_annotations.back());
+    return BinaryAnnotation(*this, m_span.binary_annotations.back());
 }
 
 size_t CachedSpan::cache_size(void) const

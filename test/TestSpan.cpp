@@ -325,25 +325,16 @@ TEST(span, annotate_stream)
     zipkin::Endpoint host("host", addr);
 
     span << zipkin::TraceKeys::CLIENT_SEND
-         << std::string("hello")
-         << std::make_pair("world", &host)
+         << std::string("hello") << host
          << std::make_pair("key", "hello")
-         << std::make_pair("string", L"测试")
-         << std::make_pair("key", std::string("world"))
-         << std::make_pair("bool", true)
-         << std::make_pair("i16", (int16_t)123)
-         << std::make_pair("i32", (int32_t)123)
-         << std::make_pair("i64", (int64_t)123)
-         << std::make_pair("double", (double)12.3)
-         << boost::make_tuple("key", "hello", &host)
-         << boost::make_tuple("string", L"测试", &host)
-         << boost::make_tuple("key", std::string("world"), &host)
-         << boost::make_tuple("bool", true, &host)
-         << boost::make_tuple("i16", (int16_t)123, &host)
-         << boost::make_tuple("i32", (int32_t)123, &host)
-         << boost::make_tuple("i64", (int64_t)123, &host)
-         << boost::make_tuple("double", (double)12.3, &host);
+         << std::make_pair("string", L"测试") << host
+         << std::make_pair("key", std::string("world")) << host
+         << std::make_pair("bool", true) << host
+         << std::make_pair("i16", (int16_t)123) << host
+         << std::make_pair("i32", (int32_t)123) << host
+         << std::make_pair("i64", (int64_t)123) << host
+         << std::make_pair("double", (double)12.3) << host;
 
-    ASSERT_EQ(span.message().annotations.size(), 3);
-    ASSERT_EQ(span.message().binary_annotations.size(), 16);
+    ASSERT_EQ(span.message().annotations.size(), 2);
+    ASSERT_EQ(span.message().binary_annotations.size(), 8);
 }

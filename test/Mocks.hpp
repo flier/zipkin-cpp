@@ -13,11 +13,19 @@ class MockTracer : public zipkin::Tracer
 public:
   MOCK_CONST_METHOD0(id, trace_id_t(void));
 
+  MOCK_METHOD1(set_id, void(trace_id_t));
+
   MOCK_CONST_METHOD0(id_high, trace_id_t(void));
 
   MOCK_METHOD1(set_id_high, void(trace_id_t));
 
+  MOCK_METHOD1(set_id, void(const x_trace_id_t &));
+
   MOCK_CONST_METHOD0(name, const std::string &(void));
+
+  MOCK_CONST_METHOD0(sample_rate, size_t(void));
+
+  MOCK_METHOD1(set_sample_rate, void(size_t sample_rate));
 
   MOCK_CONST_METHOD0(collector, zipkin::Collector *(void));
 
@@ -33,7 +41,7 @@ class MockCollector : public zipkin::Collector
 public:
   MOCK_METHOD1(submit, void(zipkin::Span *span));
 
-  MOCK_METHOD1(flush, bool(std::chrono::milliseconds timeout));
+  MOCK_METHOD1(flush, bool(std::chrono::milliseconds timeout_ms));
 };
 
 class MockProducer : public RdKafka::Producer
@@ -64,6 +72,12 @@ public:
                                                          int32_t partition,
                                                          int64_t *low, int64_t *high));
 
+  MOCK_METHOD2(offsetsForTimes, RdKafka::ErrorCode(std::vector<RdKafka::TopicPartition *> &offsets, int timeout_ms));
+
+  MOCK_METHOD1(get_partition_queue, RdKafka::Queue *(const RdKafka::TopicPartition *partition));
+
+  MOCK_METHOD1(set_log_queue, RdKafka::ErrorCode(RdKafka::Queue *queue));
+
   // Mock RdKafka::Producer
   MOCK_METHOD7(produce,
                RdKafka::ErrorCode(RdKafka::Topic *topic, int32_t partition,
@@ -76,6 +90,13 @@ public:
                                            int msgflags,
                                            void *payload, size_t len,
                                            const void *key, size_t key_len,
+                                           void *msg_opaque));
+
+  MOCK_METHOD9(produce, RdKafka::ErrorCode(const std::string topic_name, int32_t partition,
+                                           int msgflags,
+                                           void *payload, size_t len,
+                                           const void *key, size_t key_len,
+                                           int64_t timestamp,
                                            void *msg_opaque));
 
   MOCK_METHOD5(produce, RdKafka::ErrorCode(RdKafka::Topic *topic, int32_t partition,

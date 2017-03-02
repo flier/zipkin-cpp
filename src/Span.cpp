@@ -8,13 +8,15 @@
 
 #include <glog/logging.h>
 
+#include <boost/algorithm/string.hpp>
+
 #include "Span.h"
 #include "Tracer.h"
 
 namespace zipkin
 {
 
-std::unique_ptr<const sockaddr> Endpoint::addr(void)
+std::unique_ptr<const sockaddr> Endpoint::sockaddr(void) const
 {
     std::unique_ptr<sockaddr_storage> addr(new sockaddr_storage());
 
@@ -35,10 +37,22 @@ std::unique_ptr<const sockaddr> Endpoint::addr(void)
         v4->sin_port = m_host.port;
     }
 
-    return std::unique_ptr<const sockaddr>(reinterpret_cast<const sockaddr *>(addr.release()));
+    return std::unique_ptr<const struct sockaddr>(reinterpret_cast<const struct sockaddr *>(addr.release()));
 }
 
-Endpoint &Endpoint::with_addr(const sockaddr *addr)
+ip::address Endpoint::addr(void) const
+{
+    if (m_host.__isset.ipv6)
+    {
+        ip::address_v6::bytes_type bytes;
+        std::copy(m_host.ipv6.begin(), m_host.ipv6.end(), bytes.begin());
+        return ip::address_v6(bytes);
+    }
+
+    return ip::address_v4(ntohl(m_host.ipv4));
+}
+
+Endpoint &Endpoint::with_addr(const struct sockaddr *addr)
 {
     assert(addr);
     assert(addr->sa_family);
@@ -47,22 +61,46 @@ Endpoint &Endpoint::with_addr(const sockaddr *addr)
     {
     case AF_INET:
     {
-        auto v4 = reinterpret_cast<const sockaddr_in *>(addr);
+        auto v4 = reinterpret_cast<const struct sockaddr_in *>(addr);
 
         m_host.__set_ipv4(v4->sin_addr.s_addr);
         m_host.__set_port(v4->sin_port);
+        m_host.__isset.ipv6 = false;
         break;
     }
 
     case AF_INET6:
     {
-        auto v6 = reinterpret_cast<const sockaddr_in6 *>(addr);
+        auto v6 = reinterpret_cast<const struct sockaddr_in6 *>(addr);
 
         m_host.__set_ipv6(std::string(reinterpret_cast<const char *>(v6->sin6_addr.s6_addr), sizeof(v6->sin6_addr)));
         m_host.__set_port(v6->sin6_port);
         break;
     }
     }
+
+    return *this;
+}
+
+Endpoint &Endpoint::with_addr(const std::string &addr, port_t port)
+{
+    boost::asio::ip::address ip = boost::asio::ip::address::from_string(addr);
+
+    if (ip.is_v6())
+    {
+        auto bytes = ip.to_v6().to_bytes();
+
+        m_host.__set_ipv6(std::string(reinterpret_cast<char *>(bytes.data()), bytes.size()));
+    }
+    else
+    {
+        auto bytes = ip.to_v4().to_bytes();
+
+        m_host.__set_ipv4(*reinterpret_cast<uint32_t *>(bytes.data()));
+        m_host.__isset.ipv6 = false;
+    }
+
+    m_host.__set_port(port);
 
     return *this;
 }
@@ -192,7 +230,7 @@ const std::string decode(const std::string &encoded_string)
 
 } // namespace base64
 
-Span::Span(Tracer *tracer, const std::string &name, span_id_t parent_id, userdata_t userdata) : m_tracer(tracer)
+Span::Span(Tracer *tracer, const std::string &name, span_id_t parent_id, userdata_t userdata, bool sampled) : m_tracer(tracer)
 {
     if (tracer)
     {
@@ -204,10 +242,10 @@ Span::Span(Tracer *tracer, const std::string &name, span_id_t parent_id, userdat
         }
     }
 
-    reset(name, parent_id, userdata);
+    reset(name, parent_id, userdata, sampled);
 }
 
-void Span::reset(const std::string &name, span_id_t parent_id, userdata_t userdata)
+void Span::reset(const std::string &name, span_id_t parent_id, userdata_t userdata, bool sampled)
 {
     m_span.__isset = _Span__isset();
     m_span.__set_name(name);
@@ -222,6 +260,7 @@ void Span::reset(const std::string &name, span_id_t parent_id, userdata_t userda
     }
 
     m_userdata = userdata;
+    m_sampled = sampled;
 }
 
 void Span::submit(void)
@@ -259,7 +298,7 @@ Annotation Span::annotate(const std::string &value, const Endpoint *endpoint)
 
     m_span.annotations.push_back(annotation);
 
-    return Annotation(m_span.annotations.back());
+    return Annotation(*this, m_span.annotations.back());
 }
 
 BinaryAnnotation Span::annotate(const std::string &key, const uint8_t *value, size_t size, const Endpoint *endpoint)
@@ -277,7 +316,7 @@ BinaryAnnotation Span::annotate(const std::string &key, const uint8_t *value, si
 
     m_span.binary_annotations.push_back(annotation);
 
-    return BinaryAnnotation(m_span.binary_annotations.back());
+    return BinaryAnnotation(*this, m_span.binary_annotations.back());
 }
 
 BinaryAnnotation Span::annotate(const std::string &key, const std::string &value, const Endpoint *endpoint)
@@ -295,7 +334,7 @@ BinaryAnnotation Span::annotate(const std::string &key, const std::string &value
 
     m_span.binary_annotations.push_back(annotation);
 
-    return BinaryAnnotation(m_span.binary_annotations.back());
+    return BinaryAnnotation(*this, m_span.binary_annotations.back());
 }
 
 BinaryAnnotation Span::annotate(const std::string &key, const std::wstring &value, const Endpoint *endpoint)
@@ -315,7 +354,7 @@ BinaryAnnotation Span::annotate(const std::string &key, const std::wstring &valu
 
     m_span.binary_annotations.push_back(annotation);
 
-    return BinaryAnnotation(m_span.binary_annotations.back());
+    return BinaryAnnotation(*this, m_span.binary_annotations.back());
 }
 
 size_t CachedSpan::cache_size(void) const

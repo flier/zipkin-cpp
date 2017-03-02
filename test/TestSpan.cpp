@@ -1,11 +1,50 @@
 #include "Mocks.hpp"
 
 #include <utility>
-#include <tuple>
 
 #define RAPIDJSON_HAS_STDSTRING 1
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/prettywriter.h>
+
+TEST(endpoint, properties)
+{
+    zipkin::Endpoint endpoint("test", "127.0.0.1", 80);
+
+    ASSERT_EQ(endpoint.service_name(), "test");
+    ASSERT_TRUE(endpoint.addr().is_v4());
+    ASSERT_EQ(endpoint.addr().to_v4().to_ulong(), 0x7f000001); // host bytes
+    ASSERT_EQ(endpoint.port(), 80);
+}
+
+TEST(endpoint, with_addr)
+{
+    zipkin::Endpoint endpoint;
+
+    auto v4addr = endpoint.with_addr("127.0.0.1", 8004).sockaddr();
+
+    ASSERT_EQ(v4addr->sa_family, AF_INET);
+    ASSERT_EQ(reinterpret_cast<const sockaddr_in *>(v4addr.get())->sin_port, 8004);
+    ASSERT_EQ(reinterpret_cast<const sockaddr_in *>(v4addr.get())->sin_addr.s_addr, 0x100007f);
+
+    auto v6addr = endpoint.with_addr("::1", 8006).sockaddr();
+
+    ASSERT_EQ(v6addr->sa_family, AF_INET6);
+    ASSERT_EQ(reinterpret_cast<const sockaddr_in6 *>(v6addr.get())->sin6_port, 8006);
+    ASSERT_THAT(reinterpret_cast<const sockaddr_in6 *>(v6addr.get())->sin6_addr.s6_addr,
+                ElementsAreArray({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}));
+
+    endpoint.with_addr(v4addr.get());
+
+    ASSERT_TRUE(endpoint.addr().is_v4());
+    ASSERT_EQ(endpoint.addr().to_v4().to_string(), "127.0.0.1");
+    ASSERT_EQ(endpoint.port(), 8004);
+
+    endpoint.with_addr(v6addr.get());
+
+    ASSERT_TRUE(endpoint.addr().is_v6());
+    ASSERT_EQ(endpoint.addr().to_v6().to_string(), "::1");
+    ASSERT_EQ(endpoint.port(), 8006);
+}
 
 TEST(span, properties)
 {
@@ -118,7 +157,9 @@ TEST(span, annotate)
     ASSERT_EQ(msg.binary_annotations.back().value, "测试");
     ASSERT_EQ(msg.binary_annotations.back().annotation_type, AnnotationType::type::STRING);
 
-    span.annotate("bytes", {1, 2, 3});
+    uint8_t bytes[] = {1, 2, 3};
+
+    span.annotate("bytes", bytes);
     ASSERT_EQ(msg.binary_annotations.back().annotation_type, AnnotationType::type::BYTES);
 }
 
@@ -199,7 +240,7 @@ TEST(span, serialize_json)
     sockaddr_in addr;
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     addr.sin_port = 80;
-    zipkin::Endpoint host("host", addr);
+    zipkin::Endpoint host("host", &addr);
 
     span.client_send(&host);
     span.annotate("bool", true, &host);
@@ -208,7 +249,10 @@ TEST(span, serialize_json)
     span.annotate("i64", (int64_t)123);
     span.annotate("double", 12.3);
     span.annotate("string", std::wstring(L"测试"));
-    span.annotate("bytes", {1, 2, 3});
+
+    uint8_t bytes[] = {1, 2, 3};
+
+    span.annotate("bytes", bytes);
 
     rapidjson::StringBuffer buffer;
     rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
@@ -278,28 +322,19 @@ TEST(span, annotate_stream)
     sockaddr_in addr;
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     addr.sin_port = 80;
-    zipkin::Endpoint host("host", addr);
+    zipkin::Endpoint host("host", &addr);
 
     span << zipkin::TraceKeys::CLIENT_SEND
-         << std::string("hello")
-         << std::make_pair("world", &host)
+         << std::string("hello") << host
          << std::make_pair("key", "hello")
-         << std::make_pair("string", L"测试")
-         << std::make_pair("key", std::string("world"))
-         << std::make_pair("bool", true)
-         << std::make_pair("i16", (int16_t)123)
-         << std::make_pair("i32", (int32_t)123)
-         << std::make_pair("i64", (int64_t)123)
-         << std::make_pair("double", (double)12.3)
-         << std::make_tuple("key", "hello", &host)
-         << std::make_tuple("string", L"测试", &host)
-         << std::make_tuple("key", std::string("world"), &host)
-         << std::make_tuple("bool", true, &host)
-         << std::make_tuple("i16", (int16_t)123, &host)
-         << std::make_tuple("i32", (int32_t)123, &host)
-         << std::make_tuple("i64", (int64_t)123, &host)
-         << std::make_tuple("double", (double)12.3, &host);
+         << std::make_pair("string", L"测试") << host
+         << std::make_pair("key", std::string("world")) << host
+         << std::make_pair("bool", true) << host
+         << std::make_pair("i16", (int16_t)123) << host
+         << std::make_pair("i32", (int32_t)123) << host
+         << std::make_pair("i64", (int64_t)123) << host
+         << std::make_pair("double", (double)12.3) << host;
 
-    ASSERT_EQ(span.message().annotations.size(), 3);
-    ASSERT_EQ(span.message().binary_annotations.size(), 16);
+    ASSERT_EQ(span.message().annotations.size(), 2);
+    ASSERT_EQ(span.message().binary_annotations.size(), 8);
 }

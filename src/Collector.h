@@ -2,7 +2,6 @@
 
 #include <string>
 #include <chrono>
-using namespace std::chrono_literals;
 
 #include <librdkafka/rdkafkacpp.h>
 
@@ -49,7 +48,8 @@ enum CompressionCodec
   lz4     ///< LZ4 compression
 };
 
-static const std::string to_string(CompressionCodec codec);
+CompressionCodec parse_compression_codec(const std::string &codec);
+const std::string to_string(CompressionCodec codec);
 
 /**
 * \brief use for encoding message sets.
@@ -61,7 +61,8 @@ enum MessageCodec
   pretty_json, ///< Pretty print JSON encoding
 };
 
-static const std::string to_string(MessageCodec codec);
+MessageCodec parse_message_codec(const std::string &codec);
+const std::string to_string(MessageCodec codec);
 
 /**
  * \brief This collector push messages to a Kafka topic
@@ -90,7 +91,7 @@ public:
   }
   virtual ~KafkaCollector() override
   {
-    flush();
+    flush(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::microseconds(500)));
   }
 
   /**
@@ -112,7 +113,7 @@ public:
 
   virtual void submit(Span *span) override;
 
-  virtual bool flush(std::chrono::milliseconds timeout_ms = 500ms) override
+  virtual bool flush(std::chrono::milliseconds timeout_ms) override
   {
     return RdKafka::ERR_NO_ERROR == m_producer->flush(timeout_ms.count());
   }

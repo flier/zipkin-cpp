@@ -7,17 +7,28 @@
 #include <codecvt>
 #include <memory>
 #include <chrono>
-#include <tuple>
+
+#include <boost/tuple/tuple.hpp>
+#include <boost/asio.hpp>
+using namespace ::boost::asio;
 
 #include <thrift/protocol/TProtocol.h>
 
-#include "../gen-cpp/zipkinCore_constants.h"
+#include "zipkinCore_constants.h"
 
 typedef uint64_t span_id_t;
 typedef uint64_t trace_id_t;
+typedef std::pair<trace_id_t, trace_id_t> x_trace_id_t;
 typedef std::chrono::microseconds timestamp_t;
 typedef std::chrono::microseconds duration_t;
+typedef uint16_t port_t;
 typedef void *userdata_t;
+
+#ifdef __APPLE__
+#define SPAN_ID_FMT "%016llx"
+#else
+#define SPAN_ID_FMT "%016lx"
+#endif
 
 namespace zipkin
 {
@@ -47,15 +58,20 @@ class Endpoint
         with_service_name(service);
         with_addr(addr);
     }
-    Endpoint(const std::string &service, const sockaddr_in &addr)
+    Endpoint(const std::string &service, const sockaddr_in *addr)
     {
         with_service_name(service);
         with_addr(addr);
     }
-    Endpoint(const std::string &service, const sockaddr_in6 &addr)
+    Endpoint(const std::string &service, const sockaddr_in6 *addr)
     {
         with_service_name(service);
         with_addr(addr);
+    }
+    Endpoint(const std::string &service, const std::string &addr, port_t port = 0)
+    {
+        with_service_name(service);
+        with_addr(addr, port);
     }
 
     /**
@@ -77,21 +93,28 @@ class Endpoint
 
     inline Endpoint &with_service_name(const std::string &service_name);
 
-    std::unique_ptr<const sockaddr> addr(void);
+    std::unique_ptr<const struct sockaddr> sockaddr(void) const;
 
-    inline uint16_t port(void) const { return m_host.port; }
+    ip::address addr(void) const;
 
-    Endpoint &with_addr(const sockaddr *addr);
+    inline port_t port(void) const { return m_host.port; }
+
+    Endpoint &with_addr(const struct sockaddr *addr);
 
     /**
     * \brief with IPv4 address
     */
-    inline Endpoint &with_addr(const sockaddr_in &addr);
+    inline Endpoint &with_addr(const struct sockaddr_in *addr);
 
     /**
     * \brief with IPv6 address
     */
-    inline Endpoint &with_addr(const sockaddr_in6 &addr);
+    inline Endpoint &with_addr(const struct sockaddr_in6 *addr);
+
+    /**
+    * \brief with IP address
+    */
+    Endpoint &with_addr(const std::string &addr, port_t port = 0);
 
     /**
     * \brief with IPv4 address
@@ -103,18 +126,14 @@ class Endpoint
     */
     inline Endpoint &with_ipv6(const std::string &ip);
 
-    inline Endpoint &with_port(uint16_t port)
-    {
-        m_host.__set_port(port);
-        return *this;
-    }
+    inline Endpoint &with_port(port_t port);
 
     inline const ::Endpoint &host(void) const { return m_host; }
 };
 
 struct Tracer;
-
 class CachedTracer;
+class Span;
 
 /**
 * \brief Associates an event that explains latency with a timestamp.
@@ -123,10 +142,13 @@ class CachedTracer;
 */
 class Annotation
 {
+    Span &m_span;
     ::Annotation &m_annotation;
 
   public:
-    Annotation(::Annotation &annotation) : m_annotation(annotation) {}
+    Annotation(Span &span, ::Annotation &annotation) : m_span(span), m_annotation(annotation) {}
+
+    Span &span(void) { return m_span; }
 
     /**
     * \brief Microseconds from epoch.
@@ -371,10 +393,13 @@ struct TraceKeys
 */
 class BinaryAnnotation
 {
+    Span &m_span;
     ::BinaryAnnotation &m_annotation;
 
   public:
-    BinaryAnnotation(::BinaryAnnotation &annotation) : m_annotation(annotation) {}
+    BinaryAnnotation(Span &span, ::BinaryAnnotation &annotation) : m_span(span), m_annotation(annotation) {}
+
+    Span &span(void) { return m_span; }
 
     /**
     * \brief The thrift type of value, most often AnnotationType#STRING.
@@ -513,6 +538,7 @@ class Span
     Tracer *m_tracer;
     ::Span m_span;
     userdata_t m_userdata;
+    bool m_sampled;
 
     static const ::Endpoint host(const Endpoint *endpoint);
 
@@ -520,12 +546,12 @@ class Span
     /**
      * \brief Construct a span
      */
-    Span(Tracer *tracer, const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr);
+    Span(Tracer *tracer, const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr, bool sampled = true);
 
     /**
      * \brief Reset a span
      */
-    void reset(const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr);
+    void reset(const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr, bool sampled = true);
 
     /**
      * \brief Submit a Span to Tracer
@@ -558,15 +584,37 @@ class Span
      */
     inline trace_id_t trace_id(void) const { return m_span.trace_id; }
 
+    /** \sa Span#trace_id */
+    inline Span &with_trace_id(trace_id_t trace_id)
+    {
+        m_span.__set_trace_id(trace_id);
+        return *this;
+    }
+
     /**
     * When non-zero, the trace containing this span uses 128-bit trace identifiers.
     */
     inline trace_id_t trace_id_high(void) const { return m_span.trace_id_high; }
 
-    /** \sa Span#trace_id */
-    inline Span &with_trace_id(trace_id_t trace_id)
+    /** \sa Span#trace_id_high */
+    inline Span &with_trace_id_high(trace_id_t trace_id_high)
     {
-        m_span.__set_trace_id(trace_id);
+        m_span.__set_trace_id_high(trace_id_high);
+        return *this;
+    }
+
+    inline Span &with_trace_id(const std::string &trace_id)
+    {
+        if (trace_id.size() > 16)
+        {
+            m_span.__set_trace_id_high(strtoull(trace_id.substr(0, 16).c_str(), NULL, 16));
+            m_span.__set_trace_id(strtoull(trace_id.substr(16).c_str(), NULL, 16));
+        }
+        else
+        {
+            m_span.__set_trace_id(strtoull(trace_id.c_str(), NULL, 16));
+        }
+
         return *this;
     }
 
@@ -635,6 +683,18 @@ class Span
     }
 
     /**
+    * \brief Force a trace to be sampled
+    */
+    inline bool debug(void) const { return m_span.debug; }
+
+    /** \sa #debug */
+    inline Span &with_debug(bool debug = true)
+    {
+        m_span.__set_debug(debug);
+        return *this;
+    }
+
+    /**
      * \brief Associated user data
      */
     inline userdata_t userdata(void) const { return m_userdata; }
@@ -643,6 +703,18 @@ class Span
     inline Span &with_userdata(userdata_t userdata)
     {
         m_userdata = userdata;
+        return *this;
+    }
+
+    /**
+    * \brief Report this span to the tracing system
+    */
+    inline bool sampled(void) const { return m_sampled; }
+
+    /** \sa Span#sampled */
+    inline Span &with_sampled(bool sampled = true)
+    {
+        m_sampled = sampled;
         return *this;
     }
 
@@ -737,13 +809,22 @@ class Span
 
     BinaryAnnotation annotate(const std::string &key, const std::string &value, const Endpoint *endpoint = nullptr);
 
+    template <size_t N>
+    inline BinaryAnnotation annotate(const std::string &key, char const (&value)[N], const Endpoint *endpoint = nullptr)
+    {
+        return annotate(key, std::string(value, N), endpoint);
+    }
     inline BinaryAnnotation annotate(const std::string &key, const char *value, int len = -1, const Endpoint *endpoint = nullptr)
     {
         return annotate(key, len >= 0 ? std::string(value, len) : std::string(value), endpoint);
     }
 
     BinaryAnnotation annotate(const std::string &key, const std::wstring &value, const Endpoint *endpoint = nullptr);
-
+    template <size_t N>
+    inline BinaryAnnotation annotate(const std::string &key, wchar_t const (&value)[N], const Endpoint *endpoint = nullptr)
+    {
+        return annotate(key, std::wstring(value, N), endpoint);
+    }
     inline BinaryAnnotation annotate(const std::string &key, const wchar_t *value, int len = -1, const Endpoint *endpoint = nullptr)
     {
         return annotate(key, len >= 0 ? std::wstring(value, len) : std::wstring(value), endpoint);
@@ -844,93 +925,94 @@ class Span
     };
 };
 
-static inline Span &operator<<(Span &span, const std::string &value)
-{
-    span.annotate(value);
-
-    return span;
-}
-
 namespace __impl
 {
 
 template <typename K, typename V>
 struct __annotation
 {
-    static void apply(Span &span, const std::pair<K, V> &value)
+    static BinaryAnnotation apply(Span &span, const std::pair<K, V> &value)
     {
-        span.annotate(value.first, value.second);
+        return span.annotate(value.first, value.second);
     }
 
-    static void apply(Span &span, const std::tuple<K, V, Endpoint *> &value)
+    static BinaryAnnotation apply(Span &span, const boost::tuple<K, V, Endpoint *> &value)
     {
-        span.annotate(std::get<0>(value), std::get<1>(value), std::get<2>(value));
-    }
-};
-
-template <>
-struct __annotation<const char *, Endpoint *>
-{
-    static void apply(Span &span, const std::pair<const char *, Endpoint *> &value)
-    {
-        ::Annotation annotation;
-
-        annotation.__set_timestamp(Span::now().count());
-        annotation.__set_value(value.first);
-
-        if (value.second)
-        {
-            annotation.__set_host(value.second->host());
-        }
-
-        span.message().annotations.push_back(annotation);
+        return span.annotate(boost::get<0>(value), boost::get<1>(value), boost::get<2>(value));
     }
 };
 
 template <typename K>
 struct __annotation<K, const char *>
 {
-    static void apply(Span &span, const std::pair<K, const char *> &value)
+    static BinaryAnnotation apply(Span &span, const std::pair<K, const char *> &value)
     {
-        span.annotate(value.first, value.second);
+        return span.annotate(value.first, value.second);
     }
 
-    static void apply(Span &span, const std::tuple<K, const char *, Endpoint *> &value)
+    static BinaryAnnotation apply(Span &span, const boost::tuple<K, const char *, Endpoint *> &value)
     {
-        span.annotate(std::get<0>(value), std::get<1>(value), -1, std::get<2>(value));
+        return span.annotate(boost::get<0>(value), boost::get<1>(value), -1, boost::get<2>(value));
     }
 };
 
 template <typename K>
 struct __annotation<K, const wchar_t *>
 {
-    static void apply(Span &span, const std::pair<K, const wchar_t *> &value)
+    static BinaryAnnotation apply(Span &span, const std::pair<K, const wchar_t *> &value)
     {
-        span.annotate(value.first, value.second);
+        return span.annotate(value.first, value.second);
     }
 
-    static void apply(Span &span, const std::tuple<K, const wchar_t *, Endpoint *> &value)
+    static BinaryAnnotation apply(Span &span, const boost::tuple<K, const wchar_t *, Endpoint *> &value)
     {
-        span.annotate(std::get<0>(value), std::get<1>(value), -1, std::get<2>(value));
+        return span.annotate(boost::get<0>(value), boost::get<1>(value), -1, boost::get<2>(value));
     }
 };
 
 } // namespace __impl
 
-template <typename K, typename V>
-Span &operator<<(Span &span, const std::pair<K, V> &value)
+static inline Annotation operator<<(Span &span, const std::string &value)
 {
-    __impl::__annotation<K, V>::apply(span, value);
+    return span.annotate(value);
+}
 
-    return span;
+static inline Annotation operator<<(Annotation annotation, const std::string &value)
+{
+    return annotation.span().annotate(value);
+}
+
+static inline Annotation operator<<(BinaryAnnotation annotation, const std::string &value)
+{
+    return annotation.span().annotate(value);
+}
+
+static inline Span &operator<<(Annotation annotation, const zipkin::Endpoint &endpoint)
+{
+    return annotation.with_endpoint(endpoint).span();
+}
+
+static inline Span &operator<<(BinaryAnnotation annotation, const zipkin::Endpoint &endpoint)
+{
+    return annotation.with_endpoint(endpoint).span();
 }
 
 template <typename K, typename V>
-Span &operator<<(Span &span, const std::tuple<K, V, Endpoint *> &value)
+BinaryAnnotation operator<<(Span &span, const std::pair<K, V> &value)
 {
-    __impl::__annotation<K, V>::apply(span, value);
+    return __impl::__annotation<K, V>::apply(span, value);
+}
 
-    return span;
+template <typename K, typename V>
+BinaryAnnotation operator<<(Annotation annotation, const std::pair<K, V> &value)
+{
+    return __impl::__annotation<K, V>::apply(annotation.span(), value);
+}
+
+template <typename K, typename V>
+BinaryAnnotation operator<<(BinaryAnnotation annotation, const std::pair<K, V> &value)
+{
+    return __impl::__annotation<K, V>::apply(annotation.span(), value);
 }
 
 class CachedSpan : public Span
@@ -963,20 +1045,23 @@ Endpoint &Endpoint::with_service_name(const std::string &service_name)
     return *this;
 }
 
-Endpoint &Endpoint::with_addr(const sockaddr_in &addr)
+Endpoint &Endpoint::with_addr(const struct sockaddr_in *addr)
 {
+    assert(addr);
+
     m_host.__isset.ipv6 = 0;
-    m_host.__set_ipv4(addr.sin_addr.s_addr);
-    m_host.__set_port(addr.sin_port);
+    m_host.__set_ipv4(addr->sin_addr.s_addr);
+    m_host.__set_port(addr->sin_port);
 
     return *this;
 }
 
-Endpoint &Endpoint::with_addr(const sockaddr_in6 &addr)
+Endpoint &Endpoint::with_addr(const struct sockaddr_in6 *addr)
 {
-    m_host.__isset.ipv6 = 1;
-    m_host.__set_ipv6(std::string(reinterpret_cast<const char *>(addr.sin6_addr.s6_addr), sizeof(addr.sin6_addr)));
-    m_host.__set_port(addr.sin6_port);
+    assert(addr);
+
+    m_host.__set_ipv6(std::string(reinterpret_cast<const char *>(addr->sin6_addr.s6_addr), sizeof(addr->sin6_addr)));
+    m_host.__set_port(addr->sin6_port);
 
     return *this;
 }
@@ -995,6 +1080,12 @@ Endpoint &Endpoint::with_ipv6(const std::string &ip)
     if (inet_pton(AF_INET6, ip.c_str(), addr.s6_addr) > 0)
         m_host.__set_ipv6(std::string(reinterpret_cast<const char *>(addr.s6_addr), sizeof(addr)));
 
+    return *this;
+}
+
+inline Endpoint &Endpoint::with_port(port_t port)
+{
+    m_host.__set_port(port);
     return *this;
 }
 
@@ -1057,7 +1148,7 @@ inline BinaryAnnotation Span::annotate(const std::string &key, const T &value, c
 
     m_span.binary_annotations.push_back(annotation);
 
-    return BinaryAnnotation(m_span.binary_annotations.back());
+    return BinaryAnnotation(*this, m_span.binary_annotations.back());
 }
 
 namespace base64
@@ -1127,23 +1218,23 @@ void Span::serialize_json(RapidJsonWriter &writer) const
     writer.Key("traceId");
     if (m_span.trace_id_high)
     {
-        writer.String(str, snprintf(str, sizeof(str), "%016llx%016llx", m_span.trace_id_high, m_span.trace_id));
+        writer.String(str, snprintf(str, sizeof(str), SPAN_ID_FMT SPAN_ID_FMT, m_span.trace_id_high, m_span.trace_id));
     }
     else
     {
-        writer.String(str, snprintf(str, sizeof(str), "%016llx", m_span.trace_id));
+        writer.String(str, snprintf(str, sizeof(str), SPAN_ID_FMT, m_span.trace_id));
     }
 
     writer.Key("name");
     writer.String(m_span.name);
 
     writer.Key("id");
-    writer.String(str, snprintf(str, sizeof(str), "%016llx", m_span.id));
+    writer.String(str, snprintf(str, sizeof(str), SPAN_ID_FMT, m_span.id));
 
     if (m_span.__isset.parent_id)
     {
         writer.Key("parentId");
-        writer.String(str, snprintf(str, sizeof(str), "%016llx", m_span.parent_id));
+        writer.String(str, snprintf(str, sizeof(str), SPAN_ID_FMT, m_span.parent_id));
     }
 
     writer.Key("annotations");

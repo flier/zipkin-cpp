@@ -2,6 +2,7 @@
 glog/0.3.4@eliaskousk/stable
 gflags/2.2.0@eliaskousk/stable
 gtest/1.8.0@eliaskousk/stable
+google-benchmark/1.1.0@cpace6/stable
 RapidJSON/1.0.2@SamuelMarks/stable
 
 [options]
@@ -10,5 +11,4 @@ gflags:shared=False
 gtest:shared=False
 
 [generators]
-scons
-txt
+cmake

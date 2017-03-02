@@ -1,13 +1,13 @@
 import os
 
-from conans import ConanFile
+from conans import ConanFile, CMake
 from conans.errors import ConanException
 from conans.tools import download, unzip
 
 
 class ZipkinConan(ConanFile):
     name = "zipkin"
-    version = "0.1.0"
+    version = "0.2.0"
     description = "Zipkin tracing library for C/C++"
     license = "Apache-2.0"
     url = "https://github.com/flier/zipkin-cpp"
@@ -19,10 +19,11 @@ class ZipkinConan(ConanFile):
     options = {
         "shared": [True, False],
         "fPIC": [True, False],
+        "branch": "ANY",
     }
-    default_options = 'shared=False', 'fPIC=False'
+    default_options = 'shared=False', 'fPIC=False', 'branch=develop', 'glog:shared=False', 'gflags:shared=False', 'gtest:shared=False'
     zip_name = "v%s.tar.gz" % version
-    unzipped_name = "zipkin-%s" % version
+    unzipped_name = "zipkin-cpp-%s" % version
     exports_sources = "*"
 
     def config_options(self):
@@ -45,24 +46,32 @@ class ZipkinConan(ConanFile):
             elif os.path.isdir(os.path.join(self.unzipped_name, '.git')):
                 self.run("git pull", cwd=self.unzipped_name)
 
+            if os.path.isdir(os.path.join(self.unzipped_name, '.git')):
+                self.run("git checkout %s" % self.options.branch, cwd=self.unzipped_name)
+
     def build(self):
+        self.run('conan install --build missing', cwd=self.unzipped_name)
+
         build_dir = os.path.join(self.unzipped_name, 'build')
 
-        if not os.path.isdir(build_dir):
+        if not os.path.exists(build_dir):
             os.makedirs(build_dir)
 
-        self.run('scons install prefix=`pwd`/../dist shared=%s fpic=%s build_dir=build' %
-                 (self.options.shared, self.options.fPIC),
-                 cwd=self.unzipped_name)
+        cmake = CMake(self.settings)
+        self.run('cmake .. %s -DWITH_FPIC=%s -DSHARED_LIB=%s -DCMAKE_INSTALL_PREFIX=%s' % (
+            cmake.command_line,
+            'ON' if self.options.fPIC else 'OFF',
+            'ON' if self.options.shared else 'OFF',
+            os.path.join(self.conanfile_directory, 'dist')
+        ), cwd=build_dir)
+        self.run("cmake --build . --target install %s" % cmake.build_config, cwd=build_dir)
 
     def package(self):
-        dist_dir = os.path.join(self.unzipped_name, 'dist')
-
-        self.copy(pattern="*.h", dst="include", src=os.path.join(dist_dir, 'include'))
-        self.copy(pattern="*.hpp", dst="include", src=os.path.join(dist_dir, 'include'))
-        self.copy(pattern="*.lib", dst="lib", src=os.path.join(dist_dir, 'lib'))
-        self.copy(pattern="*.a", dst="lib", src=os.path.join(dist_dir, 'lib'))
-        self.copy(pattern="*.pc", dst="lib/pkgconfig", src=os.path.join(dist_dir, 'lib', 'pkgconfig'))
+        self.copy(pattern="*.h", dst="include", src='dist/include')
+        self.copy(pattern="*.hpp", dst="include", src='dist/include')
+        self.copy(pattern="*.lib", dst="lib", src='dist/lib')
+        self.copy(pattern="*.a", dst="lib", src='dist/lib')
+        self.copy(pattern="*.pc", dst="lib/pkgconfig", src='dist/lib/pkgconfig')
 
     def package_info(self):
         self.cpp_info.libs = ["zipkin"]

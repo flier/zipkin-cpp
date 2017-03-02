@@ -5,8 +5,9 @@
 using namespace testing;
 
 #include "Span.h"
-#include "Collector.h"
 #include "Tracer.h"
+#include "Collector.h"
+#include "Kafka.h"
 
 class MockTracer : public zipkin::Tracer
 {

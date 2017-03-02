@@ -19,18 +19,20 @@ add_custom_command (
 )
 
 set (zipkin_INCS
-    Collector.h
     Span.h
     Tracer.h
+    Collector.h
+    Kafka.h
     ${INCDIR}/zipkin.h
     ${INCDIR}/zipkin.hpp
     )
 
 set (zipkin_SRCS
-    CApi.cpp
-    Collector.cpp
     Span.cpp
     Tracer.cpp
+    Collector.cpp
+    Kafka.cpp
+    CApi.cpp
     )
 
 

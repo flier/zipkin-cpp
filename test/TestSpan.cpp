@@ -6,6 +6,46 @@
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/prettywriter.h>
 
+TEST(endpoint, properties)
+{
+    zipkin::Endpoint endpoint("test", "127.0.0.1", 80);
+
+    ASSERT_EQ(endpoint.service_name(), "test");
+    ASSERT_TRUE(endpoint.addr().is_v4());
+    ASSERT_EQ(endpoint.addr().to_v4().to_ulong(), 0x7f000001); // host bytes
+    ASSERT_EQ(endpoint.port(), 80);
+}
+
+TEST(endpoint, with_addr)
+{
+    zipkin::Endpoint endpoint;
+
+    auto v4addr = endpoint.with_addr("127.0.0.1", 8004).sockaddr();
+
+    ASSERT_EQ(v4addr->sa_family, AF_INET);
+    ASSERT_EQ(reinterpret_cast<const sockaddr_in *>(v4addr.get())->sin_port, 8004);
+    ASSERT_EQ(reinterpret_cast<const sockaddr_in *>(v4addr.get())->sin_addr.s_addr, 0x100007f);
+
+    auto v6addr = endpoint.with_addr("::1", 8006).sockaddr();
+
+    ASSERT_EQ(v6addr->sa_family, AF_INET6);
+    ASSERT_EQ(reinterpret_cast<const sockaddr_in6 *>(v6addr.get())->sin6_port, 8006);
+    ASSERT_THAT(reinterpret_cast<const sockaddr_in6 *>(v6addr.get())->sin6_addr.s6_addr,
+                ElementsAreArray({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}));
+
+    endpoint.with_addr(v4addr.get());
+
+    ASSERT_TRUE(endpoint.addr().is_v4());
+    ASSERT_EQ(endpoint.addr().to_v4().to_string(), "127.0.0.1");
+    ASSERT_EQ(endpoint.port(), 8004);
+
+    endpoint.with_addr(v6addr.get());
+
+    ASSERT_TRUE(endpoint.addr().is_v6());
+    ASSERT_EQ(endpoint.addr().to_v6().to_string(), "::1");
+    ASSERT_EQ(endpoint.port(), 8006);
+}
+
 TEST(span, properties)
 {
     MockTracer tracer;

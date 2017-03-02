@@ -37,7 +37,7 @@ class MockCollector : public zipkin::Collector
 public:
   MOCK_METHOD1(submit, void(zipkin::Span *span));
 
-  MOCK_METHOD1(flush, bool(std::chrono::milliseconds timeout));
+  MOCK_METHOD1(flush, bool(std::chrono::milliseconds timeout_ms));
 };
 
 class MockProducer : public RdKafka::Producer

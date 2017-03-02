@@ -26,22 +26,18 @@ endif()
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
-find_package(Boost REQUIRED)
+set(Boost_USE_STATIC_LIBS        ON) # only find static libs
+set(Boost_USE_MULTITHREADED      ON)
+set(Boost_USE_STATIC_RUNTIME    OFF)
+
+find_package(Boost REQUIRED COMPONENTS regex system)
+if(Boost_FOUND)
+  include_directories(${Boost_INCLUDE_DIRS})
+endif()
+
 find_package(Thrift REQUIRED)
 find_package(LibRDKafka REQUIRED)
 find_package(Doxygen QUIET)
-
-if (NOT Boost_FOUND)
-    message(FATAL_ERROR "boost not found")
-endif()
-
-if (NOT THRIFT_FOUND)
-    message(FATAL_ERROR "Thrift runtime not found")
-endif()
-
-if (NOT LIBRDKAFKA_FOUND)
-    message(FATAL_ERROR "librdkafka not found")
-endif()
 
 if (${DOXYGEN_FOUND} AND ${RELEASE_BUILD})
     set (BUILD_DOCS ON)
@@ -88,7 +84,10 @@ set(zipkin_DEPENDENCIES
     ${CONAN_LIBS_GFLAGS}
     ${THRIFT_LIBRARIES}
     ${LibRDKafka_LIBRARIES}
+    ${Boost_LIBRARIES}
     )
+
+message (STATUS "Link with ${zipkin_DEPENDENCIES}")
 
 enable_testing()
 

@@ -158,6 +158,18 @@ void KafkaCollector::submit(Span *span)
     }
 }
 
+CompressionCodec parse_compression_codec(const std::string &codec)
+{
+    if (codec == "gzip")
+        return CompressionCodec::gzip;
+    if (codec == "snappy")
+        return CompressionCodec::snappy;
+    if (codec == "lz4")
+        return CompressionCodec::lz4;
+
+    return CompressionCodec::none;
+}
+
 const std::string to_string(CompressionCodec codec)
 {
     switch (codec)
@@ -171,6 +183,16 @@ const std::string to_string(CompressionCodec codec)
     case CompressionCodec::lz4:
         return "lz4";
     }
+}
+
+MessageCodec parse_message_codec(const std::string &codec)
+{
+    if (codec == "binary")
+        return MessageCodec::binary;
+    if (codec == "json")
+        return MessageCodec::json;
+
+    return MessageCodec::pretty_json;
 }
 
 const std::string to_string(MessageCodec codec)

@@ -41,7 +41,7 @@ void zipkin_endpoint_addr(zipkin_endpoint_t endpoint, struct sockaddr *addr, siz
     assert(endpoint);
 
     if (addr)
-        memcpy(addr, static_cast<zipkin::Endpoint *>(endpoint)->addr().get(), len);
+        memcpy(addr, static_cast<zipkin::Endpoint *>(endpoint)->sockaddr().get(), len);
 }
 
 zipkin_span_t zipkin_span_new(zipkin_tracer_t tracer, const char *name, zipkin_userdata_t userdata)

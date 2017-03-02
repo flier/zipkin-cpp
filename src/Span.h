@@ -9,6 +9,8 @@
 #include <chrono>
 
 #include <boost/tuple/tuple.hpp>
+#include <boost/asio.hpp>
+using namespace ::boost::asio;
 
 #include <thrift/protocol/TProtocol.h>
 
@@ -19,6 +21,7 @@ typedef uint64_t trace_id_t;
 typedef std::pair<trace_id_t, trace_id_t> x_trace_id_t;
 typedef std::chrono::microseconds timestamp_t;
 typedef std::chrono::microseconds duration_t;
+typedef uint16_t port_t;
 typedef void *userdata_t;
 
 #ifdef __APPLE__
@@ -65,6 +68,11 @@ class Endpoint
         with_service_name(service);
         with_addr(addr);
     }
+    Endpoint(const std::string &service, const std::string &addr, port_t port = 0)
+    {
+        with_service_name(service);
+        with_addr(addr, port);
+    }
 
     /**
     * \brief Classifier of a source or destination in lowercase, such as "zipkin-server".
@@ -85,21 +93,28 @@ class Endpoint
 
     inline Endpoint &with_service_name(const std::string &service_name);
 
-    std::unique_ptr<const sockaddr> addr(void);
+    std::unique_ptr<const struct sockaddr> sockaddr(void) const;
 
-    inline uint16_t port(void) const { return m_host.port; }
+    ip::address addr(void) const;
 
-    Endpoint &with_addr(const sockaddr *addr);
+    inline port_t port(void) const { return m_host.port; }
+
+    Endpoint &with_addr(const struct sockaddr *addr);
 
     /**
     * \brief with IPv4 address
     */
-    inline Endpoint &with_addr(const sockaddr_in &addr);
+    inline Endpoint &with_addr(const struct sockaddr_in &addr);
 
     /**
     * \brief with IPv6 address
     */
-    inline Endpoint &with_addr(const sockaddr_in6 &addr);
+    inline Endpoint &with_addr(const struct sockaddr_in6 &addr);
+
+    /**
+    * \brief with IP address
+    */
+    Endpoint &with_addr(const std::string &addr, port_t port = 0);
 
     /**
     * \brief with IPv4 address
@@ -111,11 +126,7 @@ class Endpoint
     */
     inline Endpoint &with_ipv6(const std::string &ip);
 
-    inline Endpoint &with_port(uint16_t port)
-    {
-        m_host.__set_port(port);
-        return *this;
-    }
+    inline Endpoint &with_port(port_t port);
 
     inline const ::Endpoint &host(void) const { return m_host; }
 };
@@ -1025,7 +1036,6 @@ Endpoint &Endpoint::with_addr(const sockaddr_in &addr)
 
 Endpoint &Endpoint::with_addr(const sockaddr_in6 &addr)
 {
-    m_host.__isset.ipv6 = 1;
     m_host.__set_ipv6(std::string(reinterpret_cast<const char *>(addr.sin6_addr.s6_addr), sizeof(addr.sin6_addr)));
     m_host.__set_port(addr.sin6_port);
 
@@ -1046,6 +1056,12 @@ Endpoint &Endpoint::with_ipv6(const std::string &ip)
     if (inet_pton(AF_INET6, ip.c_str(), addr.s6_addr) > 0)
         m_host.__set_ipv6(std::string(reinterpret_cast<const char *>(addr.s6_addr), sizeof(addr)));
 
+    return *this;
+}
+
+inline Endpoint &Endpoint::with_port(port_t port)
+{
+    m_host.__set_port(port);
     return *this;
 }
 

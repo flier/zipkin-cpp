@@ -16,8 +16,6 @@
 #define ZIPKIN_X_SAMPLED "X-B3-Sampled"             ///< Boolean (either “1” or “0”, can be absent)
 #define ZIPKIN_X_FLAGS "X-B3-Flags"                 ///< “1” means debug (can be absent)
 
-#include "zipkin/Span.h"
-
-#include "zipkin/Tracer.h"
-
-#include "zipkin/Collector.h"
+#include "Span.h"
+#include "Tracer.h"
+#include "Collector.h"

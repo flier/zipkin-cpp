@@ -18,7 +18,26 @@ class HttpCollector;
 
 struct HttpConf
 {
+    /**
+    * \brief the URL to use in the request
+    *
+    * \sa https://curl.haxx.se/libcurl/c/CURLOPT_URL.html
+    */
     std::string url;
+
+    /**
+    * \brief the proxy to use for the upcoming request.
+    *
+    * \sa https://curl.haxx.se/libcurl/c/CURLOPT_PROXY.html
+    */
+    std::string proxy;
+
+    /**
+    * \brief tunnel through HTTP proxy
+    *
+    * \sa https://curl.haxx.se/libcurl/c/CURLOPT_HTTPPROXYTUNNEL.html
+    */
+    bool http_proxy_tunnel;
 
     /**
     * \brief Message codec to use for encoding message sets.
@@ -42,22 +61,42 @@ struct HttpConf
     size_t backlog;
 
     /**
-    * \brief the maximum timeout for http request.
+    * \brief maximum number of redirects allowed
     *
-    * The default request timeout is 5 seconds
+    * The default maximum redirect times is 3
+    *
+    * \sa https://curl.haxx.se/libcurl/c/CURLOPT_MAXREDIRS.html
     */
-    std::chrono::microseconds request_timeout;
+    size_t max_redirect_times;
+
+    /**
+    * \brief the maximum timeout for TCP connect.
+    *
+    * The default connect timeout is 5 seconds
+    *
+    * \sa https://curl.haxx.se/libcurl/c/CURLOPT_CONNECTTIMEOUT.html
+    */
+    std::chrono::seconds connect_timeout;
+
+    /**
+    * \brief the maximum timeout for HTTP request.
+    *
+    * The default request timeout is 15 seconds
+    *
+    * \sa https://curl.haxx.se/libcurl/c/CURLOPT_TIMEOUT_MS.html
+    */
+    std::chrono::milliseconds request_timeout;
 
     /**
     * \brief the maximum duration we will buffer traces before emitting them to the collector.
     *
     * The default batch interval is 1 second.
     */
-    std::chrono::microseconds batch_interval;
+    std::chrono::milliseconds batch_interval;
 
     HttpConf(const std::string u)
-        : url(u), message_codec(MessageCodec::binary), batch_size(100), backlog(1000),
-          request_timeout(std::chrono::seconds(5)), batch_interval(std::chrono::seconds(1))
+        : url(u), message_codec(MessageCodec::binary), batch_size(100), backlog(1000), max_redirect_times(3),
+          connect_timeout(5), request_timeout(std::chrono::seconds(15)), batch_interval(std::chrono::seconds(1))
     {
     }
 
@@ -89,8 +128,15 @@ class HttpCollector : public Collector
     bool drop_front_span(void);
     void try_send_spans(void);
     void send_spans(void);
+    CURLcode upload_messages(const uint8_t *data, size_t size);
 
     static void run(HttpCollector *collector);
+
+    static int debug_callback(CURL *handle,
+                              curl_infotype type,
+                              char *data,
+                              size_t size,
+                              void *userptr);
 
   public:
     HttpCollector(const HttpConf &conf);

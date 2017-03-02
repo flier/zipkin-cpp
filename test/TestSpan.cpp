@@ -240,7 +240,7 @@ TEST(span, serialize_json)
     sockaddr_in addr;
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     addr.sin_port = 80;
-    zipkin::Endpoint host("host", addr);
+    zipkin::Endpoint host("host", &addr);
 
     span.client_send(&host);
     span.annotate("bool", true, &host);
@@ -322,7 +322,7 @@ TEST(span, annotate_stream)
     sockaddr_in addr;
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     addr.sin_port = 80;
-    zipkin::Endpoint host("host", addr);
+    zipkin::Endpoint host("host", &addr);
 
     span << zipkin::TraceKeys::CLIENT_SEND
          << std::string("hello") << host

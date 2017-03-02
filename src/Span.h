@@ -58,12 +58,12 @@ class Endpoint
         with_service_name(service);
         with_addr(addr);
     }
-    Endpoint(const std::string &service, const sockaddr_in &addr)
+    Endpoint(const std::string &service, const sockaddr_in *addr)
     {
         with_service_name(service);
         with_addr(addr);
     }
-    Endpoint(const std::string &service, const sockaddr_in6 &addr)
+    Endpoint(const std::string &service, const sockaddr_in6 *addr)
     {
         with_service_name(service);
         with_addr(addr);
@@ -104,12 +104,12 @@ class Endpoint
     /**
     * \brief with IPv4 address
     */
-    inline Endpoint &with_addr(const struct sockaddr_in &addr);
+    inline Endpoint &with_addr(const struct sockaddr_in *addr);
 
     /**
     * \brief with IPv6 address
     */
-    inline Endpoint &with_addr(const struct sockaddr_in6 &addr);
+    inline Endpoint &with_addr(const struct sockaddr_in6 *addr);
 
     /**
     * \brief with IP address
@@ -1045,19 +1045,23 @@ Endpoint &Endpoint::with_service_name(const std::string &service_name)
     return *this;
 }
 
-Endpoint &Endpoint::with_addr(const sockaddr_in &addr)
+Endpoint &Endpoint::with_addr(const struct sockaddr_in *addr)
 {
+    assert(addr);
+
     m_host.__isset.ipv6 = 0;
-    m_host.__set_ipv4(addr.sin_addr.s_addr);
-    m_host.__set_port(addr.sin_port);
+    m_host.__set_ipv4(addr->sin_addr.s_addr);
+    m_host.__set_port(addr->sin_port);
 
     return *this;
 }
 
-Endpoint &Endpoint::with_addr(const sockaddr_in6 &addr)
+Endpoint &Endpoint::with_addr(const struct sockaddr_in6 *addr)
 {
-    m_host.__set_ipv6(std::string(reinterpret_cast<const char *>(addr.sin6_addr.s6_addr), sizeof(addr.sin6_addr)));
-    m_host.__set_port(addr.sin6_port);
+    assert(addr);
+
+    m_host.__set_ipv6(std::string(reinterpret_cast<const char *>(addr->sin6_addr.s6_addr), sizeof(addr->sin6_addr)));
+    m_host.__set_port(addr->sin6_port);
 
     return *this;
 }

@@ -2,6 +2,10 @@ cmake_minimum_required (VERSION 2.8.12)
 
 project(zipkin C CXX)
 
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 set (zipkin_VERSION_MAJOR 0)
 set (zipkin_VERSION_MINOR 2)
 set (zipkin_VERSION_PATCH 0)

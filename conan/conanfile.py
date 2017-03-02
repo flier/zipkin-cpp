@@ -1,6 +1,6 @@
 import os
 
-from conans import ConanFile
+from conans import ConanFile, CMake
 from conans.errors import ConanException
 from conans.tools import download, unzip
 
@@ -50,9 +50,21 @@ class ZipkinConan(ConanFile):
                 self.run("git checkout %s" % self.options.branch, cwd=self.unzipped_name)
 
     def build(self):
-        self.run('scons install prefix=`pwd`/../dist shared=%s fpic=%s build_dir=%s' %
-                 (self.options.shared, self.options.fPIC, self.unzipped_name),
-                 cwd=self.unzipped_name)
+        self.run('conan install --build missing', cwd=self.unzipped_name)
+
+        build_dir = os.path.join(self.unzipped_name, 'build')
+
+        if not os.path.exists(build_dir):
+            os.makedirs(build_dir)
+
+        cmake = CMake(self.settings)
+        self.run('cmake .. %s -DWITH_FPIC=%s -DSHARED_LIB=%s -DCMAKE_INSTALL_PREFIX=%s' % (
+            cmake.command_line,
+            'ON' if self.options.fPIC else 'OFF',
+            'ON' if self.options.shared else 'OFF',
+            os.path.join(self.conanfile_directory, 'dist')
+        ), cwd=build_dir)
+        self.run("cmake --build . --target install %s" % cmake.build_config, cwd=build_dir)
 
     def package(self):
         self.copy(pattern="*.h", dst="include", src='dist/include')

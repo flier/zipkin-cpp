@@ -64,8 +64,8 @@ if (WITH_FPIC)
     add_compile_options(-fPIC)
 endif()
 
+set (INCDIR "${PROJECT_SOURCE_DIR}/include")
 set (BINDIR "${PROJECT_BINARY_DIR}/bin")
-set (INCDIR "${PROJECT_BINARY_DIR}/include")
 set (LIBDIR "${PROJECT_BINARY_DIR}/lib")
 set (GENDIR "${PROJECT_BINARY_DIR}/gen-cpp")
 

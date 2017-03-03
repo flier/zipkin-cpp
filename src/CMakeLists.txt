@@ -14,7 +14,26 @@ add_custom_command (
     OUTPUT ${zipkin_core_INCS} ${zipkin_core_SRCS}
     COMMAND ${THRIFT_COMPILER} --gen cpp -o ${PROJECT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/zipkinCore.thrift
     DEPENDS zipkinCore.thrift
-    COMMENT "Generating Thrift binding files"
+    COMMENT "Generating zipkin Thrift binding files"
+)
+
+set (scribe_INCS
+    ${GENDIR}/scribe_constants.h
+    ${GENDIR}/scribe_types.h
+    ${GENDIR}/Scribe.h
+    )
+
+set (scribe_SRCS
+    ${GENDIR}/scribe_constants.cpp
+    ${GENDIR}/scribe_types.cpp
+    ${GENDIR}/Scribe.cpp
+    )
+
+add_custom_command (
+    OUTPUT ${scribe_INCS} ${scribe_SRCS}
+    COMMAND ${THRIFT_COMPILER} --gen cpp -o ${PROJECT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/scribe.thrift
+    DEPENDS scribe.thrift
+    COMMENT "Generating scribe Thrift binding files"
 )
 
 set (zipkin_INCS
@@ -24,6 +43,7 @@ set (zipkin_INCS
     Collector.h
     KafkaCollector.h
     HttpCollector.h
+    ScribeCollector.h
     ${INCDIR}/zipkin.h
     ${INCDIR}/zipkin.hpp
     )
@@ -34,6 +54,7 @@ set (zipkin_SRCS
     Collector.cpp
     KafkaCollector.cpp
     HttpCollector.cpp
+    ScribeCollector.cpp
     CApi.cpp
     )
 
@@ -47,7 +68,7 @@ endif ()
 
 message(STATUS "Library type: ${LIB_TYPE}")
 
-add_library (zipkin ${LIB_TYPE} ${zipkin_SRCS} ${zipkin_core_SRCS})
+add_library (zipkin ${LIB_TYPE} ${zipkin_SRCS} ${zipkin_core_SRCS} ${scribe_SRCS})
 target_link_libraries (zipkin ${zipkin_DEPENDENCIES})
 
 set (PREFIX ${CMAKE_INSTALL_PREFIX})
@@ -69,7 +90,7 @@ install (
 )
 
 install (
-    FILES ${zipkin_INCS} ${zipkin_core_INCS}
+    FILES ${zipkin_INCS} ${zipkin_core_INCS} ${scribe_INCS}
     DESTINATION ${CMAKE_INSTALL_PREFIX}/include/zipkin
 )
 

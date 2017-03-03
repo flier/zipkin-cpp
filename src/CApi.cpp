@@ -10,6 +10,7 @@
 #include "Collector.h"
 #include "KafkaCollector.h"
 #include "HttpCollector.h"
+#include "ScribeCollector.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -409,6 +410,50 @@ void zipkin_http_conf_set_batch_interval(zipkin_http_conf_t conf, size_t batch_i
     static_cast<zipkin::HttpConf *>(conf)->batch_interval = std::chrono::milliseconds(batch_interval_ms);
 }
 
+zipkin_scribe_conf_t zipkin_scribe_conf_new(const char *url)
+{
+    assert(url);
+
+    return new zipkin::ScribeConf(url);
+}
+void zipkin_scribe_conf_free(zipkin_scribe_conf_t conf)
+{
+    assert(conf);
+
+    delete static_cast<zipkin::ScribeConf *>(conf);
+}
+void zipkin_scribe_conf_set_message_codec(zipkin_scribe_conf_t conf, const char *codec)
+{
+    assert(conf);
+    assert(codec);
+
+    static_cast<zipkin::ScribeConf *>(conf)->message_codec = zipkin::MessageCodec::parse(codec);
+}
+void zipkin_scribe_conf_set_batch_size(zipkin_scribe_conf_t conf, size_t batch_size)
+{
+    assert(conf);
+
+    static_cast<zipkin::ScribeConf *>(conf)->batch_size = batch_size;
+}
+void zipkin_scribe_conf_set_backlog(zipkin_scribe_conf_t conf, size_t backlog)
+{
+    assert(conf);
+
+    static_cast<zipkin::ScribeConf *>(conf)->backlog = backlog;
+}
+void zipkin_scribe_conf_set_max_retry_times(zipkin_scribe_conf_t conf, size_t max_retry_times)
+{
+    assert(conf);
+
+    static_cast<zipkin::ScribeConf *>(conf)->max_retry_times = max_retry_times;
+}
+void zipkin_scribe_conf_set_batch_interval(zipkin_scribe_conf_t conf, size_t batch_interval_ms)
+{
+    assert(conf);
+
+    static_cast<zipkin::ScribeConf *>(conf)->batch_interval = std::chrono::milliseconds(batch_interval_ms);
+}
+
 zipkin_collector_t zipkin_collector_new(const char *uri)
 {
     assert(uri);
@@ -426,6 +471,12 @@ zipkin_collector_t zipkin_http_collector_new(zipkin_http_conf_t conf)
     assert(conf);
 
     return static_cast<zipkin::HttpConf *>(conf)->create();
+}
+zipkin_collector_t zipkin_scribe_collector_new(zipkin_scribe_conf_t conf)
+{
+    assert(conf);
+
+    return static_cast<zipkin::ScribeConf *>(conf)->create();
 }
 void zipkin_collector_free(zipkin_collector_t collector)
 {

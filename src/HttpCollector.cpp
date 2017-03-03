@@ -73,10 +73,6 @@ HttpConf::HttpConf(folly::Uri &uri)
         {
             batch_interval = std::chrono::milliseconds(folly::to<size_t>(param.second));
         }
-        else
-        {
-            oss << param.first << "=" << param.second;
-        }
     }
 }
 

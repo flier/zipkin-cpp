@@ -73,6 +73,7 @@ typedef void *zipkin_span_t;
 typedef void *zipkin_tracer_t;
 typedef void *zipkin_kafka_conf_t;
 typedef void *zipkin_http_conf_t;
+typedef void *zipkin_scribe_conf_t;
 typedef void *zipkin_collector_t;
 
 #ifdef __cplusplus
@@ -254,9 +255,18 @@ void zipkin_http_conf_set_connect_timeout(zipkin_http_conf_t conf, size_t connec
 void zipkin_http_conf_set_request_timeout(zipkin_http_conf_t conf, size_t request_timeout_ms);
 void zipkin_http_conf_set_batch_interval(zipkin_http_conf_t conf, size_t batch_interval_ms);
 
+zipkin_scribe_conf_t zipkin_scribe_conf_new(const char *url);
+void zipkin_scribe_conf_free(zipkin_scribe_conf_t conf);
+void zipkin_scribe_conf_set_message_codec(zipkin_scribe_conf_t conf, const char *codec);
+void zipkin_scribe_conf_set_batch_size(zipkin_scribe_conf_t conf, size_t batch_size);
+void zipkin_scribe_conf_set_backlog(zipkin_scribe_conf_t conf, size_t backlog);
+void zipkin_scribe_conf_set_max_retry_times(zipkin_scribe_conf_t conf, size_t max_redirect_times);
+void zipkin_scribe_conf_set_batch_interval(zipkin_scribe_conf_t conf, size_t batch_interval_ms);
+
 zipkin_collector_t zipkin_collector_new(const char *uri);
 zipkin_collector_t zipkin_kafka_collector_new(zipkin_kafka_conf_t conf);
 zipkin_collector_t zipkin_http_collector_new(zipkin_http_conf_t conf);
+zipkin_collector_t zipkin_scribe_collector_new(zipkin_scribe_conf_t conf);
 void zipkin_collector_free(zipkin_collector_t collector);
 int zipkin_collector_flush(zipkin_collector_t collector, size_t timeout_ms);
 

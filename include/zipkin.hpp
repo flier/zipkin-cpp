@@ -22,3 +22,4 @@
 #include "Collector.h"
 #include "KafkaCollector.h"
 #include "HttpCollector.h"
+#include "ScribeCollector.h"

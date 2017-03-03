@@ -71,7 +71,8 @@ typedef void *zipkin_userdata_t;
 typedef void *zipkin_endpoint_t;
 typedef void *zipkin_span_t;
 typedef void *zipkin_tracer_t;
-typedef void *zipkin_conf_t;
+typedef void *zipkin_kafka_conf_t;
+typedef void *zipkin_http_conf_t;
 typedef void *zipkin_collector_t;
 
 #ifdef __cplusplus
@@ -231,19 +232,30 @@ zipkin_trace_id_t zipkin_tracer_id(zipkin_tracer_t tracer);
 const char *zipkin_tracer_name(zipkin_tracer_t tracer);
 zipkin_collector_t zipkin_tracer_collector(zipkin_tracer_t tracer);
 
-zipkin_conf_t zipkin_conf_new(const char *brokers, const char *topic);
-void zipkin_conf_free(zipkin_conf_t conf);
+zipkin_kafka_conf_t zipkin_kafka_conf_new(const char *brokers, const char *topic);
+void zipkin_kafka_conf_free(zipkin_kafka_conf_t conf);
+void zipkin_kafka_conf_set_partition(zipkin_kafka_conf_t conf, int partition);
+void zipkin_kafka_conf_set_compression_codec(zipkin_kafka_conf_t conf, const char *codec);
+void zipkin_kafka_conf_set_message_codec(zipkin_kafka_conf_t conf, const char *codec);
+void zipkin_kafka_conf_set_batch_num_messages(zipkin_kafka_conf_t conf, size_t batch_num_messages);
+void zipkin_kafka_conf_set_queue_buffering_max_messages(zipkin_kafka_conf_t conf, size_t queue_buffering_max_messages);
+void zipkin_kafka_conf_set_queue_buffering_max_kbytes(zipkin_kafka_conf_t conf, size_t queue_buffering_max_kbytes);
+void zipkin_kafka_conf_set_queue_buffering_max_ms(zipkin_kafka_conf_t conf, size_t queue_buffering_max_ms);
+void zipkin_kafka_conf_set_message_send_max_retries(zipkin_kafka_conf_t conf, size_t message_send_max_retries);
 
-void zipkin_conf_set_partition(zipkin_conf_t conf, int partition);
-int zipkin_conf_set_compression_codec(zipkin_conf_t conf, const char *codec);
-int zipkin_conf_set_message_codec(zipkin_conf_t conf, const char *codec);
-void zipkin_conf_set_batch_num_messages(zipkin_conf_t conf, size_t batch_num_messages);
-void zipkin_conf_set_queue_buffering_max_messages(zipkin_conf_t conf, size_t queue_buffering_max_messages);
-void zipkin_conf_set_queue_buffering_max_kbytes(zipkin_conf_t conf, size_t queue_buffering_max_kbytes);
-void zipkin_conf_set_queue_buffering_max_ms(zipkin_conf_t conf, size_t queue_buffering_max_ms);
-void zipkin_conf_set_message_send_max_retries(zipkin_conf_t conf, size_t message_send_max_retries);
+zipkin_http_conf_t zipkin_http_conf_new(const char *url);
+void zipkin_http_conf_free(zipkin_http_conf_t conf);
+void zipkin_http_conf_set_proxy(zipkin_http_conf_t conf, const char *proxy, int tunnel);
+void zipkin_http_conf_set_message_codec(zipkin_http_conf_t conf, const char *codec);
+void zipkin_http_conf_set_batch_size(zipkin_http_conf_t conf, size_t batch_size);
+void zipkin_http_conf_set_backlog(zipkin_http_conf_t conf, size_t backlog);
+void zipkin_http_conf_set_max_redirect_times(zipkin_http_conf_t conf, size_t max_redirect_times);
+void zipkin_http_conf_set_connect_timeout(zipkin_http_conf_t conf, size_t connect_timeout_ms);
+void zipkin_http_conf_set_request_timeout(zipkin_http_conf_t conf, size_t request_timeout_ms);
+void zipkin_http_conf_set_batch_interval(zipkin_http_conf_t conf, size_t batch_interval_ms);
 
-zipkin_collector_t zipkin_collector_new(zipkin_conf_t conf);
+zipkin_collector_t zipkin_kafka_collector_new(zipkin_kafka_conf_t conf);
+zipkin_collector_t zipkin_http_collector_new(zipkin_http_conf_t conf);
 void zipkin_collector_free(zipkin_collector_t collector);
 int zipkin_collector_flush(zipkin_collector_t collector, size_t timeout_ms);
 

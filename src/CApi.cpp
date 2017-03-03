@@ -280,110 +280,136 @@ zipkin_collector_t zipkin_tracer_collector(zipkin_tracer_t tracer)
     return static_cast<zipkin::Tracer *>(tracer)->collector();
 }
 
-zipkin_conf_t zipkin_conf_new(const char *brokers, const char *topic)
+zipkin_kafka_conf_t zipkin_kafka_conf_new(const char *brokers, const char *topic)
 {
     assert(brokers);
     assert(topic);
 
     return new zipkin::KafkaConf(brokers, topic);
 }
-void zipkin_conf_free(zipkin_conf_t conf)
+void zipkin_kafka_conf_free(zipkin_kafka_conf_t conf)
 {
     assert(conf);
 
     delete static_cast<zipkin::KafkaConf *>(conf);
 }
 
-void zipkin_conf_set_partition(zipkin_conf_t conf, int partition)
+void zipkin_kafka_conf_set_partition(zipkin_kafka_conf_t conf, int partition)
 {
     assert(conf);
 
     static_cast<zipkin::KafkaConf *>(conf)->topic_partition = partition;
 }
-int zipkin_conf_set_compression_codec(zipkin_conf_t conf, const char *codec)
+void zipkin_kafka_conf_set_compression_codec(zipkin_kafka_conf_t conf, const char *codec)
 {
     assert(conf);
     assert(codec);
 
-    if (strcasecmp(codec, ZIPKIN_COMPRESSION_GZIP) == 0)
-    {
-        static_cast<zipkin::KafkaConf *>(conf)->compression_codec = zipkin::CompressionCodec::gzip;
-    }
-    else if (strcasecmp(codec, ZIPKIN_COMPRESSION_SNAPPY) == 0)
-    {
-        static_cast<zipkin::KafkaConf *>(conf)->compression_codec = zipkin::CompressionCodec::snappy;
-    }
-    else if (strcasecmp(codec, ZIPKIN_COMPRESSION_LZ4) == 0)
-    {
-        static_cast<zipkin::KafkaConf *>(conf)->compression_codec = zipkin::CompressionCodec::lz4;
-    }
-    else if (strcasecmp(codec, ZIPKIN_COMPRESSION_NONE) == 0)
-    {
-        static_cast<zipkin::KafkaConf *>(conf)->compression_codec = zipkin::CompressionCodec::none;
-    }
-    else
-    {
-        return 0;
-    }
-
-    return -1;
+    static_cast<zipkin::KafkaConf *>(conf)->compression_codec = zipkin::parse_compression_codec(codec);
 }
-int zipkin_conf_set_message_codec(zipkin_conf_t conf, const char *codec)
+void zipkin_kafka_conf_set_message_codec(zipkin_kafka_conf_t conf, const char *codec)
 {
     assert(conf);
     assert(codec);
 
-    if (strcasecmp(codec, ZIPKIN_ENCODING_BINARY) == 0)
-    {
-        static_cast<zipkin::KafkaConf *>(conf)->message_codec = zipkin::MessageCodec::binary;
-    }
-    else if (strcasecmp(codec, ZIPKIN_ENCODING_JSON) == 0)
-    {
-        static_cast<zipkin::KafkaConf *>(conf)->message_codec = zipkin::MessageCodec::json;
-    }
-    else if (strcasecmp(codec, ZIPKIN_ENCODING_PRETTY_JSON) == 0)
-    {
-        static_cast<zipkin::KafkaConf *>(conf)->message_codec = zipkin::MessageCodec::pretty_json;
-    }
-    else
-    {
-        return 0;
-    }
-
-    return -1;
+    static_cast<zipkin::KafkaConf *>(conf)->message_codec = zipkin::MessageCodec::parse(codec);
 }
-void zipkin_conf_set_batch_num_messages(zipkin_conf_t conf, size_t batch_num_messages)
+void zipkin_kafka_conf_set_batch_num_messages(zipkin_kafka_conf_t conf, size_t batch_num_messages)
 {
     assert(conf);
 
     static_cast<zipkin::KafkaConf *>(conf)->batch_num_messages = batch_num_messages;
 }
-void zipkin_conf_set_queue_buffering_max_messages(zipkin_conf_t conf, size_t queue_buffering_max_messages)
+void zipkin_kafka_conf_set_queue_buffering_max_messages(zipkin_kafka_conf_t conf, size_t queue_buffering_max_messages)
 {
     assert(conf);
 
     static_cast<zipkin::KafkaConf *>(conf)->queue_buffering_max_messages = queue_buffering_max_messages;
 }
-void zipkin_conf_set_queue_buffering_max_kbytes(zipkin_conf_t conf, size_t queue_buffering_max_kbytes)
+void zipkin_kafka_conf_set_queue_buffering_max_kbytes(zipkin_kafka_conf_t conf, size_t queue_buffering_max_kbytes)
 {
     assert(conf);
 
     static_cast<zipkin::KafkaConf *>(conf)->queue_buffering_max_kbytes = queue_buffering_max_kbytes;
 }
-void zipkin_conf_set_queue_buffering_max_ms(zipkin_conf_t conf, size_t queue_buffering_max_ms)
+void zipkin_kafka_conf_set_queue_buffering_max_ms(zipkin_kafka_conf_t conf, size_t queue_buffering_max_ms)
 {
     assert(conf);
 
     static_cast<zipkin::KafkaConf *>(conf)->queue_buffering_max_ms = std::chrono::milliseconds(queue_buffering_max_ms);
 }
-void zipkin_conf_set_message_send_max_retries(zipkin_conf_t conf, size_t message_send_max_retries)
+void zipkin_kafka_conf_set_message_send_max_retries(zipkin_kafka_conf_t conf, size_t message_send_max_retries)
 {
     assert(conf);
 
     static_cast<zipkin::KafkaConf *>(conf)->message_send_max_retries = message_send_max_retries;
 }
 
-zipkin_collector_t zipkin_collector_new(zipkin_conf_t conf)
+zipkin_http_conf_t zipkin_http_conf_new(const char *url)
+{
+    assert(url);
+
+    return new zipkin::HttpConf(url);
+}
+void zipkin_http_conf_free(zipkin_http_conf_t conf)
+{
+    assert(conf);
+
+    delete static_cast<zipkin::HttpConf *>(conf);
+}
+void zipkin_http_conf_set_proxy(zipkin_http_conf_t conf, const char *proxy, int tunnel)
+{
+    assert(conf);
+    assert(proxy);
+
+    static_cast<zipkin::HttpConf *>(conf)->proxy = proxy;
+    static_cast<zipkin::HttpConf *>(conf)->http_proxy_tunnel = tunnel;
+}
+void zipkin_http_conf_set_message_codec(zipkin_http_conf_t conf, const char *codec)
+{
+    assert(conf);
+    assert(codec);
+
+    static_cast<zipkin::HttpConf *>(conf)->message_codec = zipkin::MessageCodec::parse(codec);
+}
+void zipkin_http_conf_set_batch_size(zipkin_http_conf_t conf, size_t batch_size)
+{
+    assert(conf);
+
+    static_cast<zipkin::HttpConf *>(conf)->batch_size = batch_size;
+}
+void zipkin_http_conf_set_backlog(zipkin_http_conf_t conf, size_t backlog)
+{
+    assert(conf);
+
+    static_cast<zipkin::HttpConf *>(conf)->backlog = backlog;
+}
+void zipkin_http_conf_set_max_redirect_times(zipkin_http_conf_t conf, size_t max_redirect_times)
+{
+    assert(conf);
+
+    static_cast<zipkin::HttpConf *>(conf)->max_redirect_times = max_redirect_times;
+}
+void zipkin_http_conf_set_connect_timeout(zipkin_http_conf_t conf, size_t connect_timeout_ms)
+{
+    assert(conf);
+
+    static_cast<zipkin::HttpConf *>(conf)->connect_timeout = std::chrono::milliseconds(connect_timeout_ms);
+}
+void zipkin_http_conf_set_request_timeout(zipkin_http_conf_t conf, size_t request_timeout_ms)
+{
+    assert(conf);
+
+    static_cast<zipkin::HttpConf *>(conf)->request_timeout = std::chrono::milliseconds(request_timeout_ms);
+}
+void zipkin_http_conf_set_batch_interval(zipkin_http_conf_t conf, size_t batch_interval_ms)
+{
+    assert(conf);
+
+    static_cast<zipkin::HttpConf *>(conf)->batch_interval = std::chrono::milliseconds(batch_interval_ms);
+}
+
+zipkin_collector_t zipkin_kafka_collector_new(zipkin_kafka_conf_t conf)
 {
     assert(conf);
 

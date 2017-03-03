@@ -261,18 +261,17 @@ void zipkin_tracer_free(zipkin_tracer_t tracer)
 
     delete static_cast<zipkin::CachedTracer *>(tracer);
 }
-
-trace_id_t zipkin_tracer_id(zipkin_tracer_t tracer)
+size_t zipkin_tracer_sample_rate(zipkin_tracer_t tracer)
 {
     assert(tracer);
 
-    return static_cast<zipkin::Tracer *>(tracer)->id();
+    return static_cast<zipkin::Tracer *>(tracer)->sample_rate();
 }
-const char *zipkin_tracer_name(zipkin_tracer_t tracer)
+void zipkin_tracer_set_sample_rate(zipkin_tracer_t tracer, size_t sample_rate)
 {
     assert(tracer);
 
-    return static_cast<zipkin::Tracer *>(tracer)->name().c_str();
+    static_cast<zipkin::Tracer *>(tracer)->set_sample_rate(sample_rate);
 }
 zipkin_collector_t zipkin_tracer_collector(zipkin_tracer_t tracer)
 {

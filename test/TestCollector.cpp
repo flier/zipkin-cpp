@@ -14,7 +14,7 @@ TEST(collector, submit)
 
     zipkin::KafkaCollector collector(producer, topic);
 
-    std::unique_ptr<zipkin::Tracer> tracer(zipkin::Tracer::create(&collector, "test"));
+    std::unique_ptr<zipkin::Tracer> tracer(zipkin::Tracer::create(&collector));
 
     auto span = static_cast<zipkin::CachedSpan *>(tracer->span("test"));
 

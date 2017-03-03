@@ -58,7 +58,7 @@ class GreeterClient
 {
   public:
     GreeterClient(std::shared_ptr<Channel> channel, std::shared_ptr<zipkin::Collector> collector)
-        : stub_(Greeter::NewStub(channel)), tracer_(zipkin::Tracer::create(collector.get(), "greeter"))
+        : stub_(Greeter::NewStub(channel)), tracer_(zipkin::Tracer::create(collector.get()))
     {
     }
 

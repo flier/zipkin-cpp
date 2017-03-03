@@ -226,7 +226,7 @@ void zipkin_span_annotate_str(zipkin_span_t span, const char *key, const char *v
 
 void zipkin_span_submit(zipkin_span_t span);
 
-zipkin_tracer_t zipkin_tracer_new(zipkin_collector_t collector, const char *name);
+zipkin_tracer_t zipkin_tracer_new(zipkin_collector_t collector);
 void zipkin_tracer_free(zipkin_tracer_t tracer);
 
 size_t zipkin_tracer_sample_rate(zipkin_tracer_t tracer);

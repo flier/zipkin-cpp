@@ -62,7 +62,7 @@ struct Tracer
      *
      * The default Tracer will cache Span for performance.
      */
-    static Tracer *create(Collector *collector, const std::string &name);
+    static Tracer *create(Collector *collector, size_t sample_rate = 1);
 };
 
 template <size_t CAPACITY>
@@ -110,7 +110,7 @@ class CachedTracer : public Tracer
 {
     Collector *m_collector;
 
-    size_t m_sample_rate;
+    size_t m_sample_rate = 1;
     std::atomic_size_t m_total_spans;
 
   public:
@@ -120,8 +120,8 @@ class CachedTracer : public Tracer
     span_cache_t m_cache;
 
   public:
-    CachedTracer(Collector *collector, const std::string &name, size_t cache_message_size = default_cache_message_size)
-        : m_collector(collector), m_sample_rate(1), m_cache(cache_message_size)
+    CachedTracer(Collector *collector, size_t sample_rate = 1, size_t cache_message_size = default_cache_message_size)
+        : m_collector(collector), m_sample_rate(sample_rate), m_cache(cache_message_size)
     {
     }
 

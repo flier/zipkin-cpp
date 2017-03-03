@@ -2,7 +2,7 @@
 
 TEST(tracer, properties)
 {
-    std::unique_ptr<zipkin::Tracer> tracer(zipkin::Tracer::create(nullptr, "test"));
+    std::unique_ptr<zipkin::Tracer> tracer(zipkin::Tracer::create(nullptr));
 
     ASSERT_TRUE(tracer);
     ASSERT_EQ(tracer->sample_rate(), 1);
@@ -20,7 +20,7 @@ TEST(tracer, span)
 {
     MockCollector collector;
 
-    std::unique_ptr<zipkin::Tracer> tracer(zipkin::Tracer::create(&collector, "test"));
+    std::unique_ptr<zipkin::Tracer> tracer(zipkin::Tracer::create(&collector));
     std::unique_ptr<zipkin::Span> span(tracer->span("test"));
 
     ASSERT_TRUE(span);
@@ -35,7 +35,7 @@ TEST(tracer, span)
 
 TEST(tracer, cache)
 {
-    std::unique_ptr<zipkin::Tracer> tracer(zipkin::Tracer::create(nullptr, "test"));
+    std::unique_ptr<zipkin::Tracer> tracer(zipkin::Tracer::create(nullptr));
     std::unique_ptr<zipkin::Span> span(tracer->span("test"));
 
     auto t = static_cast<zipkin::CachedTracer *>(tracer.get());

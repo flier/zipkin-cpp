@@ -14,7 +14,7 @@
 
 void bench_span_reuse(benchmark::State &state)
 {
-    std::unique_ptr<zipkin::Tracer> tracer(zipkin::Tracer::create(nullptr, "bench"));
+    std::unique_ptr<zipkin::Tracer> tracer(zipkin::Tracer::create(nullptr));
     std::vector<zipkin::Span *> spans(state.range(0));
 
     while (state.KeepRunning())

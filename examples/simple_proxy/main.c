@@ -544,7 +544,7 @@ int main(int argc, char **argv)
       return -2;
     }
 
-    tracer = zipkin_tracer_new(collector, APP_NAME);
+    tracer = zipkin_tracer_new(collector);
 
     if (!tracer)
     {

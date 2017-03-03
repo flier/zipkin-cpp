@@ -248,12 +248,11 @@ void zipkin_span_submit(zipkin_span_t span)
         static_cast<zipkin::Span *>(span)->submit();
 }
 
-zipkin_tracer_t zipkin_tracer_new(zipkin_collector_t collector, const char *name)
+zipkin_tracer_t zipkin_tracer_new(zipkin_collector_t collector)
 {
     assert(collector);
-    assert(name);
 
-    return new zipkin::CachedTracer(static_cast<zipkin::Collector *>(collector), name);
+    return new zipkin::CachedTracer(static_cast<zipkin::Collector *>(collector));
 }
 void zipkin_tracer_free(zipkin_tracer_t tracer)
 {

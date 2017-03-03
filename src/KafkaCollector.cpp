@@ -12,6 +12,9 @@
 
 #include <boost/smart_ptr.hpp>
 
+#include <folly/Format.h>
+#include <folly/Conv.h>
+
 #include <thrift/transport/TBufferTransports.h>
 #include <thrift/protocol/TBinaryProtocol.h>
 
@@ -79,6 +82,50 @@ class ReusableMemoryBuffer : public apache::thrift::transport::TMemoryBuffer
         bufferSize_ = size;
     }
 };
+
+KafkaConf::KafkaConf(folly::Uri &uri)
+{
+    std::vector<folly::StringPiece> parts;
+
+    initial_brokers = folly::sformat("{}:{}", uri.host(), uri.port());
+
+    folly::split("/", uri.path(), parts);
+
+    if (parts.size() > 1)
+        topic_name = parts[1].str();
+
+    for (auto &param : uri.getQueryParams())
+    {
+        if (param.first == "compression")
+        {
+            compression_codec = parse_compression_codec(param.second.toStdString());
+        }
+        else if (param.first == "format")
+        {
+            message_codec = MessageCodec::parse(param.second.toStdString());
+        }
+        else if (param.first == "batch_num_messages")
+        {
+            batch_num_messages = folly::to<size_t>(param.second);
+        }
+        else if (param.first == "queue_buffering_max_messages")
+        {
+            queue_buffering_max_messages = folly::to<size_t>(param.second);
+        }
+        else if (param.first == "queue_buffering_max_kbytes")
+        {
+            queue_buffering_max_kbytes = folly::to<size_t>(param.second);
+        }
+        else if (param.first == "queue_buffering_max_ms")
+        {
+            queue_buffering_max_ms = std::chrono::milliseconds(folly::to<size_t>(param.second));
+        }
+        else if (param.first == "message_send_max_retries")
+        {
+            message_send_max_retries = folly::to<size_t>(param.second);
+        }
+    }
+}
 
 void KafkaCollector::submit(Span *span)
 {

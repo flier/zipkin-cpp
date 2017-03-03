@@ -416,7 +416,7 @@ zipkin_tracer_t create_collector(const char *kafka_uri, int binary_encoding)
   char broker[1024] = {0};
   char *topic;
   const char *message_codec = binary_encoding ? ZIPKIN_ENCODING_BINARY : ZIPKIN_ENCODING_PRETTY_JSON;
-  zipkin_conf_t conf = NULL;
+  zipkin_kafka_conf_t conf = NULL;
   zipkin_collector_t collector = NULL;
 
   if (mg_parse_uri(mg_mk_str(kafka_uri), NULL, NULL, &host, &port, &path, NULL, NULL))
@@ -433,20 +433,20 @@ zipkin_tracer_t create_collector(const char *kafka_uri, int binary_encoding)
 
   topic = strtok((char *)path.p, "/");
 
-  conf = zipkin_conf_new(broker, topic);
+  conf = zipkin_kafka_conf_new(broker, topic);
 
   if (conf)
   {
-    zipkin_conf_set_message_codec(conf, message_codec);
+    zipkin_kafka_conf_set_message_codec(conf, message_codec);
 
-    collector = zipkin_collector_new(conf);
+    collector = zipkin_kafka_collector_new(conf);
 
     if (collector)
     {
       ZF_LOGI("collector created, broker=%s, topic=%s, message_codec=%s", broker, topic, message_codec);
     }
 
-    zipkin_conf_free(conf);
+    zipkin_kafka_conf_free(conf);
   }
 
   return collector;

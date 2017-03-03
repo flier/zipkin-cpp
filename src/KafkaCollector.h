@@ -2,6 +2,8 @@
 
 #include <librdkafka/rdkafkacpp.h>
 
+#include <folly/Uri.h>
+
 #include "Collector.h"
 
 namespace zipkin
@@ -72,19 +74,19 @@ struct KafkaConf
     /**
     * \brief Initial list of brokers.
     */
-    std::string initial_brokers;
+    std::string initial_brokers = "localhost";
 
     /**
     * \brief The topic to produce to
     */
-    std::string topic_name;
+    std::string topic_name = "zipkin";
 
     /**
     * \brief The partition to produce to.
     *
     * default: PARTITION_UA (UnAssigned)
     */
-    int topic_partition;
+    int topic_partition = RdKafka::Topic::PARTITION_UA;
 
     /**
     * \brief Compression codec to use for compressing message sets.
@@ -105,28 +107,28 @@ struct KafkaConf
     *
     * default: 10000
     */
-    size_t batch_num_messages;
+    size_t batch_num_messages = 10000;
 
     /**
     * \brief Maximum number of messages allowed on the producer queue.
     *
     * default: 100000
     */
-    size_t queue_buffering_max_messages;
+    size_t queue_buffering_max_messages = 100000;
 
     /**
     * \brief Maximum total message size sum allowed on the producer queue.
     *
     * default: 4000000
     */
-    size_t queue_buffering_max_kbytes;
+    size_t queue_buffering_max_kbytes = 4000000;
 
     /**
     * \brief How long to wait for batch.num.messages to fill up in the local queue.
     *
     * default: 1000ms
     */
-    std::chrono::milliseconds queue_buffering_max_ms;
+    std::chrono::milliseconds queue_buffering_max_ms = std::chrono::seconds(1);
 
     /**
     * \brief How many times to retry sending a failing MessageSet. Note: retrying may cause reordering.
@@ -143,9 +145,11 @@ struct KafkaConf
     * \param partition The partition to produce to.
     */
     KafkaConf(const std::string &brokers, const std::string &name, int partition = RdKafka::Topic::PARTITION_UA)
-        : initial_brokers(brokers), topic_name(name), topic_partition(partition), compression_codec(none), message_codec(MessageCodec::binary), batch_num_messages(0), queue_buffering_max_messages(0), queue_buffering_max_kbytes(0), queue_buffering_max_ms(0), message_send_max_retries(0)
+        : initial_brokers(brokers), topic_name(name), topic_partition(partition)
     {
     }
+
+    KafkaConf(folly::Uri &uri);
 
     /**
     * \brief Create KafkaCollector base on the configuration

@@ -6,6 +6,11 @@
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/prettywriter.h>
 
+#include <folly/Uri.h>
+
+#include "KafkaCollector.h"
+#include "HttpCollector.h"
+
 namespace zipkin
 {
 
@@ -104,6 +109,19 @@ size_t PrettyJsonCodec::encode(boost::shared_ptr<apache::thrift::transport::TMem
     buf->write((const uint8_t *)buffer.GetString(), buffer.GetSize());
 
     return buffer.GetSize();
+}
+
+Collector *Collector::create(const std::string &uri)
+{
+    folly::Uri u(uri);
+
+    if (u.scheme() == "kafka")
+        return KafkaConf(u).create();
+
+    if (u.scheme() == "http" || u.scheme() == "https")
+        return HttpConf(u).create();
+
+    return nullptr;
 }
 
 } // namespace zipkin

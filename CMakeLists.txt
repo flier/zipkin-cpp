@@ -9,7 +9,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(${PROJECT_SOURCE_DIR}/conanbuildinfo.cmake)
-set(CONAN_LIB_DIRS_RAPIDJSON, ${CONAN_BUILD_DIRS_RAPIDJSON})
 conan_basic_setup()
 
 if (NOT CMAKE_BUILD_TYPE)
@@ -40,6 +39,8 @@ endif()
 find_package(CURL REQUIRED)
 find_package(Thrift REQUIRED)
 find_package(LibRDKafka REQUIRED)
+find_package(Folly REQUIRED)
+find_package(DoubleConversion REQUIRED)
 find_package(Doxygen QUIET)
 
 if (${DOXYGEN_FOUND} AND ${RELEASE_BUILD})
@@ -88,6 +89,8 @@ set(zipkin_DEPENDENCIES
     ${CURL_LIBRARIES}
     ${THRIFT_LIBRARIES}
     ${LibRDKafka_LIBRARIES}
+    ${FOLLY_STATIC_LIBRARY}
+    ${DOUBLE_CONVERSION_LIBRARY}
     ${Boost_LIBRARIES}
     )
 

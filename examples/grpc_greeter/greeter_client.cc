@@ -39,6 +39,7 @@
 #include <glog/logging.h>
 #include <grpc++/grpc++.h>
 
+#include <folly/Format.h>
 #include <folly/String.h>
 #include <folly/Uri.h>
 
@@ -141,13 +142,7 @@ int main(int argc, char **argv)
     {
         folly::Uri uri(FLAGS_kafka_uri);
 
-        std::vector<folly::StringPiece> parts;
-        folly::split("/", uri.path(), parts);
-
-        std::string init_brokers = uri.hostname().toStdString();
-        std::string topic_name = parts.size() < 2 ? "zipkin" : parts[1].str();
-
-        zipkin::KafkaConf conf(init_brokers, topic_name);
+        zipkin::KafkaConf conf(uri);
 
         conf.message_codec = zipkin::MessageCodec::parse(FLAGS_msg_codec);
 

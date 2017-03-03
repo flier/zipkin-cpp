@@ -1,7 +1,5 @@
 find_package(Protobuf)
 find_package(GRPC)
-find_package(Folly)
-find_package(DoubleConversion)
 
 if (NOT(PROTOBUF_FOUND AND GRPC_FOUND AND FOLLY_FOUND))
     message(WARNING "Not found protobuf, gRPC or folly, skip the grpc_greeter example")
@@ -40,8 +38,6 @@ foreach(_target
         ${PROTOBUF_LIBRARIES}
         ${GRPC_LIBRARY}
         ${GRPCPP_LIBRARY}
-        ${FOLLY_STATIC_LIBRARY}
-        ${DOUBLE_CONVERSION_LIBRARY}
         zipkin ${zipkin_DEPENDENCIES}
     )
 endforeach()

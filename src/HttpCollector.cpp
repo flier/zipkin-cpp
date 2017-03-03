@@ -1,5 +1,7 @@
 #include "HttpCollector.h"
 
+#include <sstream>
+
 #include <glog/logging.h>
 
 #include <thrift/transport/TBufferTransports.h>
@@ -13,6 +15,70 @@
 
 namespace zipkin
 {
+
+HttpConf::HttpConf(folly::Uri &uri)
+{
+    std::ostringstream oss;
+
+    oss << uri.scheme() << "://";
+
+    if (!uri.username().empty())
+    {
+        oss << uri.username();
+
+        if (!uri.password().empty())
+        {
+            oss << ":" << uri.password();
+        }
+
+        oss << "@";
+    }
+
+    oss << uri.host();
+
+    if (uri.port())
+    {
+        oss << ":" << uri.port();
+    }
+
+    url = oss.str();
+
+    for (auto &param : uri.getQueryParams())
+    {
+        if (param.first == "format")
+        {
+            message_codec = MessageCodec::parse(param.second.toStdString());
+        }
+        else if (param.first == "batch_size")
+        {
+            batch_size = folly::to<size_t>(param.second);
+        }
+        else if (param.first == "backlog")
+        {
+            backlog = folly::to<size_t>(param.second);
+        }
+        else if (param.first == "max_redirect_times")
+        {
+            max_redirect_times = folly::to<size_t>(param.second);
+        }
+        else if (param.first == "connect_timeout")
+        {
+            connect_timeout = std::chrono::milliseconds(folly::to<size_t>(param.second));
+        }
+        else if (param.first == "request_timeout")
+        {
+            request_timeout = std::chrono::milliseconds(folly::to<size_t>(param.second));
+        }
+        else if (param.first == "batch_interval")
+        {
+            batch_interval = std::chrono::milliseconds(folly::to<size_t>(param.second));
+        }
+        else
+        {
+            oss << param.first << "=" << param.second;
+        }
+    }
+}
 
 HttpCollector *HttpConf::create(void) const
 {

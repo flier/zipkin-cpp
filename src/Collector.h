@@ -112,6 +112,8 @@ struct Collector
   * \return \c true if all outstanding messages were sent, or \c false if the \p timeout_ms was reached.
   */
   virtual bool flush(std::chrono::milliseconds timeout_ms) = 0;
+
+  static Collector *create(const std::string& uri);
 };
 
 } // namespace zipkin

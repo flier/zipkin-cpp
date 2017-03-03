@@ -7,6 +7,8 @@
 
 #include <curl/curl.h>
 
+#include <folly/Uri.h>
+
 #include <boost/lockfree/queue.hpp>
 
 #include "Collector.h"
@@ -37,28 +39,30 @@ struct HttpConf
     *
     * \sa https://curl.haxx.se/libcurl/c/CURLOPT_HTTPPROXYTUNNEL.html
     */
-    bool http_proxy_tunnel;
+    bool http_proxy_tunnel = false;
 
     /**
     * \brief Message codec to use for encoding message sets.
     *
     * default: binary
     */
-    std::shared_ptr<MessageCodec> message_codec;
+    std::shared_ptr<MessageCodec> message_codec = MessageCodec::binary;
 
     /**
     * \brief the maximum batch size, after which a collect will be triggered.
     *
     * The default batch size is 100 traces.
     */
-    size_t batch_size;
+    size_t batch_size = 100;
 
     /**
     * \brief the maximum backlog size
     *
     * when batch size reaches this threshold spans from the beginning of the batch will be disposed
+    *
+    * The default maximum backlog size is 1000
     */
-    size_t backlog;
+    size_t backlog = 1000;
 
     /**
     * \brief maximum number of redirects allowed
@@ -67,7 +71,7 @@ struct HttpConf
     *
     * \sa https://curl.haxx.se/libcurl/c/CURLOPT_MAXREDIRS.html
     */
-    size_t max_redirect_times;
+    size_t max_redirect_times = 3;
 
     /**
     * \brief the maximum timeout for TCP connect.
@@ -76,7 +80,7 @@ struct HttpConf
     *
     * \sa https://curl.haxx.se/libcurl/c/CURLOPT_CONNECTTIMEOUT.html
     */
-    std::chrono::seconds connect_timeout;
+    std::chrono::milliseconds connect_timeout = std::chrono::seconds(5);
 
     /**
     * \brief the maximum timeout for HTTP request.
@@ -85,20 +89,20 @@ struct HttpConf
     *
     * \sa https://curl.haxx.se/libcurl/c/CURLOPT_TIMEOUT_MS.html
     */
-    std::chrono::milliseconds request_timeout;
+    std::chrono::milliseconds request_timeout = std::chrono::seconds(15);
 
     /**
     * \brief the maximum duration we will buffer traces before emitting them to the collector.
     *
     * The default batch interval is 1 second.
     */
-    std::chrono::milliseconds batch_interval;
+    std::chrono::milliseconds batch_interval = std::chrono::seconds(1);
 
-    HttpConf(const std::string u)
-        : url(u), message_codec(MessageCodec::binary), batch_size(100), backlog(1000), max_redirect_times(3),
-          connect_timeout(5), request_timeout(std::chrono::seconds(15)), batch_interval(std::chrono::seconds(1))
+    HttpConf(const std::string u) : url(u)
     {
     }
+
+    HttpConf(folly::Uri &uri);
 
     /**
     * \brief Create HttpCollector base on the configuration

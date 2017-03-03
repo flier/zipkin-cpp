@@ -1,15 +1,8 @@
 #pragma once
 
-#include <atomic>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
-
 #include <curl/curl.h>
 
 #include <folly/Uri.h>
-
-#include <boost/lockfree/queue.hpp>
 
 #include "Collector.h"
 
@@ -18,7 +11,7 @@ namespace zipkin
 
 class HttpCollector;
 
-struct HttpConf
+struct HttpConf : public BaseConf
 {
     /**
     * \brief the URL to use in the request
@@ -40,29 +33,6 @@ struct HttpConf
     * \sa https://curl.haxx.se/libcurl/c/CURLOPT_HTTPPROXYTUNNEL.html
     */
     bool http_proxy_tunnel = false;
-
-    /**
-    * \brief Message codec to use for encoding message sets.
-    *
-    * default: binary
-    */
-    std::shared_ptr<MessageCodec> message_codec = MessageCodec::binary;
-
-    /**
-    * \brief the maximum batch size, after which a collect will be triggered.
-    *
-    * The default batch size is 100 traces.
-    */
-    size_t batch_size = 100;
-
-    /**
-    * \brief the maximum backlog size
-    *
-    * when batch size reaches this threshold spans from the beginning of the batch will be disposed
-    *
-    * The default maximum backlog size is 1000
-    */
-    size_t backlog = 1000;
 
     /**
     * \brief maximum number of redirects allowed
@@ -91,13 +61,6 @@ struct HttpConf
     */
     std::chrono::milliseconds request_timeout = std::chrono::seconds(15);
 
-    /**
-    * \brief the maximum duration we will buffer traces before emitting them to the collector.
-    *
-    * The default batch interval is 1 second.
-    */
-    std::chrono::milliseconds batch_interval = std::chrono::seconds(1);
-
     HttpConf(const std::string u) : url(u)
     {
     }
@@ -116,25 +79,13 @@ struct CUrlEnv
     ~CUrlEnv() { curl_global_cleanup(); }
 };
 
-class HttpCollector : public Collector
+class HttpCollector : public BaseCollector
 {
     static CUrlEnv s_curl_env;
 
     HttpConf m_conf;
-    boost::lockfree::queue<Span *> m_spans;
-    std::atomic_size_t m_queued_spans;
 
-    std::thread m_worker;
-    std::atomic_bool m_terminated;
-    std::mutex m_sending, m_flushing;
-    std::condition_variable m_flush, m_sent;
-
-    bool drop_front_span(void);
-    void try_send_spans(void);
-    void send_spans(void);
     CURLcode upload_messages(const uint8_t *data, size_t size);
-
-    static void run(HttpCollector *collector);
 
     static int debug_callback(CURL *handle,
                               curl_infotype type,
@@ -143,12 +94,20 @@ class HttpCollector : public Collector
                               void *userptr);
 
   public:
-    HttpCollector(const HttpConf &conf);
-    ~HttpCollector();
+    HttpCollector(const HttpConf &conf) : m_conf(conf)
+    {
+    }
+    ~HttpCollector()
+    {
+        flush(std::chrono::milliseconds(500));
+    }
 
-    virtual void submit(Span *span) override;
+    virtual const BaseConf &conf(void) const override { return m_conf; }
 
-    virtual bool flush(std::chrono::milliseconds timeout_ms) override;
+    virtual void send_message(const uint8_t *msg, size_t size) override
+    {
+        upload_messages(msg, size);
+    }
 };
 
 } // namespace zipkin

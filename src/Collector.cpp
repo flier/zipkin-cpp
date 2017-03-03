@@ -124,4 +124,105 @@ Collector *Collector::create(const std::string &uri)
     return nullptr;
 }
 
+void BaseCollector::submit(Span *span)
+{
+    while (m_queued_spans >= conf().backlog)
+    {
+        if (drop_front_span())
+            m_queued_spans--;
+    }
+
+    if (m_spans.push(span))
+        m_queued_spans++;
+
+    if (m_queued_spans >= conf().batch_size)
+        flush(std::chrono::milliseconds(0));
+}
+
+bool BaseCollector::drop_front_span()
+{
+    CachedSpan *span = nullptr;
+
+    if (m_spans.pop(span) && span)
+    {
+        LOG(WARNING) << "Drop Span `" << std::hex << span->id() << " exceed backlog";
+
+        span->release();
+
+        return true;
+    }
+
+    return false;
+}
+
+bool BaseCollector::flush(std::chrono::milliseconds timeout_ms)
+{
+    VLOG(2) << "flush pendding " << m_queued_spans << " spans";
+
+    if (m_spans.empty())
+        return true;
+
+    m_flush.notify_one();
+
+    if (timeout_ms.count() == 0)
+        return m_spans.empty();
+
+    std::unique_lock<std::mutex> lock(m_flushing);
+
+    return m_sent.wait_for(lock, timeout_ms, [this] { return m_spans.empty(); });
+}
+
+void BaseCollector::run(BaseCollector *collector)
+{
+    VLOG(1) << "HTTP collector started";
+
+    do
+    {
+        collector->try_send_spans();
+
+        std::this_thread::yield();
+    } while (!collector->m_terminated);
+
+    VLOG(1) << "HTTP collector stopped";
+}
+
+void BaseCollector::try_send_spans(void)
+{
+    std::unique_lock<std::mutex> lock(m_sending);
+
+    if (m_flush.wait_for(lock, conf().batch_interval, [this] { return !m_spans.empty(); }))
+    {
+        send_spans();
+    }
+}
+
+void BaseCollector::send_spans(void)
+{
+    VLOG(2) << "sending " << m_queued_spans << " spans";
+
+    std::vector<Span *> spans;
+
+    m_queued_spans -= m_spans.consume_all([&spans](Span *span) {
+        spans.push_back(span);
+    });
+
+    boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer());
+
+    conf().message_codec->encode(buf, spans);
+
+    for (auto span : spans)
+    {
+        span->release();
+    }
+
+    uint8_t *msg = nullptr;
+    uint32_t size = 0;
+
+    buf->getBuffer(&msg, &size);
+
+    send_message(msg, size);
+
+    m_sent.notify_all();
+}
+
 } // namespace zipkin

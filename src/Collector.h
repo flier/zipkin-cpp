@@ -1,6 +1,12 @@
 #pragma once
 
 #include <chrono>
+#include <atomic>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+
+#include <boost/lockfree/queue.hpp>
 
 #include <thrift/transport/TBufferTransports.h>
 
@@ -113,7 +119,75 @@ struct Collector
   */
   virtual bool flush(std::chrono::milliseconds timeout_ms) = 0;
 
-  static Collector *create(const std::string& uri);
+  static Collector *create(const std::string &uri);
+};
+
+struct BaseConf
+{
+  /**
+  * \brief Message codec to use for encoding message sets.
+  *
+  * default: binary
+  */
+  std::shared_ptr<MessageCodec> message_codec = MessageCodec::binary;
+
+  /**
+  * \brief the maximum batch size, after which a collect will be triggered.
+  *
+  * The default batch size is 100 traces.
+  */
+  size_t batch_size = 100;
+
+  /**
+  * \brief the maximum backlog size
+  *
+  * when batch size reaches this threshold spans from the beginning of the batch will be disposed
+  *
+  * The default maximum backlog size is 1000
+  */
+  size_t backlog = 1000;
+
+  /**
+  * \brief the maximum duration we will buffer traces before emitting them to the collector.
+  *
+  * The default batch interval is 1 second.
+  */
+  std::chrono::milliseconds batch_interval = std::chrono::seconds(1);
+};
+
+class BaseCollector : public Collector
+{
+  boost::lockfree::queue<Span *> m_spans;
+  std::atomic_size_t m_queued_spans;
+
+  std::thread m_worker;
+  std::atomic_bool m_terminated;
+  std::mutex m_sending, m_flushing;
+  std::condition_variable m_flush, m_sent;
+
+  bool drop_front_span(void);
+
+  void try_send_spans(void);
+
+  void send_spans(void);
+
+  static void run(BaseCollector *collector);
+
+protected:
+  BaseCollector() : m_worker(BaseCollector::run, this)
+  {
+  }
+
+  virtual const BaseConf &conf(void) const = 0;
+
+  virtual void send_message(const uint8_t *msg, size_t size) = 0;
+
+public:
+  // Implement Collector
+
+  virtual void submit(Span *span) override;
+
+  virtual bool flush(std::chrono::milliseconds timeout_ms) override;
 };
 
 } // namespace zipkin

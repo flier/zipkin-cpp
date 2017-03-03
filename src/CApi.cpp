@@ -409,11 +409,23 @@ void zipkin_http_conf_set_batch_interval(zipkin_http_conf_t conf, size_t batch_i
     static_cast<zipkin::HttpConf *>(conf)->batch_interval = std::chrono::milliseconds(batch_interval_ms);
 }
 
+zipkin_collector_t zipkin_collector_new(const char *uri)
+{
+    assert(uri);
+
+    return zipkin::Collector::create(uri);
+}
 zipkin_collector_t zipkin_kafka_collector_new(zipkin_kafka_conf_t conf)
 {
     assert(conf);
 
     return static_cast<zipkin::KafkaConf *>(conf)->create();
+}
+zipkin_collector_t zipkin_http_collector_new(zipkin_http_conf_t conf)
+{
+    assert(conf);
+
+    return static_cast<zipkin::HttpConf *>(conf)->create();
 }
 void zipkin_collector_free(zipkin_collector_t collector)
 {

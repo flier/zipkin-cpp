@@ -254,6 +254,7 @@ void zipkin_http_conf_set_connect_timeout(zipkin_http_conf_t conf, size_t connec
 void zipkin_http_conf_set_request_timeout(zipkin_http_conf_t conf, size_t request_timeout_ms);
 void zipkin_http_conf_set_batch_interval(zipkin_http_conf_t conf, size_t batch_interval_ms);
 
+zipkin_collector_t zipkin_collector_new(const char *uri);
 zipkin_collector_t zipkin_kafka_collector_new(zipkin_kafka_conf_t conf);
 zipkin_collector_t zipkin_http_collector_new(zipkin_http_conf_t conf);
 void zipkin_collector_free(zipkin_collector_t collector);

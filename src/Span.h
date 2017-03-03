@@ -16,6 +16,8 @@ using namespace ::boost::asio;
 
 #include "zipkinCore_constants.h"
 
+#include "Base64.h"
+
 typedef uint64_t span_id_t;
 typedef uint64_t trace_id_t;
 typedef std::pair<trace_id_t, trace_id_t> x_trace_id_t;
@@ -1151,15 +1153,6 @@ inline BinaryAnnotation Span::annotate(const std::string &key, const T &value, c
     return BinaryAnnotation(*this, m_span.binary_annotations.back());
 }
 
-namespace base64
-{
-
-const std::string encode(const char *bytes_to_encode, size_t in_len);
-
-const std::string decode(const std::string &encoded_string);
-
-} // namespace base64
-
 template <class RapidJsonWriter>
 void Span::serialize_json(RapidJsonWriter &writer) const
 {
@@ -1202,7 +1195,7 @@ void Span::serialize_json(RapidJsonWriter &writer) const
             break;
 
         case AnnotationType::BYTES:
-            writer.String(base64::encode(data.c_str(), data.size()));
+            writer.String(base64::encode(data));
             break;
 
         case AnnotationType::STRING:

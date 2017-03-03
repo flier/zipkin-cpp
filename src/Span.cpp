@@ -127,33 +127,28 @@ const char *to_string(AnnotationType type)
     }
 }
 
-Span::Span(Tracer *tracer, const std::string &name, span_id_t parent_id, userdata_t userdata, bool sampled) : m_tracer(tracer)
-{
-    if (tracer)
-    {
-        m_span.__set_trace_id(tracer->id());
-
-        if (tracer->id_high())
-        {
-            m_span.__set_trace_id_high(tracer->id_high());
-        }
-    }
-
-    reset(name, parent_id, userdata, sampled);
-}
-
 void Span::reset(const std::string &name, span_id_t parent_id, userdata_t userdata, bool sampled)
 {
-    m_span.__isset = _Span__isset();
-    m_span.__set_name(name);
-    m_span.__set_id(next_id());
-    m_span.__set_timestamp(now().count());
+    m_span.debug = false;
+    m_span.duration = 0;
     m_span.annotations.clear();
     m_span.binary_annotations.clear();
+    m_span.__isset = _Span__isset();
+
+    m_span.__set_name(name);
+    m_span.__set_trace_id(next_id());
+    m_span.__set_trace_id_high(next_id());
+    m_span.__set_id(next_id());
+    m_span.__set_debug(0);
+    m_span.__set_timestamp(now().count());
 
     if (parent_id)
     {
         m_span.__set_parent_id(parent_id);
+    }
+    else
+    {
+        m_span.parent_id = 0;
     }
 
     m_userdata = userdata;

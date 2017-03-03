@@ -5,8 +5,11 @@ TEST(tracer, properties)
     std::unique_ptr<zipkin::Tracer> tracer(zipkin::Tracer::create(nullptr, "test"));
 
     ASSERT_TRUE(tracer);
-    ASSERT_NE(tracer->id(), 0);
-    ASSERT_EQ(tracer->name(), "test");
+    ASSERT_EQ(tracer->sample_rate(), 1);
+
+    tracer->set_sample_rate(100);
+
+    ASSERT_EQ(tracer->sample_rate(), 100);
 
     auto t = static_cast<zipkin::CachedTracer *>(tracer.get());
 

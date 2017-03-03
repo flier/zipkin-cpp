@@ -50,14 +50,6 @@ TEST(span, properties)
 {
     MockTracer tracer;
 
-    EXPECT_CALL(tracer, id())
-        .Times(1)
-        .WillOnce(Return(123));
-    EXPECT_CALL(tracer, id_high())
-        .Times(2)
-        .WillOnce(Return(456))
-        .WillOnce(Return(456));
-
     zipkin::Span span(&tracer, "test");
 
     ASSERT_NE(span.id(), 0);
@@ -66,8 +58,8 @@ TEST(span, properties)
 
     const ::Span &msg = span.message();
 
-    ASSERT_EQ(msg.trace_id, 123);
-    ASSERT_EQ(msg.trace_id_high, 456);
+    ASSERT_NE(msg.trace_id, 0);
+    ASSERT_NE(msg.trace_id_high, 0);
     ASSERT_EQ(msg.name, "test");
     ASSERT_EQ(msg.id, span.id());
     ASSERT_EQ(msg.parent_id, 0);
@@ -78,16 +70,29 @@ TEST(span, properties)
     ASSERT_EQ(msg.duration, 0);
 }
 
-TEST(span, submit)
+TEST(span, child_span)
 {
     MockTracer tracer;
 
-    EXPECT_CALL(tracer, id())
-        .Times(1)
-        .WillOnce(Return(123));
-    EXPECT_CALL(tracer, id_high())
-        .Times(1)
-        .WillOnce(Return(0));
+    zipkin::Span span(&tracer, "test");
+
+    span.with_debug(true).with_sampled(false);
+
+    zipkin::Span *child = span.span("child");
+
+    ASSERT_TRUE(child);
+
+    // inherited properties
+    ASSERT_EQ(child->parent_id(), span.id());
+    ASSERT_EQ(child->trace_id(), span.trace_id());
+    ASSERT_EQ(child->trace_id_high(), span.trace_id_high());
+    ASSERT_TRUE(child->debug());
+    ASSERT_FALSE(child->sampled());
+}
+
+TEST(span, submit)
+{
+    MockTracer tracer;
 
     zipkin::Span span(&tracer, "test");
 
@@ -227,14 +232,6 @@ TEST(span, serialize_json)
 {
     MockTracer tracer;
 
-    EXPECT_CALL(tracer, id())
-        .Times(1)
-        .WillOnce(Return(zipkin::Span::next_id()));
-    EXPECT_CALL(tracer, id_high())
-        .Times(2)
-        .WillOnce(Return(456))
-        .WillOnce(Return(456));
-
     zipkin::Span span(&tracer, "test", zipkin::Span::next_id());
 
     sockaddr_in addr;
@@ -270,14 +267,6 @@ TEST(span, scope)
 {
     MockTracer tracer;
 
-    EXPECT_CALL(tracer, id())
-        .Times(1)
-        .WillOnce(Return(zipkin::Span::next_id()));
-
-    EXPECT_CALL(tracer, id_high())
-        .Times(1)
-        .WillOnce(Return(0));
-
     zipkin::Span span(&tracer, "test");
 
     EXPECT_CALL(tracer, submit(&span))
@@ -290,14 +279,6 @@ TEST(span, scope_cancel)
 {
     MockTracer tracer;
 
-    EXPECT_CALL(tracer, id())
-        .Times(1)
-        .WillOnce(Return(zipkin::Span::next_id()));
-
-    EXPECT_CALL(tracer, id_high())
-        .Times(1)
-        .WillOnce(Return(0));
-
     zipkin::Span *span = new zipkin::Span(&tracer, "test");
 
     zipkin::Span::Scope scope(*span);
@@ -308,14 +289,6 @@ TEST(span, scope_cancel)
 TEST(span, annotate_stream)
 {
     MockTracer tracer;
-
-    EXPECT_CALL(tracer, id())
-        .Times(1)
-        .WillOnce(Return(zipkin::Span::next_id()));
-
-    EXPECT_CALL(tracer, id_high())
-        .Times(1)
-        .WillOnce(Return(0));
 
     zipkin::Span span(&tracer, "test");
 

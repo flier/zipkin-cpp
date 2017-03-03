@@ -22,7 +22,7 @@ TEST(collector, submit)
                             RdKafka::Topic::PARTITION_UA, // partition
                             0,                            // msgflags
                             span->cache_ptr(),            // payload
-                            70,                           // len
+                            81,                           // len
                             &span->name(),                // key
                             span))                        // msg_opaque
         .Times(1)

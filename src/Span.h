@@ -548,7 +548,11 @@ class Span
     /**
      * \brief Construct a span
      */
-    Span(Tracer *tracer, const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr, bool sampled = true);
+    Span(Tracer *tracer, const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr, bool sampled = true)
+        : m_tracer(tracer)
+    {
+        reset(name, parent_id, userdata, sampled);
+    }
 
     /**
      * \brief Reset a span
@@ -583,6 +587,8 @@ class Span
 
     /**
      * \brief Unique 8-byte identifier for a trace, set on all spans within it.
+     *
+     * \sa Span#trace_id_high
      */
     inline trace_id_t trace_id(void) const { return m_span.trace_id; }
 
@@ -595,6 +601,8 @@ class Span
 
     /**
     * When non-zero, the trace containing this span uses 128-bit trace identifiers.
+    *
+    * \sa Span#trace_id
     */
     inline trace_id_t trace_id_high(void) const { return m_span.trace_id_high; }
 
@@ -722,7 +730,12 @@ class Span
 
     virtual inline Span *span(const std::string &name, userdata_t userdata = nullptr) const
     {
-        return new Span(m_tracer, name, m_span.id, userdata ? userdata : m_userdata);
+        Span *span = new Span(m_tracer, name, id(), userdata);
+        span->with_trace_id(trace_id());
+        span->with_trace_id_high(trace_id_high());
+        span->with_debug(debug());
+        span->with_sampled(sampled());
+        return span;
     };
 
     /**

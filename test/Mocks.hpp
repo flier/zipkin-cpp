@@ -13,18 +13,6 @@ using namespace testing;
 class MockTracer : public zipkin::Tracer
 {
 public:
-  MOCK_CONST_METHOD0(id, trace_id_t(void));
-
-  MOCK_METHOD1(set_id, void(trace_id_t));
-
-  MOCK_CONST_METHOD0(id_high, trace_id_t(void));
-
-  MOCK_METHOD1(set_id_high, void(trace_id_t));
-
-  MOCK_METHOD1(set_id, void(const x_trace_id_t &));
-
-  MOCK_CONST_METHOD0(name, const std::string &(void));
-
   MOCK_CONST_METHOD0(sample_rate, size_t(void));
 
   MOCK_METHOD1(set_sample_rate, void(size_t sample_rate));

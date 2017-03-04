@@ -13,7 +13,9 @@ ScribeConf::ScribeConf(folly::Uri &uri)
     std::vector<folly::StringPiece> parts;
 
     host = uri.host().toStdString();
-    port = uri.port();
+
+    if (uri.port())
+        port = uri.port();
 
     folly::split("/", uri.path(), parts);
 

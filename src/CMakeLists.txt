@@ -44,6 +44,7 @@ set (zipkin_INCS
     KafkaCollector.h
     HttpCollector.h
     ScribeCollector.h
+    XRayCollector.h
     ${INCDIR}/zipkin.h
     ${INCDIR}/zipkin.hpp
     )
@@ -55,6 +56,7 @@ set (zipkin_SRCS
     KafkaCollector.cpp
     HttpCollector.cpp
     ScribeCollector.cpp
+    XRayCollector.cpp
     CApi.cpp
     )
 

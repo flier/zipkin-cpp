@@ -10,6 +10,8 @@
 
 #include "KafkaCollector.h"
 #include "HttpCollector.h"
+#include "ScribeCollector.h"
+#include "XRayCollector.h"
 
 namespace zipkin
 {
@@ -120,6 +122,12 @@ Collector *Collector::create(const std::string &uri)
 
     if (u.scheme() == "http" || u.scheme() == "https")
         return HttpConf(u).create();
+
+    if (u.scheme() == "scribe" || u.scheme() == "thrift")
+        return ScribeConf(u).create();
+
+    if (u.scheme() == "xray")
+        return XRayConf(u).create();
 
     return nullptr;
 }

@@ -11,6 +11,7 @@
 #include "KafkaCollector.h"
 #include "HttpCollector.h"
 #include "ScribeCollector.h"
+#include "XRayCollector.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -452,6 +453,36 @@ void zipkin_scribe_conf_set_batch_interval(zipkin_scribe_conf_t conf, size_t bat
     static_cast<zipkin::ScribeConf *>(conf)->batch_interval = std::chrono::milliseconds(batch_interval_ms);
 }
 
+zipkin_xray_conf_t zipkin_xray_conf_new(const char *host, port_t port)
+{
+    assert(host);
+    assert(port);
+
+    return new zipkin::XRayConf(host, port);
+}
+void zipkin_xray_conf_free(zipkin_xray_conf_t conf)
+{
+    delete static_cast<zipkin::XRayConf *>(conf);
+}
+void zipkin_xray_conf_set_batch_size(zipkin_xray_conf_t conf, size_t batch_size)
+{
+    assert(conf);
+
+    static_cast<zipkin::XRayConf *>(conf)->batch_size = batch_size;
+}
+void zipkin_xray_conf_set_backlog(zipkin_xray_conf_t conf, size_t backlog)
+{
+    assert(conf);
+
+    static_cast<zipkin::XRayConf *>(conf)->backlog = backlog;
+}
+void zipkin_xray_conf_set_batch_interval(zipkin_xray_conf_t conf, size_t batch_interval_ms)
+{
+    assert(conf);
+
+    static_cast<zipkin::XRayConf *>(conf)->batch_interval = std::chrono::milliseconds(batch_interval_ms);
+}
+
 zipkin_collector_t zipkin_collector_new(const char *uri)
 {
     assert(uri);
@@ -475,6 +506,11 @@ zipkin_collector_t zipkin_scribe_collector_new(zipkin_scribe_conf_t conf)
     assert(conf);
 
     return static_cast<zipkin::ScribeConf *>(conf)->create();
+}
+zipkin_collector_t zipkin_xray_collector_new(zipkin_scribe_conf_t conf)
+{
+    assert(conf);
+    return static_cast<zipkin::XRayConf *>(conf)->create();
 }
 void zipkin_collector_free(zipkin_collector_t collector)
 {

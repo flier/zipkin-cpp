@@ -3,7 +3,7 @@ set -e
 
 if [[ $TRAVIS_OS_NAME == 'osx' ]]; then
     brew update
-    brew install thrift librdkafka
+    brew install boost curl double-conversion folly thrift librdkafka
 
     $HOME/.local/bin/conan install --build missing
 else

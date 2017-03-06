@@ -8,7 +8,25 @@ This module includes tracer creates and joins spans that model the latency of po
 
 Most importantly, you need a Tracer, configured to report to Zipkin.
 
-Here's an example setup that sends trace data (spans) to Zipkin over Kafka (as opposed to HTTP).
+Here's an example setup that sends trace data (spans) to Zipkin over HTTP (as opposed to Kafka).
+
+```c++
+#include <zipkin/zipkin.hpp>
+
+zipkin::HttpConf conf("http://localhost:9411/api/v1/spans");
+std::shared_ptr<zipkin::HttpCollector> collector(conf.create());
+std::unique_ptr<zipkin::Tracer> tracer(zipkin::Tracer::create(collector.get()));
+```
+---
+```c
+#include <zipkin/zipkin.h>
+
+zipkin_http_conf_t conf = zipkin_http_conf_new("http://localhost:9411/api/v1/spans");
+zipkin_collector_t collector = zipkin_http_collector_new(conf);
+zipkin_tracer_t tracer = zipkin_tracer_new(collector);
+```
+
+The previous spans will be send to the zipkin server with HTTP API.
 
 ```c++
 #include <zipkin/zipkin.hpp>
@@ -26,7 +44,7 @@ zipkin_collector_t collector = zipkin_kafka_collector_new(conf);
 zipkin_tracer_t tracer = zipkin_tracer_new(collector);
 ```
 
-The spans will be send to the Kafka broker at `localhost[:2181]` with `zipkin` topic.
+The previous spans will be send to the Kafka broker at `localhost[:2181]` with `zipkin` topic.
 
 `zipkin-cpp` supports the `Kafka`, `Http`, `Scribe` and `AWS X-Ray` collectors.
 

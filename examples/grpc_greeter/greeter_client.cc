@@ -80,27 +80,12 @@ class GreeterClient
         // the server and/or tweak certain RPC behaviors.
         ClientContext context;
 
+        zipkin::Propagation::inject(context, span);
+
         zipkin::Endpoint endpoint("greeter");
 
-        span << std::make_pair("name", user) << endpoint;
-
-        auto send_header = [&context](const char *key, const std::string &value) {
-            std::string lower_key(key);
-            folly::toLowerAscii(const_cast<char *>(lower_key.data()), lower_key.size());
-            context.AddMetadata(lower_key, value);
-        };
-
-        send_header(ZIPKIN_X_TRACE_ID, folly::to<std::string>(span.trace_id()));
-        send_header(ZIPKIN_X_SPAN_ID, folly::to<std::string>(span.id()));
-
-        if (span.parent_id())
-            send_header(ZIPKIN_X_PARENT_SPAN_ID, folly::to<std::string>(span.parent_id()));
-        if (span.sampled())
-            send_header(ZIPKIN_X_SAMPLED, "1");
-        if (span.debug())
-            send_header(ZIPKIN_X_FLAGS, "1");
-
-        span << zipkin::TraceKeys::CLIENT_SEND << endpoint;
+        span << std::make_pair("name", user) << endpoint
+             << zipkin::TraceKeys::CLIENT_SEND << endpoint;
 
         // The actual RPC.
         Status status = stub_->SayHello(&context, request, &reply);

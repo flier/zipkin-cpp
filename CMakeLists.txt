@@ -36,12 +36,26 @@ if(Boost_FOUND)
   include_directories(${Boost_INCLUDE_DIRS})
 endif()
 
-find_package(CURL REQUIRED)
 find_package(Thrift REQUIRED)
 find_package(LibRDKafka REQUIRED)
 find_package(Folly REQUIRED)
 find_package(DoubleConversion REQUIRED)
+find_package(CURL)
+find_package(Protobuf)
+find_package(GRPC)
 find_package(Doxygen QUIET)
+
+if (${CURL_FOUND})
+    set (WITH_CURL ON)
+else()
+    set (WITH_CURL OFF)
+endif()
+
+if (${GRPC_FOUND})
+    set (WITH_GRPC ON)
+else()
+    set (WITH_GRPC OFF)
+endif()
 
 if (${DOXYGEN_FOUND} AND ${RELEASE_BUILD})
     set (BUILD_DOCS ON)
@@ -49,6 +63,8 @@ else()
     set (BUILD_DOCS OFF)
 endif()
 
+option (WITH_CURL "Build with cURL propagation" WITH_CURL)
+option (WITH_GRPC "Build with gRPC propagation" WITH_GRPC)
 option (WITH_FPIC "Build with -fPIC for shared library" OFF)
 option (SHARED_LIB "Build shared library" OFF)
 option (BUILD_DOCS "Build API documentation (requires Doxygen)" BUILD_DOCS)
@@ -86,13 +102,28 @@ include_directories(SYSTEM include)
 set(zipkin_DEPENDENCIES
     ${CONAN_LIBS_GLOG}
     ${CONAN_LIBS_GFLAGS}
-    ${CURL_LIBRARIES}
     ${THRIFT_LIBRARIES}
     ${LibRDKafka_LIBRARIES}
     ${FOLLY_STATIC_LIBRARY}
     ${DOUBLE_CONVERSION_LIBRARY}
     ${Boost_LIBRARIES}
     )
+
+if (WITH_CURL)
+    message(STATUS "Build with cURL propagation")
+
+    list(APPEND zipkin_DEPENDENCIES ${CURL_LIBRARIES})
+else()
+    message(STATUS "cURL supports disabled")
+endif()
+
+if (WITH_GRPC)
+    message(STATUS "Build with gRPC propagation")
+
+    list(APPEND zipkin_DEPENDENCIES ${GRPC_LIBRARIES})
+else()
+    message(STATUS "gRPC supports disabled")
+endif()
 
 message (STATUS "Link with ${zipkin_DEPENDENCIES}")
 

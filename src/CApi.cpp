@@ -7,6 +7,7 @@
 
 #include "Span.h"
 #include "Tracer.h"
+#include "Propagation.h"
 #include "Collector.h"
 #include "KafkaCollector.h"
 #include "HttpCollector.h"
@@ -345,6 +346,8 @@ void zipkin_kafka_conf_set_message_send_max_retries(zipkin_kafka_conf_t conf, si
     static_cast<zipkin::KafkaConf *>(conf)->message_send_max_retries = message_send_max_retries;
 }
 
+#ifdef WITH_CURL
+
 zipkin_http_conf_t zipkin_http_conf_new(const char *url)
 {
     assert(url);
@@ -408,6 +411,8 @@ void zipkin_http_conf_set_batch_interval(zipkin_http_conf_t conf, size_t batch_i
 
     static_cast<zipkin::HttpConf *>(conf)->batch_interval = std::chrono::milliseconds(batch_interval_ms);
 }
+
+#endif // WITH_CURL
 
 zipkin_scribe_conf_t zipkin_scribe_conf_new(const char *url)
 {
@@ -495,12 +500,14 @@ zipkin_collector_t zipkin_kafka_collector_new(zipkin_kafka_conf_t conf)
 
     return static_cast<zipkin::KafkaConf *>(conf)->create();
 }
+#ifdef WITH_CURL
 zipkin_collector_t zipkin_http_collector_new(zipkin_http_conf_t conf)
 {
     assert(conf);
 
     return static_cast<zipkin::HttpConf *>(conf)->create();
 }
+#endif
 zipkin_collector_t zipkin_scribe_collector_new(zipkin_scribe_conf_t conf)
 {
     assert(conf);
@@ -524,6 +531,25 @@ int zipkin_collector_flush(zipkin_collector_t collector, size_t timeout_ms)
 
     return static_cast<zipkin::Collector *>(collector)->flush(std::chrono::milliseconds(timeout_ms));
 }
+
+size_t zipkin_propagation_inject_headers(char *buf, size_t size, zipkin_span_t span)
+{
+    assert(buf);
+    assert(size);
+    assert(span);
+
+    return zipkin::Propagation::inject(buf, size, *static_cast<zipkin::Span *>(span));
+}
+
+#ifdef WITH_CURL
+struct curl_slist *zipkin_propagation_inject_curl_headers(struct curl_slist *headers, zipkin_span_t span)
+{
+    assert(headers);
+    assert(span);
+
+    return zipkin::Propagation::inject(headers, *static_cast<zipkin::Span *>(span));
+}
+#endif
 
 #ifdef __cplusplus
 }

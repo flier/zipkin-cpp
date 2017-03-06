@@ -196,30 +196,7 @@ void forward_http_request(struct mg_connection *nc, struct http_message *hm)
 
   if (span)
   {
-    if (zipkin_span_trace_id_high(span))
-    {
-      p += snprintf(p, end - p, ZIPKIN_X_TRACE_ID ": " ZIPKIN_SPAN_ID_FMT ZIPKIN_SPAN_ID_FMT CRLF,
-                    zipkin_span_trace_id_high(span), zipkin_span_trace_id(span));
-    }
-    else
-    {
-      p += snprintf(p, end - p, ZIPKIN_X_TRACE_ID ": " ZIPKIN_SPAN_ID_FMT CRLF, zipkin_span_trace_id(span));
-    }
-
-    p += snprintf(p, end - p, ZIPKIN_X_SPAN_ID ": " ZIPKIN_SPAN_ID_FMT CRLF, zipkin_span_id(span));
-
-    if (zipkin_span_parent_id(span))
-    {
-      p += snprintf(p, end - p, ZIPKIN_X_PARENT_SPAN_ID ": " ZIPKIN_SPAN_ID_FMT CRLF, zipkin_span_parent_id(span));
-    }
-    if (zipkin_span_sampled(span))
-    {
-      p += snprintf(p, end - p, ZIPKIN_X_SAMPLED ": 1" CRLF);
-    }
-    if (zipkin_span_debug(span))
-    {
-      p += snprintf(p, end - p, ZIPKIN_X_FLAGS ": 1" CRLF);
-    }
+    p += zipkin_propagation_inject_headers(p, end - p, span);
   }
 
   cc = mg_connect_http_opt(nc->mgr, ev_handler, opts, uri, extra_headers, hm->body.len ? hm->body.p : NULL);

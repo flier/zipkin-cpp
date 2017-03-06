@@ -1,0 +1,5 @@
+#pragma once
+
+#cmakedefine WITH_CURL
+
+#cmakedefine WITH_GRPC

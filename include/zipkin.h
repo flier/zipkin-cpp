@@ -5,13 +5,12 @@
 
 #include <sys/socket.h>
 
-#include "Version.h"
-
-#ifdef __APPLE__
-#define ZIPKIN_SPAN_ID_FMT "%016llx"
-#else
-#define ZIPKIN_SPAN_ID_FMT "%016lx"
+#ifdef WITH_CURL
+#include <curl/curl.h>
 #endif
+
+#include "Config.h"
+#include "Version.h"
 
 #define ZIPKIN_CLIENT_SEND "cs"
 #define ZIPKIN_CLIENT_RECV "cr"
@@ -73,7 +72,9 @@ typedef void *zipkin_endpoint_t;
 typedef void *zipkin_span_t;
 typedef void *zipkin_tracer_t;
 typedef void *zipkin_kafka_conf_t;
+#ifdef WITH_CURL
 typedef void *zipkin_http_conf_t;
+#endif
 typedef void *zipkin_scribe_conf_t;
 typedef void *zipkin_xray_conf_t;
 typedef void *zipkin_collector_t;
@@ -246,6 +247,7 @@ void zipkin_kafka_conf_set_queue_buffering_max_kbytes(zipkin_kafka_conf_t conf, 
 void zipkin_kafka_conf_set_queue_buffering_max_ms(zipkin_kafka_conf_t conf, size_t queue_buffering_max_ms);
 void zipkin_kafka_conf_set_message_send_max_retries(zipkin_kafka_conf_t conf, size_t message_send_max_retries);
 
+#ifdef WITH_CURL
 zipkin_http_conf_t zipkin_http_conf_new(const char *url);
 void zipkin_http_conf_free(zipkin_http_conf_t conf);
 void zipkin_http_conf_set_proxy(zipkin_http_conf_t conf, const char *proxy, int tunnel);
@@ -256,6 +258,7 @@ void zipkin_http_conf_set_max_redirect_times(zipkin_http_conf_t conf, size_t max
 void zipkin_http_conf_set_connect_timeout(zipkin_http_conf_t conf, size_t connect_timeout_ms);
 void zipkin_http_conf_set_request_timeout(zipkin_http_conf_t conf, size_t request_timeout_ms);
 void zipkin_http_conf_set_batch_interval(zipkin_http_conf_t conf, size_t batch_interval_ms);
+#endif
 
 zipkin_scribe_conf_t zipkin_scribe_conf_new(const char *url);
 void zipkin_scribe_conf_free(zipkin_scribe_conf_t conf);
@@ -273,11 +276,19 @@ void zipkin_xray_conf_set_batch_interval(zipkin_xray_conf_t conf, size_t batch_i
 
 zipkin_collector_t zipkin_collector_new(const char *uri);
 zipkin_collector_t zipkin_kafka_collector_new(zipkin_kafka_conf_t conf);
+#ifdef WITH_CURL
 zipkin_collector_t zipkin_http_collector_new(zipkin_http_conf_t conf);
+#endif
 zipkin_collector_t zipkin_scribe_collector_new(zipkin_scribe_conf_t conf);
 zipkin_collector_t zipkin_xray_collector_new(zipkin_scribe_conf_t conf);
 void zipkin_collector_free(zipkin_collector_t collector);
 int zipkin_collector_flush(zipkin_collector_t collector, size_t timeout_ms);
+
+size_t zipkin_propagation_inject_headers(char *buf, size_t size, zipkin_span_t span);
+
+#ifdef WITH_CURL
+struct curl_slist *zipkin_propagation_inject_curl_headers(struct curl_slist *headers, zipkin_span_t span);
+#endif
 
 #ifdef __cplusplus
 }

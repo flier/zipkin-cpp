@@ -38,11 +38,13 @@ add_custom_command (
 
 set (zipkin_INCS
     ${CMAKE_CURRENT_BINARY_DIR}/Version.h
+    ${CMAKE_CURRENT_BINARY_DIR}/Config.h
     Span.h
     Tracer.h
+    Propagation.h
     Collector.h
     KafkaCollector.h
-    HttpCollector.h
+
     ScribeCollector.h
     XRayCollector.h
     ${INCDIR}/zipkin.h
@@ -52,21 +54,24 @@ set (zipkin_INCS
 set (zipkin_SRCS
     Span.cpp
     Tracer.cpp
+    Propagation.cpp
     Collector.cpp
     KafkaCollector.cpp
-    HttpCollector.cpp
     ScribeCollector.cpp
     XRayCollector.cpp
     CApi.cpp
     )
 
-
+if (WITH_CURL)
+    list(APPEND zipkin_INCS HttpCollector.h)
+    list(APPEND zipkin_SRCS HttpCollector.cpp)
+endif()
 
 if (SHARED_LIB)
     set (LIB_TYPE SHARED)
-else ()
+else()
     set (LIB_TYPE STATIC)
-endif ()
+endif()
 
 message(STATUS "Library type: ${LIB_TYPE}")
 
@@ -78,6 +83,11 @@ set (VERSION ${zipkin_VERSION})
 
 configure_file (${PROJECT_SOURCE_DIR}/zipkin.pc.in
                 ${PROJECT_BINARY_DIR}/zipkin.pc
+                @ONLY
+                )
+
+configure_file (${CMAKE_CURRENT_SOURCE_DIR}/Config.h.in
+                ${CMAKE_CURRENT_BINARY_DIR}/Config.h
                 @ONLY
                 )
 

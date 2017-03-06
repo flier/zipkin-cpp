@@ -120,8 +120,10 @@ Collector *Collector::create(const std::string &uri)
     if (u.scheme() == "kafka")
         return KafkaConf(u).create();
 
+#ifdef WITH_CURL
     if (u.scheme() == "http" || u.scheme() == "https")
         return HttpConf(u).create();
+#endif
 
     if (u.scheme() == "scribe" || u.scheme() == "thrift")
         return ScribeConf(u).create();

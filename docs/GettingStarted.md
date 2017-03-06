@@ -13,9 +13,11 @@ Here's an example setup that sends trace data (spans) to Zipkin over HTTP (as op
 ```c++
 #include <zipkin/zipkin.hpp>
 
-zipkin::HttpConf conf("http://localhost:9411/api/v1/spans");
-std::shared_ptr<zipkin::HttpCollector> collector(conf.create());
+std::unique_ptr<zipkin::HttpConf> conf(new zipkin::HttpConf("http://localhost:9411/api/v1/spans"));
+std::shared_ptr<zipkin::HttpCollector> collector(conf->create());
 std::unique_ptr<zipkin::Tracer> tracer(zipkin::Tracer::create(collector.get()));
+
+if (collector.get()) conf.release();
 ```
 ---
 ```c
@@ -31,9 +33,11 @@ The previous spans will be send to the zipkin server with HTTP API.
 ```c++
 #include <zipkin/zipkin.hpp>
 
-zipkin::KafkaConf conf("kafka://localhost/zipkin");
-std::shared_ptr<zipkin::KafkaCollector> collector(conf.create());
+std::unique_ptr<zipkin::KafkaConf> conf(new zipkin::KafkaConf("localhost", "zipkin"));
+std::shared_ptr<zipkin::KafkaCollector> collector(conf->create());
 std::unique_ptr<zipkin::Tracer> tracer(zipkin::Tracer::create(collector.get()));
+
+if (collector.get()) conf.release();
 ```
 ---
 ```c

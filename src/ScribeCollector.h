@@ -50,8 +50,6 @@ struct ScribeConf : public BaseConf
 
 class ScribeCollector : public BaseCollector
 {
-    ScribeConf m_conf;
-
     boost::shared_ptr<apache::thrift::transport::TSocket> m_socket;
     boost::shared_ptr<apache::thrift::transport::TFramedTransport> m_transport;
     boost::shared_ptr<apache::thrift::protocol::TBinaryProtocol> m_protocol;
@@ -62,16 +60,20 @@ class ScribeCollector : public BaseCollector
     bool reconnect(void);
 
   public:
-    ScribeCollector(const ScribeConf &conf)
-        : m_conf(conf),
-          m_socket(new apache::thrift::transport::TSocket(m_conf.host, m_conf.port)),
+    ScribeCollector(const ScribeConf *conf)
+        : BaseCollector(conf),
+          m_socket(new apache::thrift::transport::TSocket(conf->host, conf->port)),
           m_transport(new apache::thrift::transport::TFramedTransport(m_socket)),
           m_protocol(new apache::thrift::protocol::TBinaryProtocol(m_transport)),
           m_client(new ScribeClient(m_protocol))
     {
     }
 
-    virtual const BaseConf &conf(void) const override { return m_conf; }
+    const ScribeConf *conf(void) const { return static_cast<const ScribeConf *>(m_conf.get()); }
+
+    // Implement Collector
+
+    virtual const char *name(void) const override { return "Scribe"; }
 
     virtual void send_message(const uint8_t *msg, size_t size) override;
 };

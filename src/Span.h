@@ -16,6 +16,7 @@ using namespace ::boost::asio;
 
 #include "zipkinCore_constants.h"
 
+#include "Config.h"
 #include "Base64.h"
 
 typedef uint64_t span_id_t;

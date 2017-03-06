@@ -41,6 +41,8 @@ HttpConf::HttpConf(folly::Uri &uri)
         oss << ":" << uri.port();
     }
 
+    oss << uri.path();
+
     url = oss.str();
 
     for (auto &param : uri.getQueryParams())
@@ -78,7 +80,7 @@ HttpConf::HttpConf(folly::Uri &uri)
 
 HttpCollector *HttpConf::create(void) const
 {
-    return new HttpCollector(*this);
+    return new HttpCollector(this);
 }
 
 CURLcode HttpCollector::upload_messages(const uint8_t *data, size_t size)
@@ -100,11 +102,11 @@ CURLcode HttpCollector::upload_messages(const uint8_t *data, size_t size)
         LOG(WARNING) << "fail to set curl error buffer, " << curl_easy_strerror(res);
     }
 
-    snprintf(content_type, sizeof(content_type), "Content-Type: %s", m_conf.message_codec->mime_type().c_str());
+    snprintf(content_type, sizeof(content_type), "Content-Type: %s", conf()->message_codec->mime_type().c_str());
 
     headers = curl_slist_append(headers, content_type);
 
-    if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_URL, m_conf.url.c_str())))
+    if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_URL, conf()->url.c_str())))
     {
         LOG(WARNING) << "fail to set url, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
     }
@@ -124,11 +126,11 @@ CURLcode HttpCollector::upload_messages(const uint8_t *data, size_t size)
     {
         LOG(WARNING) << "fail to set http body size, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
     }
-    else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, m_conf.connect_timeout.count())))
+    else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, conf()->connect_timeout.count())))
     {
         LOG(WARNING) << "fail to set connect timeout, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
     }
-    else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, m_conf.request_timeout.count())))
+    else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, conf()->request_timeout.count())))
     {
         LOG(WARNING) << "fail to set request timeout, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
     }
@@ -150,14 +152,14 @@ CURLcode HttpCollector::upload_messages(const uint8_t *data, size_t size)
             }
         }
 
-        if (!m_conf.proxy.empty())
+        if (!conf()->proxy.empty())
         {
-            if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_PROXY, m_conf.proxy.c_str())))
+            if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_PROXY, conf()->proxy.c_str())))
             {
                 LOG(WARNING) << "fail to set proxy, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
             }
 
-            if (m_conf.http_proxy_tunnel)
+            if (conf()->http_proxy_tunnel)
             {
                 if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_PROXYTYPE, CURLPROXY_HTTP)))
                 {
@@ -170,17 +172,19 @@ CURLcode HttpCollector::upload_messages(const uint8_t *data, size_t size)
             }
         }
 
-        if (m_conf.max_redirect_times)
+        if (conf()->max_redirect_times)
         {
             if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1)))
             {
                 LOG(WARNING) << "fail to enable follow location, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
             }
-            else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_MAXREDIRS, m_conf.max_redirect_times)))
+            else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_MAXREDIRS, conf()->max_redirect_times)))
             {
                 LOG(WARNING) << "fail to set max redirect times, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
             }
         }
+
+        LOG(INFO) << "sending HTTP request to " << conf()->url;
 
         if (CURLE_OK != (res = curl_easy_perform(curl)))
         {
@@ -209,7 +213,7 @@ CURLcode HttpCollector::upload_messages(const uint8_t *data, size_t size)
             }
             else
             {
-                LOG(INFO) << "HTTP port succeeded, status " << status_code
+                LOG(INFO) << "HTTP request finished, status " << status_code
                           << ", uploaded " << uploaded_bytes << " bytes in " << total_time << " seconds (" << (upload_speed / 1024) << " KB/s)";
             }
         }

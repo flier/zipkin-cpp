@@ -259,7 +259,7 @@ void *CachedSpan::operator new(size_t size, CachedTracer *tracer) noexcept
     size_t sz = tracer ? tracer->cache().message_size() : size;
     void *p = nullptr;
 
-    if (posix_memalign(&p, CachedTracer::cache_line_size, sz))
+    if (posix_memalign(&p, CachedTracer::CACHE_LINE_SIZE, sz))
         return nullptr;
 
     VLOG(2) << "Span @ " << p << " allocated with " << sz << " bytes";

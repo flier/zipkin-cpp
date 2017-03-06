@@ -65,15 +65,15 @@ struct Tracer
     static Tracer *create(Collector *collector, size_t sample_rate = 1);
 };
 
-template <size_t CAPACITY>
 class SpanCache
 {
-    size_t m_message_size;
+    size_t m_message_size, m_message_capacity;
 
-    boost::lockfree::stack<CachedSpan *, boost::lockfree::capacity<CAPACITY>> m_spans;
+    boost::lockfree::stack<CachedSpan *> m_spans;
 
   public:
-    SpanCache(size_t message_size) : m_message_size(message_size)
+    SpanCache(size_t message_size, size_t message_capacity)
+        : m_message_size(message_size), m_message_capacity(message_capacity), m_spans(message_capacity)
     {
     }
 
@@ -81,7 +81,7 @@ class SpanCache
 
     size_t message_size(void) const { return m_message_size; }
 
-    static constexpr size_t capacity(void) { return CAPACITY; }
+    size_t message_capacity(void) { return m_message_capacity; }
 
     inline bool empty(void) const { return m_spans.empty(); }
 
@@ -111,24 +111,25 @@ class CachedTracer : public Tracer
     Collector *m_collector;
 
     size_t m_sample_rate = 1;
-    std::atomic_size_t m_total_spans;
-
-  public:
-    typedef SpanCache<64> span_cache_t;
+    std::atomic_size_t m_total_spans = ATOMIC_VAR_INIT(0);
 
   private:
-    span_cache_t m_cache;
+    SpanCache m_cache;
 
   public:
-    CachedTracer(Collector *collector, size_t sample_rate = 1, size_t cache_message_size = default_cache_message_size)
-        : m_collector(collector), m_sample_rate(sample_rate), m_cache(cache_message_size)
+    CachedTracer(Collector *collector,
+                 size_t sample_rate = 1,
+                 size_t cache_message_size = DEFAULT_CACHE_MESSAGE_SIZE,
+                 size_t cache_message_count = DEFAULT_CACHE_MESSAGE_COUNT)
+        : m_collector(collector), m_sample_rate(sample_rate), m_cache(cache_message_size, cache_message_count)
     {
     }
 
-    static const size_t cache_line_size;
-    static const size_t default_cache_message_size;
+    static constexpr size_t CACHE_LINE_SIZE = 64;
+    static constexpr size_t DEFAULT_CACHE_MESSAGE_SIZE = 4096;
+    static constexpr size_t DEFAULT_CACHE_MESSAGE_COUNT = 64;
 
-    const span_cache_t &cache(void) const { return m_cache; }
+    const SpanCache &cache(void) const { return m_cache; }
 
     // Implement Tracer
 

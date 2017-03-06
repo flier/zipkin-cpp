@@ -386,49 +386,6 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
   }
 }
 
-zipkin_tracer_t create_collector(const char *kafka_uri, int binary_encoding)
-{
-  struct mg_str host, path;
-  unsigned int port = 0;
-  char broker[1024] = {0};
-  char *topic;
-  const char *message_codec = binary_encoding ? ZIPKIN_ENCODING_BINARY : ZIPKIN_ENCODING_PRETTY_JSON;
-  zipkin_kafka_conf_t conf = NULL;
-  zipkin_collector_t collector = NULL;
-
-  if (mg_parse_uri(mg_mk_str(kafka_uri), NULL, NULL, &host, &port, &path, NULL, NULL))
-    return NULL;
-
-  if (port)
-  {
-    snprintf(broker, sizeof(broker), "%.*s:%d", (int)host.len, host.p, port);
-  }
-  else
-  {
-    snprintf(broker, sizeof(broker), "%.*s", (int)host.len, host.p);
-  }
-
-  topic = strtok((char *)path.p, "/");
-
-  conf = zipkin_kafka_conf_new(broker, topic);
-
-  if (conf)
-  {
-    zipkin_kafka_conf_set_message_codec(conf, message_codec);
-
-    collector = zipkin_kafka_collector_new(conf);
-
-    if (collector)
-    {
-      ZF_LOGI("collector created, broker=%s, topic=%s, message_codec=%s", broker, topic, message_codec);
-    }
-
-    zipkin_kafka_conf_free(conf);
-  }
-
-  return collector;
-}
-
 enum cs_log_level
 {
   LL_NONE = -1,
@@ -449,7 +406,7 @@ int main(int argc, char **argv)
   int c;
 
   const char *http_port = "8000";
-  const char *kafka_uri = NULL;
+  const char *collector_uri = NULL;
   int binary_encoding = 0;
 
   zipkin_collector_t collector = NULL;
@@ -462,10 +419,16 @@ int main(int argc, char **argv)
   cs_log_set_level(LL_WARN);
   zf_log_set_output_level(ZF_LOG_WARN);
 
-  while ((c = getopt(argc, argv, "dvp:bt:h")) != -1)
+  while ((c = getopt(argc, argv, "dvtp:bu:h")) != -1)
   {
     switch (c)
     {
+    case 't':
+      zipkin_set_logging_level(LOG_TRACE);
+      cs_log_set_level(LL_VERBOSE_DEBUG);
+      zf_log_set_output_level(ZF_LOG_VERBOSE);
+      break;
+
     case 'd':
       zipkin_set_logging_level(LOG_DEBUG);
       cs_log_set_level(LL_DEBUG);
@@ -482,8 +445,8 @@ int main(int argc, char **argv)
       http_port = optarg;
       break;
 
-    case 't':
-      kafka_uri = optarg;
+    case 'u':
+      collector_uri = optarg;
       break;
 
     case 'b':
@@ -493,11 +456,11 @@ int main(int argc, char **argv)
     case 'h':
     case '?':
       printf("%s [options]\n\n", argv[0]);
+      printf("-t\t\tShow trace messages\n");
       printf("-d\t\tShow debug messages\n");
       printf("-v\t\tShow verbose messages\n");
       printf("-p <port>\tListen on port (default: %s)\n", http_port);
-      printf("-t <uri>\tKafka URI for tracing\n");
-      printf("-b\t\tEncode message in binary\n");
+      printf("-t <uri>\tCollector URI for tracing\n");
 
       return 1;
 
@@ -511,9 +474,9 @@ int main(int argc, char **argv)
   signal(SIGTERM, signal_handler);
   signal(SIGINT, signal_handler);
 
-  if (kafka_uri)
+  if (collector_uri)
   {
-    collector = create_collector(kafka_uri, binary_encoding);
+    collector = zipkin_collector_new(collector_uri);
 
     if (!collector)
     {
@@ -560,6 +523,7 @@ int main(int argc, char **argv)
 
   if (collector)
   {
+    zipkin_collector_shutdown(collector, 2000);
     zipkin_collector_free(collector);
   }
 

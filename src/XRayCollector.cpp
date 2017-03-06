@@ -103,11 +103,13 @@ XRayConf::XRayConf(folly::Uri &uri)
             batch_interval = std::chrono::milliseconds(folly::to<size_t>(param.second));
         }
     }
+
+    message_codec = XRayConf::xray;
 }
 
-XRayCollector *XRayConf::create(void)
+XRayCollector *XRayConf::create(void) const
 {
-    return new XRayCollector(*this);
+    return new XRayCollector(this);
 }
 
 } // namespace zipkin

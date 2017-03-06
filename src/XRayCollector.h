@@ -43,36 +43,35 @@ struct XRayConf : public BaseConf
 
     XRayConf(const std::string &h, port_t p = 2000) : host(h), port(p)
     {
+        message_codec = XRayConf::xray;
     }
 
     XRayConf(folly::Uri &uri);
 
-    XRayCollector *create(void);
+    XRayCollector *create(void) const;
 };
 
 class XRayCollector : public BaseCollector
 {
-    XRayConf m_conf;
-
     boost::asio::io_service m_io_service;
     udp::socket m_socket;
     udp::endpoint m_receiver;
 
   public:
-    XRayCollector(const XRayConf &conf)
-        : m_conf(conf), m_socket(m_io_service)
+    XRayCollector(const XRayConf *conf)
+        : BaseCollector(conf), m_socket(m_io_service)
     {
-        m_conf.message_codec = XRayConf::xray;
-
         udp::resolver resolver(m_io_service);
-        udp::resolver::query query(udp::v4(), m_conf.host, "");
+        udp::resolver::query query(udp::v4(), conf->host, "");
         m_receiver = *resolver.resolve(query);
-        m_receiver.port(m_conf.port);
+        m_receiver.port(conf->port);
 
         m_socket.open(udp::v4());
     }
 
-    virtual const BaseConf &conf(void) const override { return m_conf; }
+    // Implement Collector
+
+    virtual const char *name(void) const override { return "X-Ray"; }
 
     virtual void send_message(const uint8_t *msg, size_t size) override
     {

@@ -37,4 +37,6 @@ TEST(collector, submit)
         .WillOnce(Return(RdKafka::ErrorCode::ERR_NO_ERROR));
 
     collector.submit(span);
+
+    collector.shutdown(std::chrono::milliseconds(0));
 }

@@ -113,25 +113,18 @@ class GreeterClient
 };
 
 DEFINE_string(grpc_addr, "localhost:50051", "GRPC server address");
-DEFINE_string(kafka_uri, "", "Kafka URI for tracing");
-DEFINE_string(msg_codec, "pretty_json", "Message codec");
+DEFINE_string(collector_uri, "", "Collector URI for tracing");
 
 int main(int argc, char **argv)
 {
     google::InitGoogleLogging(argv[0]);
     int arg = gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-    std::shared_ptr<zipkin::KafkaCollector> collector;
+    std::shared_ptr<zipkin::Collector> collector;
 
-    if (!FLAGS_kafka_uri.empty())
+    if (!FLAGS_collector_uri.empty())
     {
-        folly::Uri uri(FLAGS_kafka_uri);
-
-        zipkin::KafkaConf conf(uri);
-
-        conf.message_codec = zipkin::MessageCodec::parse(FLAGS_msg_codec);
-
-        collector.reset(conf.create());
+        collector.reset(zipkin::Collector::create(FLAGS_collector_uri));
     }
 
     // Instantiate the client. It requires a channel, out of which the actual RPCs
@@ -144,7 +137,8 @@ int main(int argc, char **argv)
     std::string reply = greeter.SayHello(user);
     std::cout << "Greeter received: " << reply << std::endl;
 
-    collector->flush(std::chrono::seconds(5));
+    if (collector.get())
+        collector->shutdown(std::chrono::seconds(5));
 
     google::ShutdownGoogleLogging();
 

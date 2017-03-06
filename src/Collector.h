@@ -102,6 +102,8 @@ struct Collector
 {
   virtual ~Collector() = default;
 
+  virtual const char *name(void) const = 0;
+
   /**
   * \brief Async submit Span to transport
   *
@@ -118,6 +120,11 @@ struct Collector
   * \return \c true if all outstanding messages were sent, or \c false if the \p timeout_ms was reached.
   */
   virtual bool flush(std::chrono::milliseconds timeout_ms) = 0;
+
+  /**
+  * \brief Shutdown the collector
+  */
+  virtual void shutdown(std::chrono::milliseconds timeout_ms) = 0;
 
   static Collector *create(const std::string &uri);
 };
@@ -158,11 +165,11 @@ struct BaseConf
 class BaseCollector : public Collector
 {
   boost::lockfree::queue<Span *> m_spans;
-  std::atomic_size_t m_queued_spans;
+  std::atomic_size_t m_queued_spans = ATOMIC_VAR_INIT(0);
 
   std::thread m_worker;
-  std::atomic_bool m_terminated;
-  std::mutex m_sending, m_flushing;
+  std::atomic_bool m_terminated = ATOMIC_VAR_INIT(false);
+  std::mutex m_sending;
   std::condition_variable m_flush, m_sent;
 
   bool drop_front_span(void);
@@ -174,11 +181,15 @@ class BaseCollector : public Collector
   static void run(BaseCollector *collector);
 
 protected:
-  BaseCollector() : m_worker(BaseCollector::run, this)
+  std::unique_ptr<const BaseConf> m_conf;
+
+protected:
+  BaseCollector(const BaseConf *conf)
+      : m_conf(conf), m_spans(conf->backlog), m_worker(BaseCollector::run, this)
   {
   }
 
-  virtual const BaseConf &conf(void) const = 0;
+  virtual ~BaseCollector() = default;
 
   virtual void send_message(const uint8_t *msg, size_t size) = 0;
 
@@ -188,6 +199,8 @@ public:
   virtual void submit(Span *span) override;
 
   virtual bool flush(std::chrono::milliseconds timeout_ms) override;
+
+  virtual void shutdown(std::chrono::milliseconds timeout_ms) override;
 };
 
 } // namespace zipkin

@@ -519,19 +519,24 @@ zipkin_collector_t zipkin_xray_collector_new(zipkin_scribe_conf_t conf)
     assert(conf);
     return static_cast<zipkin::XRayConf *>(conf)->create();
 }
-void zipkin_collector_free(zipkin_collector_t collector)
-{
-    assert(collector);
-
-    delete static_cast<zipkin::Collector *>(collector);
-}
 int zipkin_collector_flush(zipkin_collector_t collector, size_t timeout_ms)
 {
     assert(collector);
 
     return static_cast<zipkin::Collector *>(collector)->flush(std::chrono::milliseconds(timeout_ms));
 }
+void zipkin_collector_shutdown(zipkin_collector_t collector, size_t timeout_ms)
+{
+    assert(collector);
 
+    static_cast<zipkin::Collector *>(collector)->shutdown(std::chrono::milliseconds(timeout_ms));
+}
+void zipkin_collector_free(zipkin_collector_t collector)
+{
+    assert(collector);
+
+    delete static_cast<zipkin::Collector *>(collector);
+}
 size_t zipkin_propagation_inject_headers(char *buf, size_t size, zipkin_span_t span)
 {
     assert(buf);

@@ -99,7 +99,7 @@ include_directories(${PROJECT_BINARY_DIR}/gen-cpp)
 include_directories(${PROJECT_BINARY_DIR}/src)
 include_directories(SYSTEM include)
 
-set(zipkin_DEPENDENCIES
+set (zipkin_DEPENDENCIES
     ${CONAN_LIBS_GLOG}
     ${CONAN_LIBS_GFLAGS}
     ${THRIFT_LIBRARIES}
@@ -112,7 +112,9 @@ set(zipkin_DEPENDENCIES
 if (WITH_CURL)
     message(STATUS "Build with cURL propagation")
 
-    list(APPEND zipkin_DEPENDENCIES ${CURL_LIBRARIES})
+    list (APPEND zipkin_DEPENDENCIES ${CURL_LIBRARIES})
+
+    set (CURL_ENABLED 1)
 else()
     message(STATUS "cURL supports disabled")
 endif()
@@ -121,6 +123,8 @@ if (WITH_GRPC)
     message(STATUS "Build with gRPC propagation")
 
     list(APPEND zipkin_DEPENDENCIES ${GRPC_LIBRARIES})
+
+    set (GRPC_ENABLED 1)
 else()
     message(STATUS "gRPC supports disabled")
 endif()

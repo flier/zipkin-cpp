@@ -83,8 +83,6 @@ class HttpCollector : public BaseCollector
 {
     static CUrlEnv s_curl_env;
 
-    HttpConf m_conf;
-
     CURLcode upload_messages(const uint8_t *data, size_t size);
 
     static int debug_callback(CURL *handle,
@@ -94,15 +92,15 @@ class HttpCollector : public BaseCollector
                               void *userptr);
 
   public:
-    HttpCollector(const HttpConf &conf) : m_conf(conf)
+    HttpCollector(const HttpConf *conf) : BaseCollector(conf)
     {
-    }
-    ~HttpCollector()
-    {
-        flush(std::chrono::milliseconds(500));
     }
 
-    virtual const BaseConf &conf(void) const override { return m_conf; }
+    const HttpConf *conf(void) const { return static_cast<const HttpConf *>(m_conf.get()); }
+
+    // Implement Collector
+
+    virtual const char *name(void) const override { return "HTTP"; }
 
     virtual void send_message(const uint8_t *msg, size_t size) override
     {

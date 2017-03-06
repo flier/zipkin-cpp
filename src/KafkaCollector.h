@@ -34,10 +34,8 @@ class KafkaCollector : public Collector
           m_partitioner(std::move(partitioner)), m_partition(partition), m_message_codec(message_codec)
     {
     }
-    virtual ~KafkaCollector() override
-    {
-        flush(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::microseconds(500)));
-    }
+
+    virtual ~KafkaCollector(void) = default;
 
     /**
     * \brief Kafka producer
@@ -56,11 +54,18 @@ class KafkaCollector : public Collector
 
     // Implement Collector
 
+    virtual const char *name(void) const override { return "Kafka"; }
+
     virtual void submit(Span *span) override;
 
     virtual bool flush(std::chrono::milliseconds timeout_ms) override
     {
         return RdKafka::ERR_NO_ERROR == m_producer->flush(timeout_ms.count());
+    }
+
+    virtual void shutdown(std::chrono::milliseconds timeout_ms) override
+    {
+        flush(std::chrono::milliseconds(500));
     }
 };
 

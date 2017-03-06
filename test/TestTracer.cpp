@@ -13,7 +13,7 @@ TEST(tracer, properties)
 
     auto t = static_cast<zipkin::CachedTracer *>(tracer.get());
 
-    ASSERT_EQ(t->cache().message_size(), zipkin::CachedTracer::default_cache_message_size);
+    ASSERT_EQ(t->cache().message_size(), zipkin::CachedTracer::DEFAULT_CACHE_MESSAGE_SIZE);
 }
 
 TEST(tracer, span)

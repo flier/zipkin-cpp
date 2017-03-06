@@ -49,14 +49,14 @@ ScribeConf::ScribeConf(folly::Uri &uri)
 
 ScribeCollector *ScribeConf::create(void) const
 {
-    return new ScribeCollector(*this);
+    return new ScribeCollector(this);
 }
 
 void ScribeCollector::send_message(const uint8_t *msg, size_t size)
 {
     LogEntry entry;
 
-    entry.__set_category(m_conf.category);
+    entry.__set_category(conf()->category);
     entry.__set_message(base64::encode(msg, size));
 
     std::vector<LogEntry> entries;
@@ -72,7 +72,7 @@ void ScribeCollector::send_message(const uint8_t *msg, size_t size)
         {
             res = m_client->Log(entries);
         }
-    } while (res == ResultCode::type::TRY_LATER && retry_times++ < m_conf.max_retry_times);
+    } while (res == ResultCode::type::TRY_LATER && retry_times++ < conf()->max_retry_times);
 }
 
 bool ScribeCollector::reconnect(void)
@@ -81,11 +81,11 @@ bool ScribeCollector::reconnect(void)
     {
         m_socket->open();
 
-        VLOG(1) << "conntected to scribe server @ " << m_conf.host << ":" << m_conf.port;
+        VLOG(1) << "conntected to scribe server @ " << conf()->host << ":" << conf()->port;
     }
     catch (apache::thrift::transport::TTransportException &ex)
     {
-        LOG(WARNING) << "fail to connect scribe server @ " << m_conf.host << ":" << m_conf.port
+        LOG(WARNING) << "fail to connect scribe server @ " << conf()->host << ":" << conf()->port
                      << ", drop the sending message, " << ex.what();
 
         m_socket->close();

@@ -281,8 +281,9 @@ zipkin_collector_t zipkin_http_collector_new(zipkin_http_conf_t conf);
 #endif
 zipkin_collector_t zipkin_scribe_collector_new(zipkin_scribe_conf_t conf);
 zipkin_collector_t zipkin_xray_collector_new(zipkin_scribe_conf_t conf);
-void zipkin_collector_free(zipkin_collector_t collector);
 int zipkin_collector_flush(zipkin_collector_t collector, size_t timeout_ms);
+void zipkin_collector_shutdown(zipkin_collector_t collector, size_t timeout_ms);
+void zipkin_collector_free(zipkin_collector_t collector);
 
 size_t zipkin_propagation_inject_headers(char *buf, size_t size, zipkin_span_t span);
 

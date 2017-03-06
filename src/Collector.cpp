@@ -118,25 +118,41 @@ Collector *Collector::create(const std::string &uri)
     folly::Uri u(uri);
 
     if (u.scheme() == "kafka")
-        return KafkaConf(u).create();
+    {
+        KafkaConf *conf = new KafkaConf(u);
+
+        return conf->create();
+    }
 
 #ifdef WITH_CURL
     if (u.scheme() == "http" || u.scheme() == "https")
-        return HttpConf(u).create();
+    {
+        HttpConf *conf = new HttpConf(u);
+
+        return conf->create();
+    }
 #endif
 
     if (u.scheme() == "scribe" || u.scheme() == "thrift")
-        return ScribeConf(u).create();
+    {
+        ScribeConf *conf = new ScribeConf(u);
+
+        return conf->create();
+    }
 
     if (u.scheme() == "xray")
-        return XRayConf(u).create();
+    {
+        XRayConf *conf = new XRayConf(u);
+
+        return conf->create();
+    }
 
     return nullptr;
 }
 
 void BaseCollector::submit(Span *span)
 {
-    while (m_queued_spans >= conf().backlog)
+    while (m_queued_spans >= m_conf->backlog)
     {
         if (drop_front_span())
             m_queued_spans--;
@@ -145,7 +161,7 @@ void BaseCollector::submit(Span *span)
     if (m_spans.push(span))
         m_queued_spans++;
 
-    if (m_queued_spans >= conf().batch_size)
+    if (m_queued_spans >= m_conf->batch_size)
         flush(std::chrono::milliseconds(0));
 }
 
@@ -167,42 +183,77 @@ bool BaseCollector::drop_front_span()
 
 bool BaseCollector::flush(std::chrono::milliseconds timeout_ms)
 {
-    VLOG(2) << "flush pendding " << m_queued_spans << " spans";
-
-    if (m_spans.empty())
-        return true;
+    std::unique_lock<std::mutex> lock(m_sending);
 
     m_flush.notify_one();
 
-    if (timeout_ms.count() == 0)
-        return m_spans.empty();
+    if (m_terminated)
+    {
+        VLOG(3) << "shutdow " << name() << " collector and wait " << timeout_ms.count() << " ms";
+    }
+    else if (m_spans.empty())
+    {
+        VLOG(3) << "no pendding spans to flush";
+    }
+    else
+    {
+        VLOG(3) << "flush pendding " << m_queued_spans << " spans and wait " << timeout_ms.count() << " ms";
+    }
 
-    std::unique_lock<std::mutex> lock(m_flushing);
+    return std::cv_status::no_timeout == m_sent.wait_for(lock, timeout_ms) && m_spans.empty();
+}
 
-    return m_sent.wait_for(lock, timeout_ms, [this] { return m_spans.empty(); });
+void BaseCollector::shutdown(std::chrono::milliseconds timeout_ms)
+{
+    m_terminated = true;
+
+    if (!flush(timeout_ms) && m_worker.joinable())
+    {
+        VLOG(3) << "join thread " << m_worker.get_id();
+
+        m_worker.join();
+    }
+
+    m_worker.detach();
 }
 
 void BaseCollector::run(BaseCollector *collector)
 {
-    VLOG(1) << "HTTP collector started";
+    LOG(INFO) << collector->name() << " collector started";
 
     do
     {
         collector->try_send_spans();
 
+        if (collector->m_terminated)
+        {
+            VLOG(3) << "collector thread " << std::this_thread::get_id() << " terminated";
+
+            break;
+        }
+
         std::this_thread::yield();
     } while (!collector->m_terminated);
-
-    VLOG(1) << "HTTP collector stopped";
 }
 
 void BaseCollector::try_send_spans(void)
 {
+    VLOG(3) << "wait " << m_conf->batch_interval.count() << " ms for spans";
+
     std::unique_lock<std::mutex> lock(m_sending);
 
-    if (m_flush.wait_for(lock, conf().batch_interval, [this] { return !m_spans.empty(); }))
+    if (m_flush.wait_for(lock, m_conf->batch_interval, [this] { return m_terminated || !m_spans.empty(); }))
     {
-        send_spans();
+        if (!m_spans.empty())
+        {
+            send_spans();
+        }
+        else
+        {
+            VLOG(1) << name() << " collector " << (m_terminated ? "terminated" : "flushed");
+        }
+
+        m_sent.notify_all();
     }
 }
 
@@ -216,23 +267,24 @@ void BaseCollector::send_spans(void)
         spans.push_back(span);
     });
 
-    boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer());
-
-    conf().message_codec->encode(buf, spans);
-
-    for (auto span : spans)
+    if (!spans.empty())
     {
-        span->release();
+        boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer());
+
+        m_conf->message_codec->encode(buf, spans);
+
+        for (auto span : spans)
+        {
+            span->release();
+        }
+
+        uint8_t *msg = nullptr;
+        uint32_t size = 0;
+
+        buf->getBuffer(&msg, &size);
+
+        send_message(msg, size);
     }
-
-    uint8_t *msg = nullptr;
-    uint32_t size = 0;
-
-    buf->getBuffer(&msg, &size);
-
-    send_message(msg, size);
-
-    m_sent.notify_all();
 }
 
 } // namespace zipkin

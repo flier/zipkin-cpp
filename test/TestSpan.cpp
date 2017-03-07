@@ -201,7 +201,7 @@ static const char *json_template = R"###({
             "value": "cs"
         }
     ],
-    "binary_annotations": [
+    "binaryAnnotations": [
         {
             "endpoint": {
                 "serviceName": "host",

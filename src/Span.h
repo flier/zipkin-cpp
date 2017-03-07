@@ -8,7 +8,7 @@
 #include <memory>
 #include <chrono>
 
-#include <boost/tuple/tuple.hpp>
+#include <boost/endian/conversion.hpp>
 #include <boost/asio.hpp>
 using namespace ::boost::asio;
 
@@ -951,11 +951,6 @@ struct __annotation
     {
         return span.annotate(value.first, value.second);
     }
-
-    static BinaryAnnotation apply(Span &span, const boost::tuple<K, V, Endpoint *> &value)
-    {
-        return span.annotate(boost::get<0>(value), boost::get<1>(value), boost::get<2>(value));
-    }
 };
 
 template <typename K>
@@ -965,11 +960,6 @@ struct __annotation<K, const char *>
     {
         return span.annotate(value.first, value.second);
     }
-
-    static BinaryAnnotation apply(Span &span, const boost::tuple<K, const char *, Endpoint *> &value)
-    {
-        return span.annotate(boost::get<0>(value), boost::get<1>(value), -1, boost::get<2>(value));
-    }
 };
 
 template <typename K>
@@ -978,11 +968,6 @@ struct __annotation<K, const wchar_t *>
     static BinaryAnnotation apply(Span &span, const std::pair<K, const wchar_t *> &value)
     {
         return span.annotate(value.first, value.second);
-    }
-
-    static BinaryAnnotation apply(Span &span, const boost::tuple<K, const wchar_t *, Endpoint *> &value)
-    {
-        return span.annotate(boost::get<0>(value), boost::get<1>(value), -1, boost::get<2>(value));
     }
 };
 
@@ -1115,35 +1100,86 @@ template <>
 struct __binary_annotation<bool>
 {
     static const AnnotationType type = AnnotationType::BOOL;
+    static const std::string encode(const bool &value)
+    {
+        return value ? "\x01" : "\x00";
+    }
 };
 template <>
 struct __binary_annotation<int16_t>
 {
     static const AnnotationType type = AnnotationType::I16;
+    static const std::string encode(const int16_t &value)
+    {
+        uint16_t v = boost::endian::native_to_big(static_cast<uint16_t>(value));
+        return std::string(reinterpret_cast<const char *>(&v), sizeof(uint16_t));
+    }
+};
+template <>
+struct __binary_annotation<uint16_t>
+{
+    static const AnnotationType type = AnnotationType::I16;
+    static const std::string encode(const uint16_t &value)
+    {
+        uint16_t v = boost::endian::native_to_big(value);
+        return std::string(reinterpret_cast<const char *>(&v), sizeof(uint16_t));
+    }
 };
 template <>
 struct __binary_annotation<int32_t>
 {
     static const AnnotationType type = AnnotationType::I32;
+    static const std::string encode(const int32_t &value)
+    {
+        uint32_t v = boost::endian::native_to_big(static_cast<uint32_t>(value));
+        return std::string(reinterpret_cast<const char *>(&v), sizeof(uint32_t));
+    }
+};
+template <>
+struct __binary_annotation<uint32_t>
+{
+    static const AnnotationType type = AnnotationType::I32;
+    static const std::string encode(const uint32_t &value)
+    {
+        uint32_t v = boost::endian::native_to_big(value);
+        return std::string(reinterpret_cast<const char *>(&v), sizeof(uint32_t));
+    }
 };
 template <>
 struct __binary_annotation<int64_t>
 {
     static const AnnotationType type = AnnotationType::I64;
+    static const std::string encode(const int64_t &value)
+    {
+        uint64_t v = boost::endian::native_to_big(static_cast<uint64_t>(value));
+        return std::string(reinterpret_cast<const char *>(&v), sizeof(uint64_t));
+    }
+};
+template <>
+struct __binary_annotation<uint64_t>
+{
+    static const AnnotationType type = AnnotationType::I64;
+    static const std::string encode(const uint64_t &value)
+    {
+        uint64_t v = boost::endian::native_to_big(value);
+        return std::string(reinterpret_cast<const char *>(&v), sizeof(uint64_t));
+    }
 };
 template <>
 struct __binary_annotation<double>
 {
     static const AnnotationType type = AnnotationType::DOUBLE;
+    static const std::string encode(const double &value)
+    {
+        return std::string(reinterpret_cast<const char *>(&value), sizeof(double));
+    }
 };
 } // namespace __impl
 
 template <typename T>
-BinaryAnnotation &BinaryAnnotation::with_value(const T &value)
+inline BinaryAnnotation &BinaryAnnotation::with_value(const T &value)
 {
-    auto ptr = reinterpret_cast<uint8_t *>(&value);
-
-    m_annotation.value = std::string(reinterpret_cast<char *>(ptr), sizeof(T));
+    m_annotation.__set_value(__impl::__binary_annotation<T>::encode(value));
 
     return *this;
 }
@@ -1154,7 +1190,7 @@ inline BinaryAnnotation Span::annotate(const std::string &key, const T &value, c
     ::BinaryAnnotation annotation;
 
     annotation.__set_key(key);
-    annotation.__set_value(std::string(reinterpret_cast<const char *>(&value), sizeof(T)));
+    annotation.__set_value(__impl::__binary_annotation<T>::encode(value));
     annotation.__set_annotation_type(__impl::__binary_annotation<T>::type);
 
     if (endpoint)
@@ -1193,15 +1229,15 @@ void Span::serialize_json(RapidJsonWriter &writer) const
             break;
 
         case AnnotationType::I16:
-            writer.Int(*reinterpret_cast<const int16_t *>(data.c_str()));
+            writer.Int(boost::endian::big_to_native(*reinterpret_cast<const uint16_t *>(data.c_str())));
             break;
 
         case AnnotationType::I32:
-            writer.Int(*reinterpret_cast<const int32_t *>(data.c_str()));
+            writer.Int(boost::endian::big_to_native(*reinterpret_cast<const uint32_t *>(data.c_str())));
             break;
 
         case AnnotationType::I64:
-            writer.Int64(*reinterpret_cast<const int64_t *>(data.c_str()));
+            writer.Int64(boost::endian::big_to_native(*reinterpret_cast<const uint64_t *>(data.c_str())));
             break;
 
         case AnnotationType::DOUBLE:

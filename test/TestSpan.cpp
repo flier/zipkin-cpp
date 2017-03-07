@@ -141,18 +141,35 @@ TEST(span, annotate)
 
     span.annotate("bool", true);
     ASSERT_EQ(msg.binary_annotations.back().annotation_type, AnnotationType::type::BOOL);
+    ASSERT_STREQ(msg.binary_annotations.back().value.c_str(), "\x01");
 
-    span.annotate("i16", (int16_t)123);
+    span.annotate("i16", (int16_t)-123);
     ASSERT_EQ(msg.binary_annotations.back().annotation_type, AnnotationType::type::I16);
+    ASSERT_STREQ(msg.binary_annotations.back().value.c_str(), "\xff\x85");
 
-    span.annotate("i32", (int32_t)123);
+    span.annotate("u16", (uint16_t)123);
+    ASSERT_EQ(msg.binary_annotations.back().annotation_type, AnnotationType::type::I16);
+    ASSERT_STREQ(msg.binary_annotations.back().value.c_str(), "\x00\x7b");
+
+    span.annotate("i32", (int32_t)-123);
     ASSERT_EQ(msg.binary_annotations.back().annotation_type, AnnotationType::type::I32);
+    ASSERT_STREQ(msg.binary_annotations.back().value.c_str(), "\xff\xff\xff\x85");
 
-    span.annotate("i64", (int64_t)123);
+    span.annotate("u32", (uint32_t)123);
+    ASSERT_EQ(msg.binary_annotations.back().annotation_type, AnnotationType::type::I32);
+    ASSERT_STREQ(msg.binary_annotations.back().value.c_str(), "\x00\x00\x00\x7b");
+
+    span.annotate("i64", (int64_t)-123);
     ASSERT_EQ(msg.binary_annotations.back().annotation_type, AnnotationType::type::I64);
+    ASSERT_STREQ(msg.binary_annotations.back().value.c_str(), "\xff\xff\xff\xff\xff\xff\xff\x85");
 
-    span.annotate("double", 12.3);
+    span.annotate("u64", (uint64_t)123);
+    ASSERT_EQ(msg.binary_annotations.back().annotation_type, AnnotationType::type::I64);
+    ASSERT_STREQ(msg.binary_annotations.back().value.c_str(), "\x00\x00\x00\x00\x00\x00\x00\x7b");
+
+    span.annotate("double", (double)12.3);
     ASSERT_EQ(msg.binary_annotations.back().annotation_type, AnnotationType::type::DOUBLE);
+    ASSERT_STREQ(msg.binary_annotations.back().value.c_str(), "\x9A\x99\x99\x99\x99\x99\x28\x40");
 
     span.annotate("string", std::wstring(L"测试"));
     ASSERT_EQ(msg.binary_annotations.back().value, "测试");

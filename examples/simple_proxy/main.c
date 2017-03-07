@@ -516,14 +516,10 @@ int main(int argc, char **argv)
 
   ZF_LOGI("proxy stopped");
 
-  if (tracer)
-  {
-    zipkin_tracer_free(tracer);
-  }
-
   if (collector)
   {
     zipkin_collector_shutdown(collector, 2000);
+    zipkin_tracer_free(tracer);
     zipkin_collector_free(collector);
   }
 

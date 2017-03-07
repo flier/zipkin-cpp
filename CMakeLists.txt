@@ -172,15 +172,15 @@ if (WITH_TCMALLOC OR WITH_PROFILER)
     if (WITH_TCMALLOC AND WITH_PROFILER)
         message(STATUS "Build with tcmalloc and profiler library")
 
-        list(APPEND zipkin_DEPENDENCIES ${GPERFTOOLS_STATIC_LIBRARIES})
+        list(APPEND zipkin_DEPENDENCIES ${GPERFTOOLS_LIBRARIES})
     elseif (WITH_TCMALLOC)
         message(STATUS "Build with tcmalloc library")
 
-        list(APPEND zipkin_DEPENDENCIES ${GPERFTOOLS_TCMALLOC_STATIC})
+        list(APPEND zipkin_DEPENDENCIES ${GPERFTOOLS_TCMALLOC})
     elseif (WITH_PROFILER)
         message(STATUS "Build with profiler library")
 
-        list(APPEND zipkin_DEPENDENCIES ${GPERFTOOLS_PROFILER_STATIC})
+        list(APPEND zipkin_DEPENDENCIES ${GPERFTOOLS_PROFILER})
     endif ()
 endif ()
 

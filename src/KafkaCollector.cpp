@@ -87,7 +87,14 @@ KafkaConf::KafkaConf(folly::Uri &uri)
 {
     std::vector<folly::StringPiece> parts;
 
-    initial_brokers = folly::sformat("{}:{}", uri.host(), uri.port());
+    if (uri.port())
+    {
+        initial_brokers = folly::sformat("{}:{}", uri.host(), uri.port());
+    }
+    else
+    {
+        initial_brokers = uri.host().toStdString();
+    }
 
     folly::split("/", uri.path(), parts);
 

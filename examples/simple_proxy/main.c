@@ -460,7 +460,7 @@ int main(int argc, char **argv)
       printf("-d\t\tShow debug messages\n");
       printf("-v\t\tShow verbose messages\n");
       printf("-p <port>\tListen on port (default: %s)\n", http_port);
-      printf("-t <uri>\tCollector URI for tracing\n");
+      printf("-u <uri>\tCollector URI for tracing\n");
 
       return 1;
 

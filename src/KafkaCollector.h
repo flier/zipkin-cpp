@@ -98,35 +98,35 @@ struct KafkaConf
     *
     * default: none
     */
-    CompressionCodec compression_codec;
+    CompressionCodec compression_codec = CompressionCodec::none;
 
     /**
     * \brief Message codec to use for encoding message sets.
     *
     * default: binary
     */
-    std::shared_ptr<MessageCodec> message_codec;
+    std::shared_ptr<MessageCodec> message_codec = MessageCodec::binary;
 
     /**
     * \brief Minimum number of messages to wait for to accumulate in the local queue before sending off a message set.
     *
-    * default: 10000
+    * default: 1000
     */
-    size_t batch_num_messages = 10000;
+    size_t batch_num_messages = 1000;
 
     /**
     * \brief Maximum number of messages allowed on the producer queue.
     *
-    * default: 100000
+    * default: 10000
     */
-    size_t queue_buffering_max_messages = 100000;
+    size_t queue_buffering_max_messages = 10000;
 
     /**
     * \brief Maximum total message size sum allowed on the producer queue.
     *
-    * default: 4000000
+    * default: 4MB
     */
-    size_t queue_buffering_max_kbytes = 4000000;
+    size_t queue_buffering_max_kbytes = 4 * 1024;
 
     /**
     * \brief How long to wait for batch.num.messages to fill up in the local queue.
@@ -140,7 +140,7 @@ struct KafkaConf
     *
     * default: 2
     */
-    size_t message_send_max_retries;
+    size_t message_send_max_retries = 2;
 
     /**
     * \brief Construct a configuration for KafkaCollector

@@ -44,29 +44,47 @@ find_package(CURL)
 find_package(ZLIB)
 find_package(Protobuf)
 find_package(GRPC)
+find_package(Gperftools)
 find_package(Doxygen QUIET)
 
-if (${CURL_FOUND} AND ${ZLIB_FOUND})
+if (CURL_FOUND AND ZLIB_FOUND)
     set (WITH_CURL ON)
-else()
+else ()
     set (WITH_CURL OFF)
-endif()
+endif ()
 
-if (${GRPC_FOUND})
+if (GRPC_FOUND)
     set (WITH_GRPC ON)
-else()
+else ()
     set (WITH_GRPC OFF)
-endif()
+endif ()
 
-if (${DOXYGEN_FOUND} AND ${RELEASE_BUILD})
+# gperftools - Google Performance Tool
+#
+# https://github.com/gperftools/gperftools
+if (GPERFTOOLS_FOUND)
+    set (WITH_TCMALLOC ON)
+    if (RELEASE_BUILD)
+        set (WITH_PROFILER OFF)
+    else ()
+        set (WITH_PROFILER ON)
+    endif ()
+else ()
+    set (WITH_TCMALLOC OFF)
+    set (WITH_PROFILER OFF)
+endif ()
+
+if (DOXYGEN_FOUND AND RELEASE_BUILD)
     set (BUILD_DOCS ON)
-else()
+else ()
     set (BUILD_DOCS OFF)
-endif()
+endif ()
 
 option (WITH_CURL "Build with cURL propagation" WITH_CURL)
 option (WITH_GRPC "Build with gRPC propagation" WITH_GRPC)
 option (WITH_FPIC "Build with -fPIC for shared library" OFF)
+option (WITH_TCMALLOC "Build with tcmalloc library" WITH_TCMALLOC)
+option (WITH_PROFILER "Build with CPU profiler" WITH_PROFILER)
 option (SHARED_LIB "Build shared library" OFF)
 option (BUILD_DOCS "Build API documentation (requires Doxygen)" BUILD_DOCS)
 
@@ -141,6 +159,30 @@ if (WITH_GRPC)
 else()
     message(STATUS "gRPC supports disabled")
 endif()
+
+if (WITH_TCMALLOC OR WITH_PROFILER)
+    if (NOT GPERFTOOLS_FOUND)
+        message(SEND_ERROR "gperftools not found")
+    endif()
+
+    if (WITH_TCMALLOC)
+        add_compile_options(-fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free)
+    endif ()
+
+    if (WITH_TCMALLOC AND WITH_PROFILER)
+        message(STATUS "Build with tcmalloc and profiler library")
+
+        list(APPEND zipkin_DEPENDENCIES ${GPERFTOOLS_STATIC_LIBRARIES})
+    elseif (WITH_TCMALLOC)
+        message(STATUS "Build with tcmalloc library")
+
+        list(APPEND zipkin_DEPENDENCIES ${GPERFTOOLS_TCMALLOC_STATIC})
+    elseif (WITH_PROFILER)
+        message(STATUS "Build with profiler library")
+
+        list(APPEND zipkin_DEPENDENCIES ${GPERFTOOLS_PROFILER_STATIC})
+    endif ()
+endif ()
 
 message (STATUS "Link with ${zipkin_DEPENDENCIES}")
 

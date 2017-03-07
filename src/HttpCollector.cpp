@@ -102,41 +102,43 @@ CURLcode HttpCollector::upload_messages(const uint8_t *data, size_t size)
         LOG(WARNING) << "fail to set curl error buffer, " << curl_easy_strerror(res);
     }
 
-    snprintf(content_type, sizeof(content_type), "Content-Type: %s", conf()->message_codec->mime_type().c_str());
+    const std::string mime_type = conf()->message_codec->mime_type();
+    snprintf(content_type, sizeof(content_type), "Content-Type: %s", mime_type.c_str());
 
     headers = curl_slist_append(headers, content_type);
+    headers = curl_slist_append(headers, "Expect:");
 
     if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_URL, conf()->url.c_str())))
     {
-        LOG(WARNING) << "fail to set url, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+        LOG(WARNING) << "fail to set url, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
     }
     else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers)))
     {
-        LOG(WARNING) << "fail to set http header, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+        LOG(WARNING) << "fail to set http header, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
     }
     else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_USERAGENT, ZIPKIN_LIBNAME "/" ZIPKIN_VERSION)))
     {
-        LOG(WARNING) << "fail to set http user agent, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
-    }
-    else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data)))
-    {
-        LOG(WARNING) << "fail to set http body data, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+        LOG(WARNING) << "fail to set http user agent, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
     }
     else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, size)))
     {
-        LOG(WARNING) << "fail to set http body size, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+        LOG(WARNING) << "fail to set http body size, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
+    }
+    else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data)))
+    {
+        LOG(WARNING) << "fail to set http body data, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
     }
     else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, conf()->connect_timeout.count())))
     {
-        LOG(WARNING) << "fail to set connect timeout, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+        LOG(WARNING) << "fail to set connect timeout, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
     }
     else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, conf()->request_timeout.count())))
     {
-        LOG(WARNING) << "fail to set request timeout, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+        LOG(WARNING) << "fail to set request timeout, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
     }
     else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1)))
     {
-        LOG(WARNING) << "fail to disable signals, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+        LOG(WARNING) << "fail to disable signals, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
     }
     else
     {
@@ -144,11 +146,11 @@ CURLcode HttpCollector::upload_messages(const uint8_t *data, size_t size)
         {
             if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, debug_callback)))
             {
-                LOG(WARNING) << "fail to set debug callback, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+                LOG(WARNING) << "fail to set debug callback, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
             }
             else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_VERBOSE, 1)))
             {
-                LOG(WARNING) << "fail to set verbose output, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+                LOG(WARNING) << "fail to set verbose output, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
             }
         }
 
@@ -156,18 +158,18 @@ CURLcode HttpCollector::upload_messages(const uint8_t *data, size_t size)
         {
             if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_PROXY, conf()->proxy.c_str())))
             {
-                LOG(WARNING) << "fail to set proxy, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+                LOG(WARNING) << "fail to set proxy, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
             }
 
             if (conf()->http_proxy_tunnel)
             {
                 if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_PROXYTYPE, CURLPROXY_HTTP)))
                 {
-                    LOG(WARNING) << "fail to set HTTP proxy type, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+                    LOG(WARNING) << "fail to set HTTP proxy type, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
                 }
                 else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_HTTPPROXYTUNNEL, 1)))
                 {
-                    LOG(WARNING) << "fail to set HTTP proxy tunnel, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+                    LOG(WARNING) << "fail to set HTTP proxy tunnel, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
                 }
             }
         }
@@ -176,11 +178,11 @@ CURLcode HttpCollector::upload_messages(const uint8_t *data, size_t size)
         {
             if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1)))
             {
-                LOG(WARNING) << "fail to enable follow location, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+                LOG(WARNING) << "fail to enable follow location, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
             }
             else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_MAXREDIRS, conf()->max_redirect_times)))
             {
-                LOG(WARNING) << "fail to set max redirect times, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+                LOG(WARNING) << "fail to set max redirect times, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
             }
         }
 
@@ -188,7 +190,7 @@ CURLcode HttpCollector::upload_messages(const uint8_t *data, size_t size)
 
         if (CURLE_OK != (res = curl_easy_perform(curl)))
         {
-            LOG(WARNING) << "fail to send http request, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+            LOG(WARNING) << "fail to send http request, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
         }
         else
         {
@@ -197,19 +199,19 @@ CURLcode HttpCollector::upload_messages(const uint8_t *data, size_t size)
 
             if (CURLE_OK != (res = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status_code)))
             {
-                LOG(WARNING) << "fail to get status code, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+                LOG(WARNING) << "fail to get status code, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
             }
             else if (CURLE_OK != (res = curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME, &total_time)))
             {
-                LOG(WARNING) << "fail to get total time, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+                LOG(WARNING) << "fail to get total time, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
             }
             else if (CURLE_OK != (res = curl_easy_getinfo(curl, CURLINFO_SIZE_UPLOAD, &uploaded_bytes)))
             {
-                LOG(WARNING) << "fail to get uploaded bytes, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+                LOG(WARNING) << "fail to get uploaded bytes, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
             }
             else if (CURLE_OK != (res = curl_easy_getinfo(curl, CURLINFO_SPEED_UPLOAD, &upload_speed)))
             {
-                LOG(WARNING) << "fail to get upload speed, " << strlen(err_msg) ? err_msg : curl_easy_strerror(res);
+                LOG(WARNING) << "fail to get upload speed, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
             }
             else
             {
@@ -254,13 +256,13 @@ int HttpCollector::debug_callback(CURL *handle,
     }
     case CURLINFO_DATA_IN:
     {
-        VLOG(3) << std::string(data, size);
+        VLOG(3) << "< " << size << " bytes";
 
         break;
     }
     case CURLINFO_DATA_OUT:
     {
-        VLOG(3) << std::string(data, size);
+        VLOG(3) << "> " << size << " bytes";
 
         break;
     }

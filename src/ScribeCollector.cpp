@@ -73,6 +73,8 @@ void ScribeCollector::send_message(const uint8_t *msg, size_t size)
             res = m_client->Log(entries);
         }
     } while (res == ResultCode::type::TRY_LATER && retry_times++ < conf()->max_retry_times);
+
+    VLOG(1) << entries.size() << " message was sent after retry " << retry_times << " times";
 }
 
 bool ScribeCollector::reconnect(void)

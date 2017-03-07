@@ -262,7 +262,7 @@ void *CachedSpan::operator new(size_t size, CachedTracer *tracer) noexcept
     if (posix_memalign(&p, CachedTracer::CACHE_LINE_SIZE, sz))
         return nullptr;
 
-    VLOG(2) << "Span @ " << p << " allocated with " << sz << " bytes";
+    VLOG(3) << "Span @ " << p << " allocated with " << sz << " bytes";
 
     return p;
 }
@@ -274,7 +274,7 @@ void CachedSpan::operator delete(void *ptr, std::size_t sz) noexcept
 
     CachedSpan *span = static_cast<CachedSpan *>(ptr);
 
-    VLOG(2) << "Span @ " << ptr << " deleted with " << sz << " bytes, id=" << std::hex << span->id();
+    VLOG(3) << "Span @ " << ptr << " deleted with " << sz << " bytes, id=" << std::hex << span->id();
 
     free(ptr);
 }

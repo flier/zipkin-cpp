@@ -238,8 +238,6 @@ void BaseCollector::run(BaseCollector *collector)
 
 void BaseCollector::try_send_spans(void)
 {
-    VLOG(3) << "wait " << m_conf->batch_interval.count() << " ms for spans";
-
     std::unique_lock<std::mutex> lock(m_sending);
 
     if (m_flush.wait_for(lock, m_conf->batch_interval, [this] { return m_terminated || !m_spans.empty(); }))
@@ -270,6 +268,8 @@ void BaseCollector::send_spans(void)
     if (!spans.empty())
     {
         boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer());
+
+        VLOG(1) << "encode " << spans.size() << " spans with `" << m_conf->message_codec->name() << "` codec";
 
         m_conf->message_codec->encode(buf, spans);
 

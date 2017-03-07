@@ -17,7 +17,7 @@ $ brew install boost curl double-conversion folly thrift librdkafka conan
 #### Ubuntu
 
 ```sh
-$ sudo apt-get install libboost-dev libcurl4-openssl-dev libdouble-conversion-dev thrift-compiler librdkafka-dev
+$ sudo apt-get install libboost-dev libcurl4-openssl-dev thrift-compiler librdkafka-dev libgflags-dev libgoogle-glog-dev libdouble-conversion-dev
 ```
 
 #### CentOS

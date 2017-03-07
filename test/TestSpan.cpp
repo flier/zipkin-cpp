@@ -23,13 +23,13 @@ TEST(endpoint, with_addr)
     auto v4addr = endpoint.with_addr("127.0.0.1", 8004).sockaddr();
 
     ASSERT_EQ(v4addr->sa_family, AF_INET);
-    ASSERT_EQ(reinterpret_cast<const sockaddr_in *>(v4addr.get())->sin_port, 8004);
+    ASSERT_EQ(reinterpret_cast<const sockaddr_in *>(v4addr.get())->sin_port, htons(8004));
     ASSERT_EQ(reinterpret_cast<const sockaddr_in *>(v4addr.get())->sin_addr.s_addr, 0x100007f);
 
     auto v6addr = endpoint.with_addr("::1", 8006).sockaddr();
 
     ASSERT_EQ(v6addr->sa_family, AF_INET6);
-    ASSERT_EQ(reinterpret_cast<const sockaddr_in6 *>(v6addr.get())->sin6_port, 8006);
+    ASSERT_EQ(reinterpret_cast<const sockaddr_in6 *>(v6addr.get())->sin6_port, htons(8006));
     ASSERT_THAT(reinterpret_cast<const sockaddr_in6 *>(v6addr.get())->sin6_addr.s6_addr,
                 ElementsAreArray({0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}));
 
@@ -253,7 +253,7 @@ TEST(span, serialize_json)
 
     sockaddr_in addr;
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    addr.sin_port = 80;
+    addr.sin_port = htons(80);
     zipkin::Endpoint host("host", &addr);
 
     span.client_send(&host);

@@ -17,7 +17,7 @@
 namespace zipkin
 {
 
-std::unique_ptr<const sockaddr> Endpoint::sockaddr(void) const
+std::unique_ptr<const struct sockaddr> Endpoint::sockaddr(void) const
 {
     std::unique_ptr<sockaddr_storage> addr(new sockaddr_storage());
 
@@ -27,15 +27,15 @@ std::unique_ptr<const sockaddr> Endpoint::sockaddr(void) const
 
         v6->sin6_family = AF_INET6;
         memcpy(v6->sin6_addr.s6_addr, m_host.ipv6.c_str(), m_host.ipv6.size());
-        v6->sin6_port = m_host.port;
+        v6->sin6_port = htons(m_host.port);
     }
     else
     {
         auto v4 = reinterpret_cast<sockaddr_in *>(addr.get());
 
         v4->sin_family = AF_INET;
-        v4->sin_addr.s_addr = m_host.ipv4;
-        v4->sin_port = m_host.port;
+        v4->sin_addr.s_addr = htonl(m_host.ipv4);
+        v4->sin_port = htons(m_host.port);
     }
 
     return std::unique_ptr<const struct sockaddr>(reinterpret_cast<const struct sockaddr *>(addr.release()));
@@ -50,7 +50,7 @@ ip::address Endpoint::addr(void) const
         return ip::address_v6(bytes);
     }
 
-    return ip::address_v4(ntohl(m_host.ipv4));
+    return ip::address_v4(m_host.ipv4);
 }
 
 Endpoint &Endpoint::with_addr(const struct sockaddr *addr)
@@ -64,8 +64,8 @@ Endpoint &Endpoint::with_addr(const struct sockaddr *addr)
     {
         auto v4 = reinterpret_cast<const struct sockaddr_in *>(addr);
 
-        m_host.__set_ipv4(v4->sin_addr.s_addr);
-        m_host.__set_port(v4->sin_port);
+        m_host.__set_ipv4(ntohl(v4->sin_addr.s_addr));
+        m_host.__set_port(ntohs(v4->sin_port));
         m_host.__isset.ipv6 = false;
         break;
     }
@@ -75,7 +75,7 @@ Endpoint &Endpoint::with_addr(const struct sockaddr *addr)
         auto v6 = reinterpret_cast<const struct sockaddr_in6 *>(addr);
 
         m_host.__set_ipv6(std::string(reinterpret_cast<const char *>(v6->sin6_addr.s6_addr), sizeof(v6->sin6_addr)));
-        m_host.__set_port(v6->sin6_port);
+        m_host.__set_port(ntohs(v6->sin6_port));
         break;
     }
     }
@@ -97,7 +97,7 @@ Endpoint &Endpoint::with_addr(const std::string &addr, port_t port)
     {
         auto bytes = ip.to_v4().to_bytes();
 
-        m_host.__set_ipv4(*reinterpret_cast<uint32_t *>(bytes.data()));
+        m_host.__set_ipv4(ntohl(*reinterpret_cast<uint32_t *>(bytes.data())));
         m_host.__isset.ipv6 = false;
     }
 

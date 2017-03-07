@@ -1051,8 +1051,8 @@ Endpoint &Endpoint::with_addr(const struct sockaddr_in *addr)
     assert(addr);
 
     m_host.__isset.ipv6 = 0;
-    m_host.__set_ipv4(addr->sin_addr.s_addr);
-    m_host.__set_port(addr->sin_port);
+    m_host.__set_ipv4(ntohl(addr->sin_addr.s_addr));
+    m_host.__set_port(ntohs(addr->sin_port));
 
     return *this;
 }
@@ -1062,14 +1062,14 @@ Endpoint &Endpoint::with_addr(const struct sockaddr_in6 *addr)
     assert(addr);
 
     m_host.__set_ipv6(std::string(reinterpret_cast<const char *>(addr->sin6_addr.s6_addr), sizeof(addr->sin6_addr)));
-    m_host.__set_port(addr->sin6_port);
+    m_host.__set_port(ntohs(addr->sin6_port));
 
     return *this;
 }
 
 Endpoint &Endpoint::with_ipv4(const std::string &ip)
 {
-    m_host.__set_ipv4(inet_addr(ip.c_str()));
+    m_host.__set_ipv4(ntohl(inet_addr(ip.c_str())));
 
     return *this;
 }
@@ -1213,7 +1213,7 @@ void Span::serialize_json(RapidJsonWriter &writer) const
         writer.String(host.service_name);
 
         writer.Key("ipv4");
-        writer.String(inet_ntoa({static_cast<in_addr_t>(host.ipv4)}));
+        writer.String(inet_ntoa({static_cast<in_addr_t>(htonl(host.ipv4))}));
 
         writer.Key("port");
         writer.Int(host.port);
@@ -1304,7 +1304,7 @@ void Span::serialize_json(RapidJsonWriter &writer) const
 
     writer.EndArray(m_span.annotations.size());
 
-    writer.Key("binary_annotations");
+    writer.Key("binaryAnnotations");
     writer.StartArray();
 
     for (auto &annotation : m_span.binary_annotations)

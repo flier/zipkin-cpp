@@ -41,11 +41,12 @@ find_package(LibRDKafka REQUIRED)
 find_package(Folly REQUIRED)
 find_package(DoubleConversion REQUIRED)
 find_package(CURL)
+find_package(ZLIB)
 find_package(Protobuf)
 find_package(GRPC)
 find_package(Doxygen QUIET)
 
-if (${CURL_FOUND})
+if (${CURL_FOUND} AND ${ZLIB_FOUND})
     set (WITH_CURL ON)
 else()
     set (WITH_CURL OFF)
@@ -110,9 +111,17 @@ set (zipkin_DEPENDENCIES
     )
 
 if (WITH_CURL)
+    if (NOT CURL_FOUND)
+        message(SEND_ERROR "cURL not found")
+    endif()
+
+    if (NOT ZLIB_FOUND)
+        message(SEND_ERROR "zlib not found")
+    endif()
+
     message(STATUS "Build with cURL propagation")
 
-    list (APPEND zipkin_DEPENDENCIES ${CURL_LIBRARIES})
+    list (APPEND zipkin_DEPENDENCIES ${CURL_LIBRARIES} ${ZLIB_LIBRARIES})
 
     set (CURL_ENABLED 1)
 else()
@@ -120,6 +129,10 @@ else()
 endif()
 
 if (WITH_GRPC)
+    if (NOT GRPC_FOUND)
+        message(SEND_ERROR "zlib not found")
+    endif()
+
     message(STATUS "Build with gRPC propagation")
 
     list(APPEND zipkin_DEPENDENCIES ${GRPC_LIBRARIES})

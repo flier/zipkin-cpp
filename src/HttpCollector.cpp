@@ -11,6 +11,8 @@
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/prettywriter.h>
 
+#include <zlib.h>
+
 #include "Version.h"
 
 namespace zipkin
@@ -83,11 +85,15 @@ HttpCollector *HttpConf::create(void) const
     return new HttpCollector(this);
 }
 
+#define GZIP_WINDOW_BITS 15
+#define GZIP_ENCODING 16
+
 CURLcode HttpCollector::upload_messages(const uint8_t *data, size_t size)
 {
     CURLcode res;
     struct curl_slist *headers = nullptr;
     char content_type[128] = {0}, err_msg[CURL_ERROR_SIZE] = {0};
+    std::vector<uint8_t> compressed(size);
     CURL *curl = curl_easy_init();
 
     if (!curl)
@@ -97,9 +103,40 @@ CURLcode HttpCollector::upload_messages(const uint8_t *data, size_t size)
         return CURLE_FAILED_INIT;
     }
 
-    if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, err_msg)))
+    int ret = Z_OK;
+    z_stream defstream = {0};
+
+    defstream.zalloc = Z_NULL;
+    defstream.zfree = Z_NULL;
+    defstream.opaque = Z_NULL;
+
+    defstream.next_in = const_cast<uint8_t *>(data);
+    defstream.avail_in = size;
+    defstream.next_out = compressed.data();
+    defstream.avail_out = compressed.size();
+
+    if (Z_OK != (ret = deflateInit2(&defstream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, GZIP_WINDOW_BITS | GZIP_ENCODING, 9, Z_DEFAULT_STRATEGY)))
     {
-        LOG(WARNING) << "fail to set curl error buffer, " << curl_easy_strerror(res);
+        LOG(WARNING) << "fail to initialize zlib stream, err=" << ret << ", msg=" << defstream.msg;
+    }
+    else if (Z_STREAM_END != (ret = deflate(&defstream, Z_FINISH)))
+    {
+        LOG(WARNING) << "fail to compress data, err=" << ret << ", msg=" << defstream.msg;
+    }
+    else if (Z_OK != (ret = deflateEnd(&defstream)))
+    {
+        LOG(WARNING) << "fail to flush compressed stream, err=" << ret << ", msg=" << defstream.msg;
+    }
+    else
+    {
+        VLOG(2) << size << " bytes " << conf()->message_codec->name()
+                << " message was compressed to " << defstream.total_out
+                << " bytes (%" << ((double)defstream.total_out * 100 / size) << ")";
+
+        compressed.resize(defstream.total_out);
+        headers = curl_slist_append(headers, "Content-Encoding: gzip");
+        data = compressed.data();
+        size = compressed.size();
     }
 
     const std::string mime_type = conf()->message_codec->mime_type();
@@ -108,7 +145,11 @@ CURLcode HttpCollector::upload_messages(const uint8_t *data, size_t size)
     headers = curl_slist_append(headers, content_type);
     headers = curl_slist_append(headers, "Expect:");
 
-    if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_URL, conf()->url.c_str())))
+    if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, err_msg)))
+    {
+        LOG(WARNING) << "fail to set curl error buffer, " << curl_easy_strerror(res);
+    }
+    else if (CURLE_OK != (res = curl_easy_setopt(curl, CURLOPT_URL, conf()->url.c_str())))
     {
         LOG(WARNING) << "fail to set url, " << (strlen(err_msg) ? err_msg : curl_easy_strerror(res));
     }

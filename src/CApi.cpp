@@ -10,7 +10,9 @@
 #include "Propagation.h"
 #include "Collector.h"
 #include "KafkaCollector.h"
+#ifdef WITH_CURL
 #include "HttpCollector.h"
+#endif
 #include "ScribeCollector.h"
 #include "XRayCollector.h"
 

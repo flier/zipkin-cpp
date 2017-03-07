@@ -8,7 +8,9 @@ using namespace testing;
 #include "Tracer.h"
 #include "Collector.h"
 #include "KafkaCollector.h"
+#ifdef WITH_CURL
 #include "HttpCollector.h"
+#endif
 
 class MockTracer : public zipkin::Tracer
 {

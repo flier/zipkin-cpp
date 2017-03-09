@@ -28,6 +28,14 @@ struct Tracer
     virtual void set_sample_rate(size_t sample_rate) = 0;
 
     /**
+     * \brief Associated user data
+     */
+    virtual userdata_t userdata(void) const = 0;
+
+    /** \sa Span#userdata */
+    virtual void set_userdata(userdata_t userdata) = 0;
+
+    /**
      * \brief Associated Collector
      */
     virtual Collector *collector(void) const = 0;
@@ -113,6 +121,8 @@ class CachedTracer : public Tracer
     size_t m_sample_rate = 1;
     std::atomic_size_t m_total_spans = ATOMIC_VAR_INIT(0);
 
+    userdata_t m_userdata = nullptr;
+
   private:
     SpanCache m_cache;
 
@@ -121,7 +131,8 @@ class CachedTracer : public Tracer
                  size_t sample_rate = 1,
                  size_t cache_message_size = DEFAULT_CACHE_MESSAGE_SIZE,
                  size_t cache_message_count = DEFAULT_CACHE_MESSAGE_COUNT)
-        : m_collector(collector), m_sample_rate(sample_rate), m_cache(cache_message_size, cache_message_count)
+        : m_collector(collector), m_sample_rate(sample_rate),
+          m_cache(cache_message_size, cache_message_count)
     {
     }
 
@@ -135,6 +146,9 @@ class CachedTracer : public Tracer
 
     virtual size_t sample_rate(void) const override { return m_sample_rate; }
     virtual void set_sample_rate(size_t sample_rate) override { m_sample_rate = sample_rate; }
+
+    virtual userdata_t userdata(void) const override { return m_userdata; }
+    virtual void set_userdata(userdata_t userdata) override { m_userdata = userdata; }
 
     virtual Collector *collector(void) const override { return m_collector; }
 

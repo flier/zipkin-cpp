@@ -27,8 +27,6 @@ void zipkin_set_logging_level(enum zipkin_logger_level_t level)
 
 zipkin_endpoint_t zipkin_endpoint_new(const char *service, struct sockaddr *addr)
 {
-    assert(addr);
-
     return new zipkin::Endpoint(service ? std::string(service) : std::string(), addr);
 }
 void zipkin_endpoint_free(zipkin_endpoint_t endpoint)
@@ -264,6 +262,12 @@ void zipkin_tracer_free(zipkin_tracer_t tracer)
 
     delete static_cast<zipkin::CachedTracer *>(tracer);
 }
+zipkin_collector_t zipkin_tracer_collector(zipkin_tracer_t tracer)
+{
+    assert(tracer);
+
+    return static_cast<zipkin::Tracer *>(tracer)->collector();
+}
 size_t zipkin_tracer_sample_rate(zipkin_tracer_t tracer)
 {
     assert(tracer);
@@ -276,11 +280,17 @@ void zipkin_tracer_set_sample_rate(zipkin_tracer_t tracer, size_t sample_rate)
 
     static_cast<zipkin::Tracer *>(tracer)->set_sample_rate(sample_rate);
 }
-zipkin_collector_t zipkin_tracer_collector(zipkin_tracer_t tracer)
+zipkin_userdata_t zipkin_tracer_userdata(zipkin_tracer_t tracer)
 {
     assert(tracer);
 
-    return static_cast<zipkin::Tracer *>(tracer)->collector();
+    return static_cast<zipkin::Tracer *>(tracer)->userdata();
+}
+void zipkin_tracer_set_userdata(zipkin_tracer_t tracer, zipkin_userdata_t userdata)
+{
+    assert(tracer);
+
+    static_cast<zipkin::Tracer *>(tracer)->set_userdata(userdata);
 }
 
 zipkin_kafka_conf_t zipkin_kafka_conf_new(const char *brokers, const char *topic)

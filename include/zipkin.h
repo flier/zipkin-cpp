@@ -232,9 +232,13 @@ void zipkin_span_submit(zipkin_span_t span);
 zipkin_tracer_t zipkin_tracer_new(zipkin_collector_t collector);
 void zipkin_tracer_free(zipkin_tracer_t tracer);
 
+zipkin_collector_t zipkin_tracer_collector(zipkin_tracer_t tracer);
+
 size_t zipkin_tracer_sample_rate(zipkin_tracer_t tracer);
 void zipkin_tracer_set_sample_rate(zipkin_tracer_t tracer, size_t sample_rate);
-zipkin_collector_t zipkin_tracer_collector(zipkin_tracer_t tracer);
+
+zipkin_userdata_t zipkin_tracer_userdata(zipkin_tracer_t tracer);
+void zipkin_tracer_set_userdata(zipkin_tracer_t tracer, zipkin_userdata_t userdata);
 
 zipkin_kafka_conf_t zipkin_kafka_conf_new(const char *brokers, const char *topic);
 void zipkin_kafka_conf_free(zipkin_kafka_conf_t conf);

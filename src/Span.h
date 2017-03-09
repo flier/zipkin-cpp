@@ -56,20 +56,24 @@ class Endpoint
     }
     Endpoint(const std::string &service, const sockaddr *addr)
     {
-        assert(addr);
-
         with_service_name(service);
-        with_addr(addr);
+
+        if (addr)
+            with_addr(addr);
     }
     Endpoint(const std::string &service, const sockaddr_in *addr)
     {
         with_service_name(service);
-        with_addr(addr);
+
+        if (addr)
+            with_addr(addr);
     }
     Endpoint(const std::string &service, const sockaddr_in6 *addr)
     {
         with_service_name(service);
-        with_addr(addr);
+
+        if (addr)
+            with_addr(addr);
     }
     Endpoint(const std::string &service, const std::string &addr, port_t port = 0)
     {

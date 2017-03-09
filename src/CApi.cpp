@@ -282,9 +282,7 @@ void zipkin_tracer_set_sample_rate(zipkin_tracer_t tracer, size_t sample_rate)
 }
 zipkin_userdata_t zipkin_tracer_userdata(zipkin_tracer_t tracer)
 {
-    assert(tracer);
-
-    return static_cast<zipkin::Tracer *>(tracer)->userdata();
+    return tracer ? static_cast<zipkin::Tracer *>(tracer)->userdata() : nullptr;
 }
 void zipkin_tracer_set_userdata(zipkin_tracer_t tracer, zipkin_userdata_t userdata)
 {

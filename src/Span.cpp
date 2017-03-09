@@ -281,10 +281,21 @@ void CachedSpan::operator delete(void *ptr, std::size_t sz) noexcept
 
 Span *CachedSpan::span(const std::string &name, userdata_t userdata) const
 {
-    if (m_tracer)
-        return m_tracer->span(m_span.name, m_span.id, userdata ? userdata : m_userdata);
+    std::unique_ptr<Span> span;
 
-    return new (nullptr) CachedSpan(nullptr, m_span.name, m_span.id, userdata ? userdata : m_userdata);
+    if (m_tracer)
+    {
+        span.reset(m_tracer->span(m_span.name, m_span.id, userdata));
+    }
+    else
+    {
+        span.reset(new (nullptr) CachedSpan(nullptr, m_span.name, m_span.id, userdata));
+    }
+
+    span->with_trace_id(trace_id());
+    span->with_trace_id_high(trace_id_high());
+
+    return span.release();
 }
 
 void CachedSpan::release(void)

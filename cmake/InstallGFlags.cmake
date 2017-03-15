@@ -1,9 +1,10 @@
 set (GFLAGS_VERSION     2.2.0)
+set (GFLAGS_URL_MD5     b99048d9ab82d8c56e876fb1456c285e)
 
 ExternalProject_Add(gflags
     DOWNLOAD_NAME       gflags-${GFLAGS_VERSION}.tar.gz
     URL                 https://github.com/gflags/gflags/archive/v${GFLAGS_VERSION}.tar.gz
-    URL_MD5             b99048d9ab82d8c56e876fb1456c285e
+    URL_MD5             ${GFLAGS_URL_MD5}
     CMAKE_ARGS          -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
 )
 

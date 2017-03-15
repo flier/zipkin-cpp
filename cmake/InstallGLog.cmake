@@ -1,9 +1,10 @@
 set (GLOG_VERSION       0.3.4)
+set (GLOG_URL_MD5       df92e05c9d02504fb96674bc776a41cb)
 
 ExternalProject_Add(glog
     DOWNLOAD_NAME       glog-${GLOG_VERSION}.tar.gz
     URL                 https://github.com/google/glog/archive/v${GLOG_VERSION}.tar.gz
-    URL_MD5             df92e05c9d02504fb96674bc776a41cb
+    URL_MD5             ${GLOG_URL_MD5}
     CONFIGURE_COMMAND   <SOURCE_DIR>/configure --prefix=<INSTALL_DIR>
     BUILD_COMMAND       make
     INSTALL_COMMAND     make install

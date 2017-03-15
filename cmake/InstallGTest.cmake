@@ -1,9 +1,10 @@
 set (GTEST_VERSION      1.8.0)
+set (GTEST_URL_MD5      16877098823401d1bf2ed7891d7dce36)
 
 ExternalProject_Add(google-test
     DOWNLOAD_NAME       google-test-${GTEST_VERSION}.tar.gz
     URL                 https://github.com/google/googletest/archive/release-${GTEST_VERSION}.tar.gz
-    URL_MD5             16877098823401d1bf2ed7891d7dce36
+    URL_MD5             ${GTEST_URL_MD5}
     CMAKE_ARGS          -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
 )
 

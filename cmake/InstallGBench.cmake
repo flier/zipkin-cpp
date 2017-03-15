@@ -1,9 +1,10 @@
 set (GBENCH_VERSION     1.1.0)
+set (GBENCH_URL_MD5     66b2a23076cf70739525be0092fc3ae3)
 
 ExternalProject_Add(google-benchmark
     DOWNLOAD_NAME       google-benchmark-${GBENCH_VERSION}.tar.gz
     URL                 https://github.com/google/benchmark/archive/v${GBENCH_VERSION}.tar.gz
-    URL_MD5             66b2a23076cf70739525be0092fc3ae3
+    URL_MD5             ${GBENCH_URL_MD5}
     CMAKE_ARGS          -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
 )
 

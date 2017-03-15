@@ -1,9 +1,5 @@
 #include "Mocks.hpp"
 
-RdKafka::Producer::~Producer()
-{
-}
-
 TEST(collector, submit)
 {
     std::unique_ptr<RdKafka::Producer> producer(new MockProducer());

@@ -4,7 +4,7 @@ find_path(GBENCH_INCLUDE_PATH NAMES benchmark/benchmark.h)
 find_library(GBENCH_LIBRARY NAMES benchmark)
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(GBENCH
+find_package_handle_standard_args(google-benchmark
     REQUIRED_VARS   GBENCH_INCLUDE_PATH GBENCH_LIBRARY
 )
 mark_as_advanced(GBENCH_INCLUDE_PATH GBENCH_LIBRARY)

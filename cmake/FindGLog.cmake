@@ -4,7 +4,7 @@ find_path(GLOG_INCLUDE_PATH NAMES glog/logging.h)
 find_library(GLOG_LIBRARY NAMES glog)
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(GLOG
+find_package_handle_standard_args(glog
     REQUIRED_VARS   GLOG_INCLUDE_PATH GLOG_LIBRARY
 )
 mark_as_advanced(GLOG_INCLUDE_PATH GLOG_LIBRARY)

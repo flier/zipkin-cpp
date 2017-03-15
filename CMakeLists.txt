@@ -4,6 +4,9 @@ project(zipkin-cpp
     VERSION 0.2.0
     LANGUAGES C CXX)
 
+include(CTest)
+enable_testing()
+
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -33,21 +36,22 @@ if(Boost_FOUND)
   include_directories(${Boost_INCLUDE_DIRS})
 endif()
 
-find_package(ZLIB)
+find_package(ZLIB REQUIRED)
 find_package(Thrift REQUIRED)
 find_package(LibRDKafka REQUIRED)
+find_package(OpenSSL REQUIRED)
 find_package(Folly REQUIRED)
-find_package(RapidJSON)
-find_package(DoubleConversion)
-find_package(GFlags)
-find_package(GLog)
+find_package(RapidJSON REQUIRED)
+find_package(DoubleConversion REQUIRED)
+find_package(GFlags REQUIRED)
+find_package(GLog REQUIRED)
 find_package(GTest)
 find_package(GBench)
 find_package(CURL)
 find_package(Protobuf)
 find_package(GRPC)
 find_package(Gperftools)
-find_package(Doxygen QUIET)
+find_package(Doxygen)
 
 include(InstallExternalProjects)
 

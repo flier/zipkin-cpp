@@ -5,11 +5,6 @@ build
 dist
 gen-cpp
 
-.sconsign.dblite
-.conan*
-SConscript_conan
-conan*info.*
-config.log
 tags
 
 *.o

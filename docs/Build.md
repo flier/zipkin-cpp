@@ -7,7 +7,7 @@
 You could install dependencies with [Homebrew](https://brew.sh/).
 
 ```sh
-$ brew install boost curl double-conversion folly thrift librdkafka conan
+$ brew install boost curl double-conversion folly thrift librdkafka
 ```
 
 ### Linux
@@ -42,10 +42,6 @@ Follow the [instructions](https://github.com/edenhill/librdkafka/#instructions) 
 
 Follow the [build guide](https://thrift.apache.org/docs/BuildingFromSource) to install the [thrift](https://thrift.apache.org/).
 
-#### conan
-
-Follow the [installation guide](http://docs.conan.io/en/latest/installation.html#) to install `conan` with [PIP](http://docs.conan.io/en/latest/installation.html#install-with-pip).
-
 ## Get source files
 
 Download the latest release from the [releases page](https://github.com/flier/zipkin-cpp/releases) or clone from the [git repo](https://github.com/flier/zipkin-cpp.git).
@@ -59,7 +55,6 @@ Build `zipkin-cpp` with CMake
 ```sh
 $ mkdir build
 $ cd build
-$ conan install .. --build=missing
 $ cmake ..
 ```
 

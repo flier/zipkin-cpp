@@ -8,9 +8,6 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-include(${PROJECT_SOURCE_DIR}/conanbuildinfo.cmake)
-conan_basic_setup()
-
 if (NOT CMAKE_BUILD_TYPE)
     message(STATUS "Default build type 'Release with debug info'")
     set(CMAKE_BUILD_TYPE RELWITHDEBINFO CACHE STRING "" FORCE )
@@ -36,16 +33,23 @@ if(Boost_FOUND)
   include_directories(${Boost_INCLUDE_DIRS})
 endif()
 
+find_package(ZLIB)
 find_package(Thrift REQUIRED)
 find_package(LibRDKafka REQUIRED)
 find_package(Folly REQUIRED)
-find_package(DoubleConversion REQUIRED)
+find_package(RapidJSON)
+find_package(DoubleConversion)
+find_package(GFlags)
+find_package(GLog)
+find_package(GTest)
+find_package(GBench)
 find_package(CURL)
-find_package(ZLIB)
 find_package(Protobuf)
 find_package(GRPC)
 find_package(Gperftools)
 find_package(Doxygen QUIET)
+
+include(InstallExternalProjects)
 
 if (CURL_FOUND AND ZLIB_FOUND)
     set (WITH_CURL ON)
@@ -119,8 +123,8 @@ include_directories(${PROJECT_BINARY_DIR}/src)
 include_directories(SYSTEM include)
 
 set (zipkin_DEPENDENCIES
-    ${CONAN_LIBS_GLOG}
-    ${CONAN_LIBS_GFLAGS}
+    ${GLOG_LIBRARY}
+    ${GFLAGS_LIBRARIES}
     ${THRIFT_LIBRARIES}
     ${LibRDKafka_LIBRARIES}
     ${FOLLY_STATIC_LIBRARY}

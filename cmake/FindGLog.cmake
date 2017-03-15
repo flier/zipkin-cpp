@@ -3,9 +3,11 @@
 find_path(GLOG_INCLUDE_PATH NAMES glog/logging.h)
 find_library(GLOG_LIBRARY NAMES glog)
 
-if(GLOG_INCLUDE_PATH AND GLOG_LIBRARY)
-    set(GLOG_FOUND TRUE)
-endif(GLOG_INCLUDE_PATH AND GLOG_LIBRARY)
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(GLOG
+    REQUIRED_VARS   GLOG_INCLUDE_PATH GLOG_LIBRARY
+)
+mark_as_advanced(GLOG_INCLUDE_PATH GLOG_LIBRARY)
 
 if(GLOG_FOUND)
     if(NOT GLOG_FIND_QUIETLY)

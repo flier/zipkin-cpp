@@ -13,7 +13,8 @@ add_executable(unittest ${zipkin_test_SRCS})
 target_link_libraries(unittest
                       zipkin
                       ${zipkin_DEPENDENCIES}
-                      ${CONAN_LIBS_GTEST}
+                      ${GTEST_LIBRARIES}
+                      ${GMOCK_LIBRARIES}
                       )
 
 add_test(

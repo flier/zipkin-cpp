@@ -19,6 +19,12 @@ if (NOT ZLIB_FOUND OR USE_BUNDLED_ZLIB)
     message(STATUS "Use bundled zlib v${ZLIB_VERSION_STRING}")
 endif ()
 
+if (NOT CURL_FOUND OR USE_BUNDLED_CURL)
+    install_external_project(CURL)
+
+    message(STATUS "Use bundled curl v${CURL_VERSION_STRING}")
+endif ()
+
 if (NOT RAPIDJSON_FOUND OR USE_BUNDLED_RAPIDJSON)
     install_external_project(RapidJSON)
 

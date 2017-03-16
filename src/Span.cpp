@@ -9,6 +9,7 @@
 #include <glog/logging.h>
 
 #include <boost/algorithm/string.hpp>
+#include <boost/thread/tss.hpp>
 
 #include "Span.h"
 #include "Tracer.h"
@@ -164,9 +165,16 @@ void Span::submit(void)
         m_tracer->submit(this);
 }
 
+static boost::thread_specific_ptr<std::mt19937_64> g_rand_gen;
+
 span_id_t Span::next_id()
 {
-    thread_local std::mt19937_64 rand_gen((std::chrono::system_clock::now().time_since_epoch().count() << 32) + std::random_device()());
+    if (!g_rand_gen.get())
+    {
+        g_rand_gen.reset(new std::mt19937_64((std::chrono::system_clock::now().time_since_epoch().count() << 32) + std::random_device()()));
+    }
+
+    std::mt19937_64 &rand_gen = *g_rand_gen.get();
 
     return rand_gen();
 }

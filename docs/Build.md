@@ -17,13 +17,13 @@ $ brew install boost curl double-conversion folly thrift librdkafka
 #### Ubuntu
 
 ```sh
-$ sudo apt-get install libboost-dev libcurl4-openssl-dev thrift-compiler librdkafka-dev libgflags-dev libgoogle-glog-dev libdouble-conversion-dev
+$ sudo apt-get install autoconf libevent-dev libboost-all-dev libcurl4-openssl-dev libdouble-conversion-dev thrift-compiler libgflags-dev libgoogle-glog-dev thrift-compiler
 ```
 
 #### CentOS
 
 ```sh
-$ sudo yum install boost-devel libcurl-devel double-conversion-devel thrift-devel
+$ sudo yum install autoconf libtool libevent-devel boost-devel libcurl-devel double-conversion-devel thrift-devel gflags-devel glog-devel
 ```
 
 ### Install from Source

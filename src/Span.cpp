@@ -231,12 +231,10 @@ BinaryAnnotation Span::annotate(const std::string &key, const std::string &value
 
 BinaryAnnotation Span::annotate(const std::string &key, const std::wstring &value, const Endpoint *endpoint)
 {
-    std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-    const std::string utf8 = converter.to_bytes(value);
     ::BinaryAnnotation annotation;
 
     annotation.__set_key(key);
-    annotation.__set_value(utf8);
+    annotation.__set_value(boost::locale::conv::utf_to_utf<char>(value));
     annotation.__set_annotation_type(AnnotationType::STRING);
 
     if (endpoint)

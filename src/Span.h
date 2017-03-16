@@ -4,11 +4,11 @@
 
 #include <cstdint>
 #include <locale>
-#include <codecvt>
 #include <memory>
 #include <chrono>
 
 #include <boost/endian/conversion.hpp>
+#include <boost/locale/encoding_utf.hpp>
 #include <boost/asio.hpp>
 using namespace ::boost::asio;
 
@@ -492,9 +492,7 @@ class BinaryAnnotation
     */
     inline BinaryAnnotation &with_value(const std::wstring &value)
     {
-        std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-
-        return with_value(converter.to_bytes(value));
+        return with_value(boost::locale::conv::utf_to_utf<char>(value));
     }
     /**
     * \brief Annotate with AnnotationType#STRING

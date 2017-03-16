@@ -23,6 +23,7 @@ addons:
             - libboost-filesystem-dev
             - libboost-program-options-dev
             - libboost-system-dev
+            - libboost-regex-dev
             - libboost-test-dev
             - libevent-dev
             - libssl-dev

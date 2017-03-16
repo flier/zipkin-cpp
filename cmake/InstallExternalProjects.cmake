@@ -45,17 +45,6 @@ if (NOT RAPIDJSON_FOUND OR USE_BUNDLED_RAPIDJSON)
     message(STATUS "Use bundled RapidJSON v${RAPIDJSON_VERSION}")
 endif ()
 
-if (NOT FOLLY_FOUND OR USE_BUNDLED_FOLLY)
-    if (NOT FOLLY_VERSION OR USE_BUNDLED_FOLLY)
-        set (FOLLY_VERSION              2017.03.13.00)
-        set (FOLLY_URL_MD5              3ba9d455edcf6e930b6f43e93e9f99f7)
-    endif()
-
-    install_external_project(Folly)
-
-    message(STATUS "Use bundled folly v${FOLLY_VERSION}")
-endif ()
-
 if (NOT LIBRDKAFKA_FOUND OR USE_BUNDLED_LIBRDKAFKA)
     if (NOT LibRDKafka_VERSION OR USE_BUNDLED_LIBRDKAFKA)
         set (LibRDKafka_VERSION         0.9.4)
@@ -76,17 +65,6 @@ if (NOT DOUBLE_CONVERSION_FOUND OR USE_BUNDLED_DOUBLE_CONVERSION)
     install_external_project(DoubleConversion)
 
     message(STATUS "Use bundled double_conversion v${DOUBLE_CONVERSION_VERSION}")
-endif ()
-
-if (NOT THRIFT_FOUND OR USE_BUNDLED_THRIFT)
-    if (NOT THRIFT_VERSION_STRING OR USE_BUNDLED_THRIFT)
-        set (THRIFT_VERSION_STRING        0.10.0)
-        set (THRIFT_URL_MD5               795c5dd192e310ffff38cfd9430d6b29)
-    endif ()
-
-    install_external_project(Thrift)
-
-    message(STATUS "Use bundled thrift v${THRIFT_VERSION_STRING}")
 endif ()
 
 if (NOT GFLAGS_FOUND OR USE_BUNDLED_GFLAGS)
@@ -131,4 +109,26 @@ if (NOT GBENCH_FOUND OR USE_BUNDLED_GBENCH)
     install_external_project(GBench)
 
     message(STATUS "Use bundled google-benchmark v${GBENCH_VERSION}")
+endif ()
+
+if (NOT THRIFT_FOUND OR USE_BUNDLED_THRIFT)
+    if (NOT THRIFT_VERSION_STRING OR USE_BUNDLED_THRIFT)
+        set (THRIFT_VERSION_STRING        0.10.0)
+        set (THRIFT_URL_MD5               795c5dd192e310ffff38cfd9430d6b29)
+    endif ()
+
+    install_external_project(Thrift)
+
+    message(STATUS "Use bundled thrift v${THRIFT_VERSION_STRING}")
+endif ()
+
+if (NOT FOLLY_FOUND OR USE_BUNDLED_FOLLY)
+    if (NOT FOLLY_VERSION OR USE_BUNDLED_FOLLY)
+        set (FOLLY_VERSION              2017.03.13.00)
+        set (FOLLY_URL_MD5              3ba9d455edcf6e930b6f43e93e9f99f7)
+    endif()
+
+    install_external_project(Folly)
+
+    message(STATUS "Use bundled folly v${FOLLY_VERSION}")
 endif ()

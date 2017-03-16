@@ -226,7 +226,7 @@ const char *to_string(AnnotationType type);
 * The only type zipkin v1 supports search against.
 */
 
-#define DEF_TRACE_KEY(name) static constexpr const std::string &name = g_zipkinCore_constants.name;
+#define DECLARE_TRACE_KEY(name) static const std::string &name;
 
 /**
 * \brief Span tracing key
@@ -239,28 +239,28 @@ struct TraceKeys
     * There is only one send per span. For example, if there's a transport error,
     * each attempt can be logged as a #WIRE_SEND annotation.
     */
-    DEF_TRACE_KEY(CLIENT_SEND)
+    DECLARE_TRACE_KEY(CLIENT_SEND)
     /**
     * \brief The client received ("cr") a response from a server.
     *
     * There is only one receive per span. For example, if duplicate responses were received,
     * each can be logged as a #WIRE_RECV annotation.
     */
-    DEF_TRACE_KEY(CLIENT_RECV)
+    DECLARE_TRACE_KEY(CLIENT_RECV)
     /**
     * \brief The server sent ("ss") a response to a client.
     *
     * There is only one response per span. If there's a transport error,
     * each attempt can be logged as a #WIRE_SEND annotation.
     */
-    DEF_TRACE_KEY(SERVER_SEND)
+    DECLARE_TRACE_KEY(SERVER_SEND)
     /**
     * \brief The server received ("sr") a request from a client.
     *
     * There is only one request per span.  For example, if duplicate responses were received,
     * each can be logged as a #WIRE_RECV annotation.
     */
-    DEF_TRACE_KEY(SERVER_RECV)
+    DECLARE_TRACE_KEY(SERVER_RECV)
     /**
     * \brief Optionally logs an attempt to send a message on the wire.
     *
@@ -268,7 +268,7 @@ struct TraceKeys
     * A lag between client or server send and wire send might indicate
     * queuing or processing delay.
     */
-    DEF_TRACE_KEY(WIRE_SEND)
+    DECLARE_TRACE_KEY(WIRE_SEND)
     /**
     * \brief Optionally logs an attempt to receive a message from the wire.
     *
@@ -276,31 +276,31 @@ struct TraceKeys
     * A lag between wire receive and client or server receive might
     * indicate queuing or processing delay.
     */
-    DEF_TRACE_KEY(WIRE_RECV)
+    DECLARE_TRACE_KEY(WIRE_RECV)
     /**
     * \brief Optionally logs progress of a (#CLIENT_SEND, #WIRE_SEND).
     *
     * For example, this could be one chunk in a chunked request.
     */
-    DEF_TRACE_KEY(CLIENT_SEND_FRAGMENT)
+    DECLARE_TRACE_KEY(CLIENT_SEND_FRAGMENT)
     /**
     * \brief Optionally logs progress of a (#CLIENT_RECV, #WIRE_RECV).
     *
     * For example, this could be one chunk in a chunked response.
     */
-    DEF_TRACE_KEY(CLIENT_RECV_FRAGMENT)
+    DECLARE_TRACE_KEY(CLIENT_RECV_FRAGMENT)
     /**
     * \brief Optionally logs progress of a (#SERVER_SEND, #WIRE_SEND).
     *
     * For example, this could be one chunk in a chunked response.
     */
-    DEF_TRACE_KEY(SERVER_SEND_FRAGMENT)
+    DECLARE_TRACE_KEY(SERVER_SEND_FRAGMENT)
     /**
     * \brief Optionally logs progress of a (#SERVER_RECV, #WIRE_RECV).
     *
     * For example, this could be one chunk in a chunked request.
     */
-    DEF_TRACE_KEY(SERVER_RECV_FRAGMENT)
+    DECLARE_TRACE_KEY(SERVER_RECV_FRAGMENT)
     /**
     * \brief The {@link BinaryAnnotation#value value} of "lc" is the component or namespace of a local
     * span.
@@ -324,19 +324,19 @@ struct TraceKeys
     * Span.name, for example "finatra/bootstrap" vs "finch/bootstrap". Using local component, you'd
     * search for spans named "bootstrap" where "lc=finch"
     */
-    DEF_TRACE_KEY(LOCAL_COMPONENT)
+    DECLARE_TRACE_KEY(LOCAL_COMPONENT)
     /**
     * \brief When present, {@link BinaryAnnotation#endpoint} indicates a client address ("ca") in a span.
     * Most likely, there's only one. Multiple addresses are possible when a client changes its ip or
     * port within a span.
     */
-    DEF_TRACE_KEY(CLIENT_ADDR)
+    DECLARE_TRACE_KEY(CLIENT_ADDR)
     /**
     * \brief When present, {@link BinaryAnnotation#endpoint} indicates a server address ("sa") in a span.
     * Most likely, there's only one. Multiple addresses are possible when a client is redirected, or
     * fails to a different server ip or port.
     */
-    DEF_TRACE_KEY(SERVER_ADDR)
+    DECLARE_TRACE_KEY(SERVER_ADDR)
     /**
     * \brief When an {@link Annotation#value}, this indicates when an error occurred. When a {@link
     * BinaryAnnotation#key}, the value is a human readable message associated with an error.
@@ -352,36 +352,36 @@ struct TraceKeys
     * <p>Note that RPC spans often include both client and server hosts: It is possible that only one
     * side perceived the error.
     */
-    DEF_TRACE_KEY(ERROR)
+    DECLARE_TRACE_KEY(ERROR)
 
     /**
     * \brief HTTP \p Host header
     */
-    DEF_TRACE_KEY(HTTP_HOST)
+    DECLARE_TRACE_KEY(HTTP_HOST)
     /**
     * \brief HTTP request method
     */
-    DEF_TRACE_KEY(HTTP_METHOD)
+    DECLARE_TRACE_KEY(HTTP_METHOD)
     /**
     * \brief HTTP request path
     */
-    DEF_TRACE_KEY(HTTP_PATH)
+    DECLARE_TRACE_KEY(HTTP_PATH)
     /**
     * \brief HTTP request URL
     */
-    DEF_TRACE_KEY(HTTP_URL)
+    DECLARE_TRACE_KEY(HTTP_URL)
     /**
     * \brief HTTP status code
     */
-    DEF_TRACE_KEY(HTTP_STATUS_CODE)
+    DECLARE_TRACE_KEY(HTTP_STATUS_CODE)
     /**
     * \brief HTTP request size
     */
-    DEF_TRACE_KEY(HTTP_REQUEST_SIZE)
+    DECLARE_TRACE_KEY(HTTP_REQUEST_SIZE)
     /**
     * \brief HTTP response size
     */
-    DEF_TRACE_KEY(HTTP_RESPONSE_SIZE)
+    DECLARE_TRACE_KEY(HTTP_RESPONSE_SIZE)
 };
 
 /**

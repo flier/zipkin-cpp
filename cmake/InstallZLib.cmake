@@ -16,9 +16,6 @@ set (ZLIB_ROOT_DIR          ${INSTALL_DIR})
 set (ZLIB_INCLUDE_DIRS      ${ZLIB_ROOT_DIR}/include)
 set (ZLIB_LIBRARY_DIRS      ${ZLIB_ROOT_DIR}/lib)
 set (ZLIB_LIBRARIES         ${ZLIB_LIBRARY_DIRS}/libz.a)
-
-find_package_handle_standard_args(zlib
-    REQUIRED_ARGS ZLIB_LIBRARIES ZLIB_INCLUDE_DIRS
-)
+set (ZLIB_FOUND             YES)
 
 mark_as_advanced(ZLIB_LIBRARIES ZLIB_INCLUDE_DIRS)

@@ -12,9 +12,6 @@ ExternalProject_Get_Property(RapidJSON INSTALL_DIR)
 
 set (RAPIDJSON_ROOT_DIR     ${INSTALL_DIR})
 set (RAPIDJSON_INCLUDES     ${RAPIDJSON_ROOT_DIR}/include)
-
-find_package_handle_standard_args(RapidJSON
-    REQUIRED_ARGS RAPIDJSON_INCLUDES
-)
+set (RAPIDJSON_FOUND        YES)
 
 mark_as_advanced(RAPIDJSON_INCLUDES)

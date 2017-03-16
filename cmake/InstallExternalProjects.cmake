@@ -1,5 +1,4 @@
 include(ExternalProject)
-include(FindPackageHandleStandardArgs)
 
 set (EXTERNAL_PROJECT_DIR ${CMAKE_BINARY_DIR}/externals)
 set_directory_properties(PROPERTIES EP_PREFIX ${EXTERNAL_PROJECT_DIR})

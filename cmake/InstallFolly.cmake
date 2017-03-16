@@ -15,13 +15,10 @@ ExternalProject_Get_Property(folly INSTALL_DIR)
 set (FOLLY_ROOT_DIR         ${INSTALL_DIR})
 set (FOLLY_STATIC_LIBRARY   "${FOLLY_ROOT_DIR}/lib/libfolly.a")
 set (FOLLY_LIBRARIES        ${FOLLY_STATIC_LIBRARY})
+set (FOLLY_FOUND            YES)
 
 find_path(FOLLY_INCLUDE_DIR "folly/String.h"
     PATHS       ${FOLLY_ROOT_DIR}/include)
-
-find_package_handle_standard_args(folly
-    REQUIRED_ARGS FOLLY_LIBRARIES FOLLY_INCLUDE_DIR
-)
 
 add_library(FOLLY_STATIC_LIBRARY STATIC IMPORTED)
 add_dependencies(FOLLY_STATIC_LIBRARY folly)

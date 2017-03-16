@@ -15,9 +15,6 @@ set (CURL_ROOT_DIR          ${INSTALL_DIR})
 set (CURL_INCLUDE_DIRS      ${CURL_ROOT_DIR}/include)
 set (CURL_LIBRARY_DIRS      ${CURL_ROOT_DIR}/lib)
 set (CURL_LIBRARIES         ${CURL_LIBRARY_DIRS}/libcurl.a)
-
-find_package_handle_standard_args(curl
-    REQUIRED_ARGS CURL_LIBRARIES CURL_INCLUDE_DIRS
-)
+set (CURL_FOUND             YES)
 
 mark_as_advanced(CURL_LIBRARIES CURL_INCLUDE_DIRS)

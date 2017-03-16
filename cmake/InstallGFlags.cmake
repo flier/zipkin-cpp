@@ -14,10 +14,7 @@ set (GFLAGS_ROOT_DIR        ${INSTALL_DIR})
 set (GFLAGS_INCLUDE_DIRS    ${GFLAGS_ROOT_DIR}/include)
 set (GFLAGS_LIBRARIES_DIR   ${GFLAGS_ROOT_DIR}/lib)
 set (GFLAGS_LIBRARIES       ${GFLAGS_LIBRARIES_DIR}/libgflags.a)
-
-find_package_handle_standard_args(gflags
-    REQUIRED_ARGS GFLAGS_LIBRARIES GFLAGS_LIBRARIES_DIR GFLAGS_INCLUDE_DIRS
-)
+set (GFLAGS_FOUND           YES)
 
 add_library(GFLAGS_LIBRARIES STATIC IMPORTED)
 add_dependencies(GFLAGS_LIBRARIES gflags)

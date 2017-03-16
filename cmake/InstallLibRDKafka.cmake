@@ -30,12 +30,7 @@ find_library(LibRDKafka_C_LIBRARY
 set (LibRDKafka_LIBRARIES       ${LibRDKafka_LIBRARY_PATH} ${LibRDKafka_C_LIBRARY_PATH})
 set (LibRDKafka_C_LIBRARIES     ${LibRDKafka_C_LIBRARY_PATH})
 
-find_package_handle_standard_args(LibRDKafka
-    REQUIRED_ARGS
-        LibRDKafka_LIBRARIES LibRDKafka_C_LIBRARIES
-        LibRDKafka_LIBRARY_PATH LibRDKafka_C_LIBRARY_PATH
-        LibRDKafka_INCLUDE_DIR
-)
+set (LibRDKafka_FOUND           YES)
 
 add_library(LibRDKafka_LIBRARY_PATH STATIC IMPORTED)
 add_library(LibRDKafka_C_LIBRARY_PATH STATIC IMPORTED)

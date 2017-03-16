@@ -15,10 +15,7 @@ ExternalProject_Get_Property(glog INSTALL_DIR)
 set (GLOG_ROOT_DIR          ${INSTALL_DIR})
 set (GLOG_INCLUDE_PATH      ${GLOG_ROOT_DIR}/include)
 set (GLOG_LIBRARY           ${GLOG_ROOT_DIR}/lib/libglog.a)
-
-find_package_handle_standard_args(glog
-    REQUIRED_ARGS GLOG_LIBRARY GLOG_INCLUDE_PATH
-)
+set (GLOG_FOUND             YES)
 
 add_library(GLOG_LIBRARY STATIC IMPORTED)
 add_dependencies(GLOG_LIBRARY glog)

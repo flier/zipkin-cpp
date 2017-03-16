@@ -5,6 +5,7 @@ ExternalProject_Add(RapidJSON
     DOWNLOAD_NAME   RapidJSON-${RAPIDJSON_VERSION}.tar.gz
     URL             https://github.com/miloyip/rapidjson/archive/v${RAPIDJSON_VERSION}.tar.gz
     URL_MD5         ${RAPIDJSON_URL_MD5}
+    CMAKE_ARGS      -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
 )
 
 ExternalProject_Get_Property(RapidJSON INSTALL_DIR)

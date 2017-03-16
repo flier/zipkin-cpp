@@ -170,7 +170,7 @@ endif()
 
 if (WITH_GRPC)
     if (NOT GRPC_FOUND)
-        message(SEND_ERROR "zlib not found")
+        message(SEND_ERROR "gRPC not found")
     endif()
 
     message(STATUS "Build with gRPC propagation")

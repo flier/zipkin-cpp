@@ -2,7 +2,7 @@ ExternalProject_Add(double_conversion
     DOWNLOAD_NAME   double_conversion-${DOUBLE_CONVERSION_VERSION}.tar.gz
     URL             https://github.com/google/double-conversion/archive/v${DOUBLE_CONVERSION_VERSION}.tar.gz
     URL_MD5         ${DOUBLE_CONVERSION_URL_MD5}
-    CMAKE_ARGS      -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+    CMAKE_ARGS      -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DCMAKE_POSITION_INDEPENDENT_CODE=ON
 )
 
 ExternalProject_Get_Property(double_conversion INSTALL_DIR)

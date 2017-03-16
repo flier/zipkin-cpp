@@ -12,6 +12,10 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+if (APPLE)
+    set (CMAKE_MACOSX_RPATH ON)
+endif ()
+
 if (NOT CMAKE_BUILD_TYPE)
     message(STATUS "Default build type 'Release with debug info'")
     set(CMAKE_BUILD_TYPE RELWITHDEBINFO CACHE STRING "" FORCE )
@@ -105,10 +109,6 @@ option (WITH_TCMALLOC "Build with tcmalloc library" WITH_TCMALLOC)
 option (WITH_PROFILER "Build with CPU profiler" WITH_PROFILER)
 option (SHARED_LIB "Build shared library" OFF)
 option (BUILD_DOCS "Build API documentation (requires Doxygen)" BUILD_DOCS)
-
-if (APPLE)
-    set (CMAKE_MACOSX_RPATH ON)
-endif ()
 
 if (RELEASE_BUILD)
     add_compile_options(-O2)

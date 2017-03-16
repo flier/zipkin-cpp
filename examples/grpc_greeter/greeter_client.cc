@@ -82,7 +82,7 @@ class GreeterClient
 
         zipkin::Propagation::inject(context, span);
 
-        zipkin::Endpoint endpoint("greeter");
+        zipkin::Endpoint endpoint("greeter_client");
 
         span << std::make_pair("name", user) << endpoint
              << zipkin::TraceKeys::CLIENT_SEND << endpoint;

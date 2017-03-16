@@ -35,7 +35,11 @@
 #include <memory>
 #include <string>
 
+#include <gflags/gflags.h>
+#include <glog/logging.h>
 #include <grpc++/grpc++.h>
+
+#include "zipkin.hpp"
 
 #include "helloworld.grpc.pb.h"
 
@@ -48,21 +52,42 @@ using helloworld::HelloReply;
 using helloworld::Greeter;
 
 // Logic and data behind the server's behavior.
-class GreeterServiceImpl final : public Greeter::Service
+struct GreeterServiceImpl final : public Greeter::Service
 {
+    std::unique_ptr<zipkin::Tracer> tracer_;
+
     Status SayHello(ServerContext *context, const HelloRequest *request,
                     HelloReply *reply) override
     {
+        zipkin::Span &span = *tracer_->span("SayHello");
+        zipkin::Span::Scope scope(span);
+        zipkin::Propagation::extract(*context, span);
+        zipkin::Endpoint endpoint("greeter_server");
+
+        span << std::make_pair("name", request->name()) << endpoint
+             << zipkin::TraceKeys::SERVER_RECV << endpoint;
+
         std::string prefix("Hello ");
         reply->set_message(prefix + request->name());
+
+        span << zipkin::TraceKeys::SERVER_SEND << endpoint;
+
         return Status::OK;
     }
 };
 
-void RunServer()
+DEFINE_string(grpc_addr, "localhost:50051", "GRPC server address");
+DEFINE_string(collector_uri, "", "Collector URI for tracing");
+
+void RunServer(std::shared_ptr<zipkin::Collector> collector)
 {
-    std::string server_address("0.0.0.0:50051");
+    std::string server_address(FLAGS_grpc_addr);
     GreeterServiceImpl service;
+
+    if (collector.get())
+    {
+        service.tracer_.reset(zipkin::Tracer::create(collector.get()));
+    }
 
     ServerBuilder builder;
     // Listen on the given address without any authentication mechanism.
@@ -81,7 +106,22 @@ void RunServer()
 
 int main(int argc, char **argv)
 {
-    RunServer();
+    google::InitGoogleLogging(argv[0]);
+    int arg = gflags::ParseCommandLineFlags(&argc, &argv, true);
+
+    std::shared_ptr<zipkin::Collector> collector;
+
+    if (!FLAGS_collector_uri.empty())
+    {
+        collector.reset(zipkin::Collector::create(FLAGS_collector_uri));
+    }
+
+    RunServer(collector);
+
+    if (collector.get())
+        collector->shutdown(std::chrono::seconds(5));
+
+    google::ShutdownGoogleLogging();
 
     return 0;
 }

@@ -49,6 +49,12 @@ if (NOT DOUBLE_CONVERSION_FOUND OR USE_BUNDLED_DOUBLE_CONVERSION)
     message(STATUS "Use bundled double_conversion v${DOUBLE_CONVERSION_VERSION}")
 endif ()
 
+if (NOT THRIFT_FOUND OR USE_BUNDLED_THRIFT)
+    install_external_project(Thrift)
+
+    message(STATUS "Use bundled thrift v${THRIFT_VERSION_STRING}")
+endif ()
+
 if (NOT GFLAGS_FOUND OR USE_BUNDLED_GFLAGS)
     install_external_project(GFlags)
 

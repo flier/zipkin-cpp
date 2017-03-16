@@ -7,6 +7,8 @@ ExternalProject_Add(folly
                         CXXFLAGS=-I<INSTALL_DIR>/include
                         LDFLAGS=-L<INSTALL_DIR>/lib
                         PKG_CONFIG_PATH=<INSTALL_DIR>/lib/pkgconfig
+                        GFLAGS_CFLAGS=-I<INSTALL_DIR>/include
+                        GFLAGS_LIBS=<INSTALL_DIR>/lib/libgflags.a
                         <SOURCE_DIR>/folly/configure
                         --prefix=<INSTALL_DIR> ${WITH_OPENSSL}
                         --with-boost=${BOOST_ROOT}

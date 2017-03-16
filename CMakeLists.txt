@@ -38,6 +38,7 @@ if(Boost_FOUND)
 endif()
 
 find_package(Threads REQUIRED)
+find_package(OpenSSL REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(Thrift REQUIRED)
 find_package(LibRDKafka REQUIRED)
@@ -132,6 +133,7 @@ set (zipkin_DEPENDENCIES
     ${GFLAGS_LIBRARIES}
     ${THRIFT_LIBRARIES}
     ${LibRDKafka_LIBRARIES}
+    ${ZLIB_LIBRARIES}
     ${FOLLY_STATIC_LIBRARY}
     ${DOUBLE_CONVERSION_LIBRARY}
     ${Boost_LIBRARIES}
@@ -149,7 +151,7 @@ if (WITH_CURL)
 
     message(STATUS "Build with cURL propagation")
 
-    list (APPEND zipkin_DEPENDENCIES ${CURL_LIBRARIES} ${ZLIB_LIBRARIES})
+    list (APPEND zipkin_DEPENDENCIES ${CURL_LIBRARIES})
 
     set (CURL_ENABLED 1)
 else()

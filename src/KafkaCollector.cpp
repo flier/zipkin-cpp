@@ -144,7 +144,6 @@ void KafkaCollector::submit(Span *span)
     uint32_t wrote = m_message_codec->encode(buf, spans);
 
     VLOG(2) << "Span @ " << span << " wrote " << wrote << " bytes to message, id=" << std::hex << span->id();
-    VLOG(3) << span->message();
 
     uint8_t *ptr = nullptr;
     uint32_t len = 0;

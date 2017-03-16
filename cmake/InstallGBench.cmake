@@ -9,8 +9,7 @@ ExternalProject_Get_Property(google-benchmark INSTALL_DIR)
 
 set (GBENCH_ROOT_DIR        ${INSTALL_DIR})
 set (GBENCH_INCLUDE_PATH    ${GBENCH_ROOT_DIR}/include)
-set (GBENCH_LIBRARY_PATH    ${GBENCH_ROOT_DIR}/lib)
-set (GBENCH_LIBRARY         ${GBENCH_LIBRARY_PATH}/libbenchmark.a)
+set (GBENCH_LIBRARY         ${GBENCH_ROOT_DIR}/lib/libbenchmark.a)
 set (GBENCH_FOUND           YES)
 
 add_library(GBENCH_LIBRARY STATIC IMPORTED)

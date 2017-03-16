@@ -55,6 +55,10 @@ find_package(GRPC)
 find_package(Gperftools)
 find_package(Doxygen)
 
+if (OPENSSL_FOUND)
+    message(STATUS "Found system OpenSSL ${OPENSSL_VERSION} @ ${OPENSSL_ROOT_DIR}")
+endif ()
+
 include(InstallExternalProjects)
 
 if (CURL_FOUND AND ZLIB_FOUND)

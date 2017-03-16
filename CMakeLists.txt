@@ -37,6 +37,7 @@ if(Boost_FOUND)
   include_directories(${Boost_INCLUDE_DIRS})
 endif()
 
+find_package(Threads REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(Thrift REQUIRED)
 find_package(LibRDKafka REQUIRED)
@@ -134,6 +135,7 @@ set (zipkin_DEPENDENCIES
     ${FOLLY_STATIC_LIBRARY}
     ${DOUBLE_CONVERSION_LIBRARY}
     ${Boost_LIBRARIES}
+    ${CMAKE_THREAD_LIBS_INIT}
     )
 
 if (WITH_CURL)

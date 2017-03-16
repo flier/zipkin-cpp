@@ -1,5 +1,4 @@
 ExternalProject_Add(zlib
-    DOWNLOAD_NAME       zlib-${ZLIB_VERSION_STRING}.tar.gz
     URL                 http://www.zlib.net/zlib-${ZLIB_VERSION_STRING}.tar.gz
     URL_MD5             ${ZLIB_URL_MD5}
     CONFIGURE_COMMAND   <SOURCE_DIR>/configure --prefix=<INSTALL_DIR>

@@ -4,14 +4,7 @@ ExternalProject_Add(folly
     URL_MD5             ${FOLLY_URL_MD5}
     CONFIGURE_COMMAND   cd <SOURCE_DIR>/folly &&
                         autoreconf -vi &&
-                        CXXFLAGS=-I<INSTALL_DIR>/include
-                        LDFLAGS=-L<INSTALL_DIR>/lib
-                        PKG_CONFIG_PATH=<INSTALL_DIR>/lib/pkgconfig
-                        GFLAGS_CFLAGS=-I<INSTALL_DIR>/include
-                        GFLAGS_LIBS=<INSTALL_DIR>/lib/libgflags.a
-                        <SOURCE_DIR>/folly/configure
-                        --prefix=<INSTALL_DIR> ${WITH_OPENSSL}
-                        --with-boost=${BOOST_ROOT}
+                        CXXFLAGS=-I<INSTALL_DIR>/include LDFLAGS=-L<INSTALL_DIR>/lib PKG_CONFIG_PATH=<INSTALL_DIR>/lib/pkgconfig GFLAGS_CFLAGS=-I${GFLAGS_INCLUDE_DIRS} GFLAGS_LIBS=${GFLAGS_LIBRARIES} GLOG_CFLAGS=-I${GLOG_INCLUDE_PATH} GLOG_LIBS=${GLOG_LIBRARY} OPENSSL_CFLAGS=-I${OPENSSL_INCLUDE_DIR} OPENSSL_LIBS=${OPENSSL_LIBRARIES} <SOURCE_DIR>/folly/configure --prefix=<INSTALL_DIR> ${WITH_OPENSSL} --with-boost=${BOOST_ROOT}
     BUILD_COMMAND       cd <SOURCE_DIR>/folly && make
     INSTALL_COMMAND     cd <SOURCE_DIR>/folly && make install
 )

@@ -7,7 +7,6 @@
 #include <memory>
 #include <chrono>
 
-#include <boost/endian/conversion.hpp>
 #include <boost/locale/encoding_utf.hpp>
 #include <boost/asio.hpp>
 using namespace ::boost::asio;
@@ -1094,6 +1093,25 @@ inline Endpoint &Endpoint::with_port(port_t port)
 
 namespace __impl
 {
+inline uint16_t native_to_big(uint16_t value) { return htons(value); }
+
+inline uint32_t native_to_big(uint32_t value) { return htonl(value); }
+
+inline uint16_t big_to_native(uint16_t value) { return ntohs(value); }
+
+inline uint32_t big_to_native(uint32_t value) { return ntohl(value); }
+
+inline uint64_t endian_reverse(uint64_t value)
+{
+    uint64_t step32 = value << 32 | value >> 32;
+    uint64_t step16 = (step32 & 0x0000FFFF0000FFFFULL) << 16 | (step32 & 0xFFFF0000FFFF0000ULL) >> 16;
+    return (step16 & 0x00FF00FF00FF00FFULL) << 8 | (step16 & 0xFF00FF00FF00FF00ULL) >> 8;
+}
+
+inline uint64_t native_to_big(uint64_t value) { return endian_reverse(value); }
+
+inline uint64_t big_to_native(uint64_t value) { return endian_reverse(value); }
+
 template <typename T>
 struct __binary_annotation
 {
@@ -1113,7 +1131,7 @@ struct __binary_annotation<int16_t>
     static const AnnotationType type = AnnotationType::I16;
     static const std::string encode(const int16_t &value)
     {
-        uint16_t v = boost::endian::native_to_big(static_cast<uint16_t>(value));
+        uint16_t v = native_to_big(static_cast<uint16_t>(value));
         return std::string(reinterpret_cast<const char *>(&v), sizeof(uint16_t));
     }
 };
@@ -1123,7 +1141,7 @@ struct __binary_annotation<uint16_t>
     static const AnnotationType type = AnnotationType::I16;
     static const std::string encode(const uint16_t &value)
     {
-        uint16_t v = boost::endian::native_to_big(value);
+        uint16_t v = native_to_big(value);
         return std::string(reinterpret_cast<const char *>(&v), sizeof(uint16_t));
     }
 };
@@ -1133,7 +1151,7 @@ struct __binary_annotation<int32_t>
     static const AnnotationType type = AnnotationType::I32;
     static const std::string encode(const int32_t &value)
     {
-        uint32_t v = boost::endian::native_to_big(static_cast<uint32_t>(value));
+        uint32_t v = native_to_big(static_cast<uint32_t>(value));
         return std::string(reinterpret_cast<const char *>(&v), sizeof(uint32_t));
     }
 };
@@ -1143,7 +1161,7 @@ struct __binary_annotation<uint32_t>
     static const AnnotationType type = AnnotationType::I32;
     static const std::string encode(const uint32_t &value)
     {
-        uint32_t v = boost::endian::native_to_big(value);
+        uint32_t v = native_to_big(value);
         return std::string(reinterpret_cast<const char *>(&v), sizeof(uint32_t));
     }
 };
@@ -1153,7 +1171,7 @@ struct __binary_annotation<int64_t>
     static const AnnotationType type = AnnotationType::I64;
     static const std::string encode(const int64_t &value)
     {
-        uint64_t v = boost::endian::native_to_big(static_cast<uint64_t>(value));
+        uint64_t v = native_to_big(static_cast<uint64_t>(value));
         return std::string(reinterpret_cast<const char *>(&v), sizeof(uint64_t));
     }
 };
@@ -1163,7 +1181,7 @@ struct __binary_annotation<uint64_t>
     static const AnnotationType type = AnnotationType::I64;
     static const std::string encode(const uint64_t &value)
     {
-        uint64_t v = boost::endian::native_to_big(value);
+        uint64_t v = native_to_big(value);
         return std::string(reinterpret_cast<const char *>(&v), sizeof(uint64_t));
     }
 };
@@ -1231,15 +1249,15 @@ void Span::serialize_json(RapidJsonWriter &writer) const
             break;
 
         case AnnotationType::I16:
-            writer.Int(boost::endian::big_to_native(*reinterpret_cast<const uint16_t *>(data.c_str())));
+            writer.Int(__impl::big_to_native(*reinterpret_cast<const uint16_t *>(data.c_str())));
             break;
 
         case AnnotationType::I32:
-            writer.Int(boost::endian::big_to_native(*reinterpret_cast<const uint32_t *>(data.c_str())));
+            writer.Int(__impl::big_to_native(*reinterpret_cast<const uint32_t *>(data.c_str())));
             break;
 
         case AnnotationType::I64:
-            writer.Int64(boost::endian::big_to_native(*reinterpret_cast<const uint64_t *>(data.c_str())));
+            writer.Int64(__impl::big_to_native(*reinterpret_cast<const uint64_t *>(data.c_str())));
             break;
 
         case AnnotationType::DOUBLE:

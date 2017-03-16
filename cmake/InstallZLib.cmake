@@ -1,6 +1,3 @@
-set (ZLIB_VERSION_STRING        1.2.11)
-set (ZLIB_URL_MD5               1c9f62f0778697a09d36121ead88e08e)
-
 ExternalProject_Add(zlib
     DOWNLOAD_NAME       zlib-${ZLIB_VERSION_STRING}.tar.gz
     URL                 http://www.zlib.net/zlib-${ZLIB_VERSION_STRING}.tar.gz

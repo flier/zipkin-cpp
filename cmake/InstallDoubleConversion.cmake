@@ -1,6 +1,3 @@
-set (DOUBLE_CONVERSION_VERSION      1.1.5)
-set (DOUBLE_CONVERSION_URL_MD5      f7c62594d7ecfbc4421da32bc341a919)
-
 ExternalProject_Add(double_conversion
     DOWNLOAD_NAME   double_conversion-${DOUBLE_CONVERSION_VERSION}.tar.gz
     URL             https://github.com/google/double-conversion/archive/v${DOUBLE_CONVERSION_VERSION}.tar.gz

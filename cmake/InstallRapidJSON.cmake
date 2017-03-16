@@ -1,6 +1,3 @@
-set (RAPIDJSON_VERSION          1.1.0)
-set (RAPIDJSON_URL_MD5          badd12c511e081fec6c89c43a7027bce)
-
 ExternalProject_Add(RapidJSON
     DOWNLOAD_NAME   RapidJSON-${RAPIDJSON_VERSION}.tar.gz
     URL             https://github.com/miloyip/rapidjson/archive/v${RAPIDJSON_VERSION}.tar.gz

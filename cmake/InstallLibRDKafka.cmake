@@ -1,6 +1,3 @@
-set (LibRDKafka_VERSION         0.9.4)
-set (LibRDKafka_URL_MD5         6f40198e6068475c34ae8c9faafa6e8a)
-
 ExternalProject_Add(LibRDKafka
     DOWNLOAD_NAME   LibRDKafka-${LibRDKafka_VERSION}.tar.gz
     URL             https://github.com/edenhill/librdkafka/archive/v${LibRDKafka_VERSION}.tar.gz

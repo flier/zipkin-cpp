@@ -1,6 +1,3 @@
-set (FOLLY_VERSION      2017.03.13.00)
-set (FOLLY_URL_MD5      3ba9d455edcf6e930b6f43e93e9f99f7)
-
 ExternalProject_Add(folly
     DOWNLOAD_NAME       folly-${FOLLY_VERSION}.tar.gz
     URL                 https://github.com/facebook/folly/archive/v${FOLLY_VERSION}.tar.gz

@@ -1,6 +1,3 @@
-set (THRIFT_VERSION_STRING        0.10.0)
-set (THRIFT_URL_MD5               795c5dd192e310ffff38cfd9430d6b29)
-
 ExternalProject_Add(thrift
     URL                 http://www-us.apache.org/dist/thrift/${THRIFT_VERSION_STRING}/thrift-0.10.0.tar.gz
     URL_MD5             ${THRIFT_URL_MD5}

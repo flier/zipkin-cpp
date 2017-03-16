@@ -1,6 +1,3 @@
-set (CURL_VERSION_STRING        7.53.1)
-set (CURL_URL_MD5               9e49bb4cb275bf4464e7b69eb48613c0)
-
 ExternalProject_Add(curl
     URL                 https://curl.haxx.se/download/curl-${CURL_VERSION_STRING}.tar.gz
     URL_MD5             ${CURL_URL_MD5}

@@ -2,7 +2,7 @@ ExternalProject_Add(folly
     DOWNLOAD_NAME       folly-${FOLLY_VERSION}.tar.gz
     URL                 https://github.com/facebook/folly/archive/v${FOLLY_VERSION}.tar.gz
     URL_MD5             ${FOLLY_URL_MD5}
-    CONFIGURE_COMMAND   cd <SOURCE_DIR>/folly && autoreconf -vi && <SOURCE_DIR>/folly/configure --prefix=<INSTALL_DIR> --with-openssl=${OPENSSL_ROOT_DIR} --with-boost=${BOOST_ROOT}
+    CONFIGURE_COMMAND   cd <SOURCE_DIR>/folly && autoreconf -vi && <SOURCE_DIR>/folly/configure --prefix=<INSTALL_DIR> ${WITH_OPENSSL} --with-boost=${BOOST_ROOT}
     BUILD_COMMAND       cd <SOURCE_DIR>/folly && make
     INSTALL_COMMAND     cd <SOURCE_DIR>/folly && make install
 )

@@ -27,10 +27,10 @@ addons:
             - libboost-test-dev
             - libevent-dev
             - libssl-dev
+            - libcurl4-openssl-dev
             - libtool
             - make
             - pkg-config
-            - curl
             - tree
 
 language: cpp

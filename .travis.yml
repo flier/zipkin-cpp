@@ -10,11 +10,11 @@ addons:
     apt:
         packages:
             - automake
+            - autoconf
             - bison
             - flex
+            - libtool
             - build-essential
-            - clang
-            - g++
             - libboost-dev
             - libboost-filesystem-dev
             - libboost-program-options-dev
@@ -24,7 +24,10 @@ addons:
             - libevent-dev
             - libssl-dev
             - libcurl4-openssl-dev
-            - libtool
+            - libdouble-conversion-dev
+            - libgflags-dev
+            - libgoogle-glog-dev
+            - thrift-compiler
             - make
             - pkg-config
             - tree

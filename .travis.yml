@@ -1,10 +1,7 @@
 sudo: required
-
 dist: trusty
-
 services:
     - docker
-
 os:
     - linux
     - osx
@@ -17,7 +14,6 @@ addons:
             - flex
             - build-essential
             - clang
-            - cmake
             - g++
             - libboost-dev
             - libboost-filesystem-dev
@@ -42,14 +38,25 @@ compiler:
 python:
     - "2.7"
 
+env:
+    global:
+        - CMAKE_VERSION=3.7.2
+
 before_script:
     - .travis/install-dependencies.sh
 
 script:
-    - cmake .
+    - mkdir build && cd build
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ../cmake-$CMAKE_VERSION-Linux-x86_64/bin/cmake .. ;fi
+    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then cmake .. ;fi
     - make
     - make test
 
 after_failure:
     - echo `pwd`
     - tree -h
+
+cache:
+  ccache: true
+  directories:
+    - cmake-$CMAKE_VERSION-Linux-x86_64

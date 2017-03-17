@@ -29,6 +29,14 @@ if (NOT FOLLY_FOUND OR USE_BUNDLED_FOLLY)
         TEST_COMMAND        ""
     )
 
+    if (TARGET GFlags)
+        add_dependencies(Folly GFlags)
+    endif ()
+
+    if (TARGET GLog)
+        add_dependencies(Folly GLog)
+    endif ()
+
     ExternalProject_Get_Property(Folly INSTALL_DIR)
 
     set (FOLLY_ROOT_DIR         ${INSTALL_DIR})

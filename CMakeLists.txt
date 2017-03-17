@@ -18,6 +18,10 @@ if (APPLE)
     set (CMAKE_MACOSX_RPATH ON)
 endif ()
 
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(-stdlib=libc++)
+endif ()
+
 if (NOT CMAKE_BUILD_TYPE)
     message(STATUS "Default build type 'Release with debug info'")
     set(CMAKE_BUILD_TYPE RELWITHDEBINFO CACHE STRING "" FORCE )

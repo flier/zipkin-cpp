@@ -15,6 +15,7 @@ addons:
             - bison
             - flex
             - libtool
+            - libc++-dev
             - build-essential
             - libboost-all-dev
             - libevent-dev

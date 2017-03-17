@@ -16,26 +16,26 @@ macro(install_external_project project_name)
     if (TARGET ${project_name})
         if ($ENV{TRAVIS})
             ExternalProject_Add_Step(${project_name} ${project_name}_download
-                COMMAND     echo "travis_fold:start:${project_name}.download\tDownload ${project_name}"
+                COMMAND     echo "\\ntravis_fold:start:${project_name}.download\tDownload ${project_name}"
                 DEPENDERS   download
             )
             ExternalProject_Add_Step(${project_name} ${project_name}_configure
-                COMMAND     echo "travis_fold:end:${project_name}.download"
-                COMMAND     echo "travis_fold:start:${project_name}.configure\tConfigure ${project_name}"
+                COMMAND     echo "\\ntravis_fold:end:${project_name}.download\r"
+                COMMAND     echo "\\ntravis_fold:start:${project_name}.configure\tConfigure ${project_name}"
                 DEPENDEES   download
                 DEPENDERS   configure
             )
 
             ExternalProject_Add_Step(${project_name} ${project_name}_build
-                COMMAND     echo "travis_fold:end:${project_name}.configure"
-                COMMAND     echo "travis_fold:start:${project_name}.build\tBuild ${project_name}"
+                COMMAND     echo "\\ntravis_fold:end:${project_name}.configure\r"
+                COMMAND     echo "\\ntravis_fold:start:${project_name}.build\tBuild ${project_name}"
                 DEPENDEES   configure
                 DEPENDERS   build
             )
 
             ExternalProject_Add_Step(${project_name} ${project_name}_install
-                COMMAND     echo "travis_fold:end:${project_name}.build"
-                COMMAND     echo "travis_fold:start:${project_name}.install\tInstall ${project_name}"
+                COMMAND     echo "\\ntravis_fold:end:${project_name}.build\r"
+                COMMAND     echo "\\ntravis_fold:start:${project_name}.install\tInstall ${project_name}"
                 DEPENDEES   build
                 DEPENDERS   install
             )
@@ -44,18 +44,18 @@ macro(install_external_project project_name)
 
             if (${TEST_COMMAND})
                 ExternalProject_Add_Step(${project_name} ${project_name}_test
-                    COMMAND     echo "travis_fold:end:${project_name}.install"
-                    COMMAND     echo "travis_fold:start:${project_name}.test\tTest ${project_name}"
+                    COMMAND     echo "\\ntravis_fold:end:${project_name}.install\r"
+                    COMMAND     echo "\\ntravis_fold:start:${project_name}.test\tTest ${project_name}"
                     DEPENDEES   install
                     DEPENDERS   test
                 )
-                ExternalProject_Add_Step(${project_name} ${project_name}_test
-                    COMMAND     echo "travis_fold:end:${project_name}.test"
+                ExternalProject_Add_Step(${project_name} ${project_name}_end
+                    COMMAND     echo "\\ntravis_fold:end:${project_name}.test\r"
                     DEPENDEES   test
                 )
             elseif ()
                 ExternalProject_Add_Step(${project_name} ${project_name}_end
-                    COMMAND     echo "travis_fold:end:${project_name}.install"
+                    COMMAND     echo "\\ntravis_fold:end:${project_name}.install\r"
                     DEPENDEES   install
                     DEPENDERS   test
                 )

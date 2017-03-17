@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 3.0.0)
 
 project(zipkin-cpp
-    VERSION 0.2.0
+    VERSION 0.3.0
     LANGUAGES C CXX)
 
 include(CTest)
@@ -210,8 +210,6 @@ if (WITH_TCMALLOC OR WITH_PROFILER)
 endif ()
 
 message (STATUS "Link with ${zipkin_DEPENDENCIES}")
-
-enable_testing()
 
 add_subdirectory(docs)
 add_subdirectory(src)

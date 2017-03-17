@@ -1,24 +1,33 @@
-ExternalProject_Add(folly
-    DOWNLOAD_NAME       folly-${FOLLY_VERSION}.tar.gz
-    URL                 https://github.com/facebook/folly/archive/v${FOLLY_VERSION}.tar.gz
-    URL_MD5             ${FOLLY_URL_MD5}
-    CONFIGURE_COMMAND   cd <SOURCE_DIR>/folly &&
-                        autoreconf -vi &&
-                        CXXFLAGS=-I<INSTALL_DIR>/include LDFLAGS=-L<INSTALL_DIR>/lib PKG_CONFIG_PATH=<INSTALL_DIR>/lib/pkgconfig GFLAGS_CFLAGS=-I${GFLAGS_INCLUDE_DIRS} GFLAGS_LIBS=${GFLAGS_LIBRARIES} GLOG_CFLAGS=-I${GLOG_INCLUDE_PATH} GLOG_LIBS=${GLOG_LIBRARY} OPENSSL_CFLAGS=-I${OPENSSL_INCLUDE_DIR} OPENSSL_LIBS=${OPENSSL_LIBRARIES} <SOURCE_DIR>/folly/configure --prefix=<INSTALL_DIR> ${WITH_OPENSSL} --with-boost=${BOOST_ROOT}
-    BUILD_COMMAND       cd <SOURCE_DIR>/folly && make
-    INSTALL_COMMAND     cd <SOURCE_DIR>/folly && make install
-)
+if (NOT FOLLY_FOUND OR USE_BUNDLED_FOLLY)
+    if (NOT FOLLY_VERSION OR USE_BUNDLED_FOLLY)
+        set (FOLLY_VERSION              2017.03.13.00)
+        set (FOLLY_URL_MD5              3ba9d455edcf6e930b6f43e93e9f99f7)
+    endif()
 
-ExternalProject_Get_Property(folly INSTALL_DIR)
+    ExternalProject_Add(folly
+        DOWNLOAD_NAME       folly-${FOLLY_VERSION}.tar.gz
+        URL                 https://github.com/facebook/folly/archive/v${FOLLY_VERSION}.tar.gz
+        URL_MD5             ${FOLLY_URL_MD5}
+        CONFIGURE_COMMAND   cd <SOURCE_DIR>/folly &&
+                            autoreconf -vi &&
+                            CXXFLAGS=-I<INSTALL_DIR>/include LDFLAGS=-L<INSTALL_DIR>/lib PKG_CONFIG_PATH=<INSTALL_DIR>/lib/pkgconfig GFLAGS_CFLAGS=-I${GFLAGS_INCLUDE_DIRS} GFLAGS_LIBS=${GFLAGS_LIBRARIES} GLOG_CFLAGS=-I${GLOG_INCLUDE_PATH} GLOG_LIBS=${GLOG_LIBRARY} <SOURCE_DIR>/folly/configure --prefix=<INSTALL_DIR> ${WITH_OPENSSL} --with-boost=${BOOST_ROOT}
+        BUILD_COMMAND       cd <SOURCE_DIR>/folly && make
+        INSTALL_COMMAND     cd <SOURCE_DIR>/folly && make install
+    )
 
-set (FOLLY_ROOT_DIR         ${INSTALL_DIR})
-set (FOLLY_STATIC_LIBRARY   "${FOLLY_ROOT_DIR}/lib/libfolly.a")
-set (FOLLY_LIBRARIES        ${FOLLY_STATIC_LIBRARY})
-set (FOLLY_FOUND            YES)
+    ExternalProject_Get_Property(folly INSTALL_DIR)
 
-find_path(FOLLY_INCLUDE_DIR "folly/String.h"
-    PATHS       ${FOLLY_ROOT_DIR}/include)
+    set (FOLLY_ROOT_DIR         ${INSTALL_DIR})
+    set (FOLLY_STATIC_LIBRARY   "${FOLLY_ROOT_DIR}/lib/libfolly.a")
+    set (FOLLY_LIBRARIES        ${FOLLY_STATIC_LIBRARY})
+    set (FOLLY_FOUND            YES)
 
-add_library(FOLLY_STATIC_LIBRARY STATIC IMPORTED)
-add_dependencies(FOLLY_STATIC_LIBRARY folly)
-mark_as_advanced(FOLLY_LIBRARIES FOLLY_STATIC_LIBRARY FOLLY_INCLUDE_DIR)
+    find_path(FOLLY_INCLUDE_DIR "folly/String.h"
+        PATHS       ${FOLLY_ROOT_DIR}/include)
+
+    add_library(FOLLY_STATIC_LIBRARY STATIC IMPORTED)
+    add_dependencies(FOLLY_STATIC_LIBRARY folly)
+    mark_as_advanced(FOLLY_LIBRARIES FOLLY_STATIC_LIBRARY FOLLY_INCLUDE_DIR)
+
+    message(STATUS "Use bundled folly v${FOLLY_VERSION}")
+endif ()

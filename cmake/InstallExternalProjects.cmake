@@ -3,6 +3,8 @@ include(ExternalProject)
 set (EXTERNAL_PROJECT_DIR ${CMAKE_BINARY_DIR}/externals)
 set_directory_properties(PROPERTIES EP_PREFIX ${EXTERNAL_PROJECT_DIR})
 
+list(APPEND CMAKE_MODULE_PATH ${EXTERNAL_PROJECT_DIR}/lib/cmake)
+
 message(STATUS "Install external dependencies to ${EXTERNAL_PROJECT_DIR}")
 
 include_directories(BEFORE SYSTEM ${EXTERNAL_PROJECT_DIR}/include)
@@ -21,5 +23,5 @@ install_external_project(GFlags)
 install_external_project(GLog)
 install_external_project(GTest)
 install_external_project(GBench)
-install_external_project(Thrift)
 install_external_project(Folly)
+install_external_project(Thrift)

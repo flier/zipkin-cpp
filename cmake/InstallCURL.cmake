@@ -7,7 +7,11 @@ if (NOT CURL_FOUND OR USE_BUNDLED_CURL)
     ExternalProject_Add(curl
         URL                 https://curl.haxx.se/download/curl-${CURL_VERSION_STRING}.tar.gz
         URL_MD5             ${CURL_URL_MD5}
-        CONFIGURE_COMMAND   <SOURCE_DIR>/configure --prefix=<INSTALL_DIR> --without-ssl --without-nghttp2 --disable-ldap
+        CONFIGURE_COMMAND   <SOURCE_DIR>/configure
+                                --prefix=<INSTALL_DIR>
+                                --without-ssl
+                                --without-nghttp2
+                                --disable-ldap
         BUILD_COMMAND       make
         INSTALL_COMMAND     make install
     )

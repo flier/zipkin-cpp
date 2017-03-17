@@ -8,7 +8,9 @@ if (NOT LIBRDKAFKA_FOUND OR USE_BUNDLED_LIBRDKAFKA)
         DOWNLOAD_NAME   LibRDKafka-${LibRDKafka_VERSION}.tar.gz
         URL             https://github.com/edenhill/librdkafka/archive/v${LibRDKafka_VERSION}.tar.gz
         URL_MD5         ${LibRDKafka_URL_MD5}
-        CMAKE_ARGS      -DRDKAFKA_BUILD_EXAMPLES=OFF -DRDKAFKA_BUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+        CMAKE_ARGS      -DRDKAFKA_BUILD_EXAMPLES=OFF
+                        -DRDKAFKA_BUILD_TESTS=OFF
+                        -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
     )
 
     ExternalProject_Get_Property(LibRDKafka INSTALL_DIR)

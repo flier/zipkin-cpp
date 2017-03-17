@@ -9,6 +9,9 @@ if (NOT GFLAGS_FOUND OR USE_BUNDLED_GFLAGS)
         URL                 https://github.com/gflags/gflags/archive/v${GFLAGS_VERSION}.tar.gz
         URL_MD5             ${GFLAGS_URL_MD5}
         CMAKE_ARGS          -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+                            -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+                            -DGFLAGS_BUILD_SHARED_LIBS=ON
+                            -DGFLAGS_BUILD_STATIC_LIBS=ON
     )
 
     ExternalProject_Get_Property(gflags INSTALL_DIR)

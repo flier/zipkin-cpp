@@ -16,9 +16,7 @@ if (NOT FOLLY_FOUND OR USE_BUNDLED_FOLLY)
                             PKG_CONFIG_PATH=<INSTALL_DIR>/lib/pkgconfig
                             CFLAGS=-I<INSTALL_DIR>/include
                             CXXFLAGS=-I<INSTALL_DIR>/include
-                        if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-                            CPPFLAGS=-stdlib=libc++
-                        endif ()
+                            CPPFLAGS=-stdlib=${STDLIB}
                             LIBS=${CMAKE_THREAD_LIBS_INIT}
                             OPENSSL_CFLAGS=-I${OPENSSL_INCLUDE_DIR}
                             OPENSSL_LIBS=-L${OPENSSL_LIBRARY_DIR}

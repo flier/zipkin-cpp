@@ -20,44 +20,20 @@ struct Tracer
     virtual ~Tracer() = default;
 
     /**
-     * \brief Unique 8-byte identifier for a trace, set on all spans within it.
-     *
-     * \sa #id_high
-     */
-    virtual trace_id_t id(void) const = 0;
-    /**
-    * \sa #id_high
-    */
-    virtual void set_id(trace_id_t id) = 0;
-
-    /**
-    * When non-zero, the trace containing this span uses 128-bit trace identifiers.
-    *
-    * orresponds to the high bits in big-endian format and #id corresponds to the low bits.
-    */
-    virtual trace_id_t id_high(void) const = 0;
-    /**
-    * \sa #id_high
-    */
-    virtual void set_id_high(trace_id_t id_high) = 0;
-
-    /**
-    * \sa #id and #id_high
-    */
-    virtual void set_id(const x_trace_id_t &id) = 0;
-
-    /**
-    * \brief Tracer name in lowercase.
-    */
-    virtual const std::string &name(void) const = 0;
-
-    /**
     * \brief Tracer sample rate
     */
     virtual size_t sample_rate(void) const = 0;
 
     /** \sa Tracer#sample_rate */
     virtual void set_sample_rate(size_t sample_rate) = 0;
+
+    /**
+     * \brief Associated user data
+     */
+    virtual userdata_t userdata(void) const = 0;
+
+    /** \sa Span#userdata */
+    virtual void set_userdata(userdata_t userdata) = 0;
 
     /**
      * \brief Associated Collector
@@ -94,18 +70,18 @@ struct Tracer
      *
      * The default Tracer will cache Span for performance.
      */
-    static Tracer *create(Collector *collector, const std::string &name);
+    static Tracer *create(Collector *collector, size_t sample_rate = 1);
 };
 
-template <size_t CAPACITY>
 class SpanCache
 {
-    size_t m_message_size;
+    size_t m_message_size, m_message_capacity;
 
-    boost::lockfree::stack<CachedSpan *, boost::lockfree::capacity<CAPACITY>> m_spans;
+    boost::lockfree::stack<CachedSpan *> m_spans;
 
   public:
-    SpanCache(size_t message_size) : m_message_size(message_size)
+    SpanCache(size_t message_size, size_t message_capacity)
+        : m_message_size(message_size), m_message_capacity(message_capacity), m_spans(message_capacity)
     {
     }
 
@@ -113,7 +89,7 @@ class SpanCache
 
     size_t message_size(void) const { return m_message_size; }
 
-    static constexpr size_t capacity(void) { return CAPACITY; }
+    size_t message_capacity(void) { return m_message_capacity; }
 
     inline bool empty(void) const { return m_spans.empty(); }
 
@@ -142,42 +118,37 @@ class CachedTracer : public Tracer
 {
     Collector *m_collector;
 
-    trace_id_t m_id, m_id_high;
-    const std::string m_name;
-    size_t m_sample_rate;
-    std::atomic_size_t m_total_spans;
+    size_t m_sample_rate = 1;
+    std::atomic_size_t m_total_spans = ATOMIC_VAR_INIT(0);
 
-  public:
-    typedef SpanCache<64> span_cache_t;
+    userdata_t m_userdata = nullptr;
 
   private:
-    span_cache_t m_cache;
+    SpanCache m_cache;
 
   public:
-    CachedTracer(Collector *collector, const std::string &name, size_t cache_message_size = default_cache_message_size)
-        : m_collector(collector), m_id(Span::next_id()), m_id_high(0), m_name(name), m_sample_rate(1), m_cache(cache_message_size)
+    CachedTracer(Collector *collector,
+                 size_t sample_rate = 1,
+                 size_t cache_message_size = DEFAULT_CACHE_MESSAGE_SIZE,
+                 size_t cache_message_count = DEFAULT_CACHE_MESSAGE_COUNT)
+        : m_collector(collector), m_sample_rate(sample_rate),
+          m_cache(cache_message_size, cache_message_count)
     {
     }
 
-    static const size_t cache_line_size;
-    static const size_t default_cache_message_size;
+    static constexpr size_t CACHE_LINE_SIZE = 64;
+    static constexpr size_t DEFAULT_CACHE_MESSAGE_SIZE = 4096;
+    static constexpr size_t DEFAULT_CACHE_MESSAGE_COUNT = 64;
 
-    const span_cache_t &cache(void) const { return m_cache; }
+    const SpanCache &cache(void) const { return m_cache; }
 
     // Implement Tracer
 
-    virtual trace_id_t id(void) const override { return m_id; }
-    virtual void set_id(trace_id_t id_high) override { m_id = id_high; }
-    virtual trace_id_t id_high(void) const override { return m_id_high; }
-    virtual void set_id_high(trace_id_t id_high) override { m_id_high = id_high; }
-    virtual void set_id(const x_trace_id_t &id) override
-    {
-        m_id = id.second;
-        m_id_high = id.first;
-    }
-    virtual const std::string &name(void) const override { return m_name; }
     virtual size_t sample_rate(void) const override { return m_sample_rate; }
     virtual void set_sample_rate(size_t sample_rate) override { m_sample_rate = sample_rate; }
+
+    virtual userdata_t userdata(void) const override { return m_userdata; }
+    virtual void set_userdata(userdata_t userdata) override { m_userdata = userdata; }
 
     virtual Collector *collector(void) const override { return m_collector; }
 

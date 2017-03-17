@@ -4,17 +4,19 @@
 
 #include <cstdint>
 #include <locale>
-#include <codecvt>
 #include <memory>
 #include <chrono>
 
-#include <boost/tuple/tuple.hpp>
+#include <boost/locale/encoding_utf.hpp>
 #include <boost/asio.hpp>
 using namespace ::boost::asio;
 
 #include <thrift/protocol/TProtocol.h>
 
 #include "zipkinCore_constants.h"
+
+#include "Config.h"
+#include "Base64.h"
 
 typedef uint64_t span_id_t;
 typedef uint64_t trace_id_t;
@@ -53,20 +55,24 @@ class Endpoint
     }
     Endpoint(const std::string &service, const sockaddr *addr)
     {
-        assert(addr);
-
         with_service_name(service);
-        with_addr(addr);
+
+        if (addr)
+            with_addr(addr);
     }
     Endpoint(const std::string &service, const sockaddr_in *addr)
     {
         with_service_name(service);
-        with_addr(addr);
+
+        if (addr)
+            with_addr(addr);
     }
     Endpoint(const std::string &service, const sockaddr_in6 *addr)
     {
         with_service_name(service);
-        with_addr(addr);
+
+        if (addr)
+            with_addr(addr);
     }
     Endpoint(const std::string &service, const std::string &addr, port_t port = 0)
     {
@@ -220,7 +226,7 @@ const char *to_string(AnnotationType type);
 * The only type zipkin v1 supports search against.
 */
 
-#define DEF_TRACE_KEY(name) static constexpr const std::string &name = g_zipkinCore_constants.name;
+#define DECLARE_TRACE_KEY(name) static const std::string &name;
 
 /**
 * \brief Span tracing key
@@ -233,28 +239,28 @@ struct TraceKeys
     * There is only one send per span. For example, if there's a transport error,
     * each attempt can be logged as a #WIRE_SEND annotation.
     */
-    DEF_TRACE_KEY(CLIENT_SEND)
+    DECLARE_TRACE_KEY(CLIENT_SEND)
     /**
     * \brief The client received ("cr") a response from a server.
     *
     * There is only one receive per span. For example, if duplicate responses were received,
     * each can be logged as a #WIRE_RECV annotation.
     */
-    DEF_TRACE_KEY(CLIENT_RECV)
+    DECLARE_TRACE_KEY(CLIENT_RECV)
     /**
     * \brief The server sent ("ss") a response to a client.
     *
     * There is only one response per span. If there's a transport error,
     * each attempt can be logged as a #WIRE_SEND annotation.
     */
-    DEF_TRACE_KEY(SERVER_SEND)
+    DECLARE_TRACE_KEY(SERVER_SEND)
     /**
     * \brief The server received ("sr") a request from a client.
     *
     * There is only one request per span.  For example, if duplicate responses were received,
     * each can be logged as a #WIRE_RECV annotation.
     */
-    DEF_TRACE_KEY(SERVER_RECV)
+    DECLARE_TRACE_KEY(SERVER_RECV)
     /**
     * \brief Optionally logs an attempt to send a message on the wire.
     *
@@ -262,7 +268,7 @@ struct TraceKeys
     * A lag between client or server send and wire send might indicate
     * queuing or processing delay.
     */
-    DEF_TRACE_KEY(WIRE_SEND)
+    DECLARE_TRACE_KEY(WIRE_SEND)
     /**
     * \brief Optionally logs an attempt to receive a message from the wire.
     *
@@ -270,31 +276,31 @@ struct TraceKeys
     * A lag between wire receive and client or server receive might
     * indicate queuing or processing delay.
     */
-    DEF_TRACE_KEY(WIRE_RECV)
+    DECLARE_TRACE_KEY(WIRE_RECV)
     /**
     * \brief Optionally logs progress of a (#CLIENT_SEND, #WIRE_SEND).
     *
     * For example, this could be one chunk in a chunked request.
     */
-    DEF_TRACE_KEY(CLIENT_SEND_FRAGMENT)
+    DECLARE_TRACE_KEY(CLIENT_SEND_FRAGMENT)
     /**
     * \brief Optionally logs progress of a (#CLIENT_RECV, #WIRE_RECV).
     *
     * For example, this could be one chunk in a chunked response.
     */
-    DEF_TRACE_KEY(CLIENT_RECV_FRAGMENT)
+    DECLARE_TRACE_KEY(CLIENT_RECV_FRAGMENT)
     /**
     * \brief Optionally logs progress of a (#SERVER_SEND, #WIRE_SEND).
     *
     * For example, this could be one chunk in a chunked response.
     */
-    DEF_TRACE_KEY(SERVER_SEND_FRAGMENT)
+    DECLARE_TRACE_KEY(SERVER_SEND_FRAGMENT)
     /**
     * \brief Optionally logs progress of a (#SERVER_RECV, #WIRE_RECV).
     *
     * For example, this could be one chunk in a chunked request.
     */
-    DEF_TRACE_KEY(SERVER_RECV_FRAGMENT)
+    DECLARE_TRACE_KEY(SERVER_RECV_FRAGMENT)
     /**
     * \brief The {@link BinaryAnnotation#value value} of "lc" is the component or namespace of a local
     * span.
@@ -318,19 +324,19 @@ struct TraceKeys
     * Span.name, for example "finatra/bootstrap" vs "finch/bootstrap". Using local component, you'd
     * search for spans named "bootstrap" where "lc=finch"
     */
-    DEF_TRACE_KEY(LOCAL_COMPONENT)
+    DECLARE_TRACE_KEY(LOCAL_COMPONENT)
     /**
     * \brief When present, {@link BinaryAnnotation#endpoint} indicates a client address ("ca") in a span.
     * Most likely, there's only one. Multiple addresses are possible when a client changes its ip or
     * port within a span.
     */
-    DEF_TRACE_KEY(CLIENT_ADDR)
+    DECLARE_TRACE_KEY(CLIENT_ADDR)
     /**
     * \brief When present, {@link BinaryAnnotation#endpoint} indicates a server address ("sa") in a span.
     * Most likely, there's only one. Multiple addresses are possible when a client is redirected, or
     * fails to a different server ip or port.
     */
-    DEF_TRACE_KEY(SERVER_ADDR)
+    DECLARE_TRACE_KEY(SERVER_ADDR)
     /**
     * \brief When an {@link Annotation#value}, this indicates when an error occurred. When a {@link
     * BinaryAnnotation#key}, the value is a human readable message associated with an error.
@@ -346,36 +352,36 @@ struct TraceKeys
     * <p>Note that RPC spans often include both client and server hosts: It is possible that only one
     * side perceived the error.
     */
-    DEF_TRACE_KEY(ERROR)
+    DECLARE_TRACE_KEY(ERROR)
 
     /**
     * \brief HTTP \p Host header
     */
-    DEF_TRACE_KEY(HTTP_HOST)
+    DECLARE_TRACE_KEY(HTTP_HOST)
     /**
     * \brief HTTP request method
     */
-    DEF_TRACE_KEY(HTTP_METHOD)
+    DECLARE_TRACE_KEY(HTTP_METHOD)
     /**
     * \brief HTTP request path
     */
-    DEF_TRACE_KEY(HTTP_PATH)
+    DECLARE_TRACE_KEY(HTTP_PATH)
     /**
     * \brief HTTP request URL
     */
-    DEF_TRACE_KEY(HTTP_URL)
+    DECLARE_TRACE_KEY(HTTP_URL)
     /**
     * \brief HTTP status code
     */
-    DEF_TRACE_KEY(HTTP_STATUS_CODE)
+    DECLARE_TRACE_KEY(HTTP_STATUS_CODE)
     /**
     * \brief HTTP request size
     */
-    DEF_TRACE_KEY(HTTP_REQUEST_SIZE)
+    DECLARE_TRACE_KEY(HTTP_REQUEST_SIZE)
     /**
     * \brief HTTP response size
     */
-    DEF_TRACE_KEY(HTTP_RESPONSE_SIZE)
+    DECLARE_TRACE_KEY(HTTP_RESPONSE_SIZE)
 };
 
 /**
@@ -485,9 +491,7 @@ class BinaryAnnotation
     */
     inline BinaryAnnotation &with_value(const std::wstring &value)
     {
-        std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-
-        return with_value(converter.to_bytes(value));
+        return with_value(boost::locale::conv::utf_to_utf<char>(value));
     }
     /**
     * \brief Annotate with AnnotationType#STRING
@@ -546,7 +550,11 @@ class Span
     /**
      * \brief Construct a span
      */
-    Span(Tracer *tracer, const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr, bool sampled = true);
+    Span(Tracer *tracer, const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr, bool sampled = true)
+        : m_tracer(tracer)
+    {
+        reset(name, parent_id, userdata, sampled);
+    }
 
     /**
      * \brief Reset a span
@@ -581,6 +589,8 @@ class Span
 
     /**
      * \brief Unique 8-byte identifier for a trace, set on all spans within it.
+     *
+     * \sa Span#trace_id_high
      */
     inline trace_id_t trace_id(void) const { return m_span.trace_id; }
 
@@ -593,6 +603,8 @@ class Span
 
     /**
     * When non-zero, the trace containing this span uses 128-bit trace identifiers.
+    *
+    * \sa Span#trace_id
     */
     inline trace_id_t trace_id_high(void) const { return m_span.trace_id_high; }
 
@@ -720,7 +732,12 @@ class Span
 
     virtual inline Span *span(const std::string &name, userdata_t userdata = nullptr) const
     {
-        return new Span(m_tracer, name, m_span.id, userdata ? userdata : m_userdata);
+        Span *span = new Span(m_tracer, name, id(), userdata);
+        span->with_trace_id(trace_id());
+        span->with_trace_id_high(trace_id_high());
+        span->with_debug(debug());
+        span->with_sampled(sampled());
+        return span;
     };
 
     /**
@@ -935,11 +952,6 @@ struct __annotation
     {
         return span.annotate(value.first, value.second);
     }
-
-    static BinaryAnnotation apply(Span &span, const boost::tuple<K, V, Endpoint *> &value)
-    {
-        return span.annotate(boost::get<0>(value), boost::get<1>(value), boost::get<2>(value));
-    }
 };
 
 template <typename K>
@@ -949,11 +961,6 @@ struct __annotation<K, const char *>
     {
         return span.annotate(value.first, value.second);
     }
-
-    static BinaryAnnotation apply(Span &span, const boost::tuple<K, const char *, Endpoint *> &value)
-    {
-        return span.annotate(boost::get<0>(value), boost::get<1>(value), -1, boost::get<2>(value));
-    }
 };
 
 template <typename K>
@@ -962,11 +969,6 @@ struct __annotation<K, const wchar_t *>
     static BinaryAnnotation apply(Span &span, const std::pair<K, const wchar_t *> &value)
     {
         return span.annotate(value.first, value.second);
-    }
-
-    static BinaryAnnotation apply(Span &span, const boost::tuple<K, const wchar_t *, Endpoint *> &value)
-    {
-        return span.annotate(boost::get<0>(value), boost::get<1>(value), -1, boost::get<2>(value));
     }
 };
 
@@ -1050,8 +1052,8 @@ Endpoint &Endpoint::with_addr(const struct sockaddr_in *addr)
     assert(addr);
 
     m_host.__isset.ipv6 = 0;
-    m_host.__set_ipv4(addr->sin_addr.s_addr);
-    m_host.__set_port(addr->sin_port);
+    m_host.__set_ipv4(ntohl(addr->sin_addr.s_addr));
+    m_host.__set_port(ntohs(addr->sin_port));
 
     return *this;
 }
@@ -1061,14 +1063,14 @@ Endpoint &Endpoint::with_addr(const struct sockaddr_in6 *addr)
     assert(addr);
 
     m_host.__set_ipv6(std::string(reinterpret_cast<const char *>(addr->sin6_addr.s6_addr), sizeof(addr->sin6_addr)));
-    m_host.__set_port(addr->sin6_port);
+    m_host.__set_port(ntohs(addr->sin6_port));
 
     return *this;
 }
 
 Endpoint &Endpoint::with_ipv4(const std::string &ip)
 {
-    m_host.__set_ipv4(inet_addr(ip.c_str()));
+    m_host.__set_ipv4(ntohl(inet_addr(ip.c_str())));
 
     return *this;
 }
@@ -1091,6 +1093,25 @@ inline Endpoint &Endpoint::with_port(port_t port)
 
 namespace __impl
 {
+inline uint16_t native_to_big(uint16_t value) { return htons(value); }
+
+inline uint32_t native_to_big(uint32_t value) { return htonl(value); }
+
+inline uint16_t big_to_native(uint16_t value) { return ntohs(value); }
+
+inline uint32_t big_to_native(uint32_t value) { return ntohl(value); }
+
+inline uint64_t endian_reverse(uint64_t value)
+{
+    uint64_t step32 = value << 32 | value >> 32;
+    uint64_t step16 = (step32 & 0x0000FFFF0000FFFFULL) << 16 | (step32 & 0xFFFF0000FFFF0000ULL) >> 16;
+    return (step16 & 0x00FF00FF00FF00FFULL) << 8 | (step16 & 0xFF00FF00FF00FF00ULL) >> 8;
+}
+
+inline uint64_t native_to_big(uint64_t value) { return endian_reverse(value); }
+
+inline uint64_t big_to_native(uint64_t value) { return endian_reverse(value); }
+
 template <typename T>
 struct __binary_annotation
 {
@@ -1099,35 +1120,86 @@ template <>
 struct __binary_annotation<bool>
 {
     static const AnnotationType type = AnnotationType::BOOL;
+    static const std::string encode(const bool &value)
+    {
+        return value ? "\x01" : "\x00";
+    }
 };
 template <>
 struct __binary_annotation<int16_t>
 {
     static const AnnotationType type = AnnotationType::I16;
+    static const std::string encode(const int16_t &value)
+    {
+        uint16_t v = native_to_big(static_cast<uint16_t>(value));
+        return std::string(reinterpret_cast<const char *>(&v), sizeof(uint16_t));
+    }
+};
+template <>
+struct __binary_annotation<uint16_t>
+{
+    static const AnnotationType type = AnnotationType::I16;
+    static const std::string encode(const uint16_t &value)
+    {
+        uint16_t v = native_to_big(value);
+        return std::string(reinterpret_cast<const char *>(&v), sizeof(uint16_t));
+    }
 };
 template <>
 struct __binary_annotation<int32_t>
 {
     static const AnnotationType type = AnnotationType::I32;
+    static const std::string encode(const int32_t &value)
+    {
+        uint32_t v = native_to_big(static_cast<uint32_t>(value));
+        return std::string(reinterpret_cast<const char *>(&v), sizeof(uint32_t));
+    }
+};
+template <>
+struct __binary_annotation<uint32_t>
+{
+    static const AnnotationType type = AnnotationType::I32;
+    static const std::string encode(const uint32_t &value)
+    {
+        uint32_t v = native_to_big(value);
+        return std::string(reinterpret_cast<const char *>(&v), sizeof(uint32_t));
+    }
 };
 template <>
 struct __binary_annotation<int64_t>
 {
     static const AnnotationType type = AnnotationType::I64;
+    static const std::string encode(const int64_t &value)
+    {
+        uint64_t v = native_to_big(static_cast<uint64_t>(value));
+        return std::string(reinterpret_cast<const char *>(&v), sizeof(uint64_t));
+    }
+};
+template <>
+struct __binary_annotation<uint64_t>
+{
+    static const AnnotationType type = AnnotationType::I64;
+    static const std::string encode(const uint64_t &value)
+    {
+        uint64_t v = native_to_big(value);
+        return std::string(reinterpret_cast<const char *>(&v), sizeof(uint64_t));
+    }
 };
 template <>
 struct __binary_annotation<double>
 {
     static const AnnotationType type = AnnotationType::DOUBLE;
+    static const std::string encode(const double &value)
+    {
+        return std::string(reinterpret_cast<const char *>(&value), sizeof(double));
+    }
 };
 } // namespace __impl
 
 template <typename T>
-BinaryAnnotation &BinaryAnnotation::with_value(const T &value)
+inline BinaryAnnotation &BinaryAnnotation::with_value(const T &value)
 {
-    auto ptr = reinterpret_cast<uint8_t *>(&value);
-
-    m_annotation.value = std::string(reinterpret_cast<char *>(ptr), sizeof(T));
+    m_annotation.__set_value(__impl::__binary_annotation<T>::encode(value));
 
     return *this;
 }
@@ -1138,7 +1210,7 @@ inline BinaryAnnotation Span::annotate(const std::string &key, const T &value, c
     ::BinaryAnnotation annotation;
 
     annotation.__set_key(key);
-    annotation.__set_value(std::string(reinterpret_cast<const char *>(&value), sizeof(T)));
+    annotation.__set_value(__impl::__binary_annotation<T>::encode(value));
     annotation.__set_annotation_type(__impl::__binary_annotation<T>::type);
 
     if (endpoint)
@@ -1151,15 +1223,6 @@ inline BinaryAnnotation Span::annotate(const std::string &key, const T &value, c
     return BinaryAnnotation(*this, m_span.binary_annotations.back());
 }
 
-namespace base64
-{
-
-const std::string encode(const char *bytes_to_encode, size_t in_len);
-
-const std::string decode(const std::string &encoded_string);
-
-} // namespace base64
-
 template <class RapidJsonWriter>
 void Span::serialize_json(RapidJsonWriter &writer) const
 {
@@ -1170,7 +1233,7 @@ void Span::serialize_json(RapidJsonWriter &writer) const
         writer.String(host.service_name);
 
         writer.Key("ipv4");
-        writer.String(inet_ntoa({static_cast<in_addr_t>(host.ipv4)}));
+        writer.String(inet_ntoa({static_cast<in_addr_t>(htonl(host.ipv4))}));
 
         writer.Key("port");
         writer.Int(host.port);
@@ -1186,15 +1249,15 @@ void Span::serialize_json(RapidJsonWriter &writer) const
             break;
 
         case AnnotationType::I16:
-            writer.Int(*reinterpret_cast<const int16_t *>(data.c_str()));
+            writer.Int(__impl::big_to_native(*reinterpret_cast<const uint16_t *>(data.c_str())));
             break;
 
         case AnnotationType::I32:
-            writer.Int(*reinterpret_cast<const int32_t *>(data.c_str()));
+            writer.Int(__impl::big_to_native(*reinterpret_cast<const uint32_t *>(data.c_str())));
             break;
 
         case AnnotationType::I64:
-            writer.Int64(*reinterpret_cast<const int64_t *>(data.c_str()));
+            writer.Int64(__impl::big_to_native(*reinterpret_cast<const uint64_t *>(data.c_str())));
             break;
 
         case AnnotationType::DOUBLE:
@@ -1202,7 +1265,7 @@ void Span::serialize_json(RapidJsonWriter &writer) const
             break;
 
         case AnnotationType::BYTES:
-            writer.String(base64::encode(data.c_str(), data.size()));
+            writer.String(base64::encode(data));
             break;
 
         case AnnotationType::STRING:
@@ -1261,7 +1324,7 @@ void Span::serialize_json(RapidJsonWriter &writer) const
 
     writer.EndArray(m_span.annotations.size());
 
-    writer.Key("binary_annotations");
+    writer.Key("binaryAnnotations");
     writer.StartArray();
 
     for (auto &annotation : m_span.binary_annotations)

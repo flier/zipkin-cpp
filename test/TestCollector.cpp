@@ -1,9 +1,5 @@
 #include "Mocks.hpp"
 
-RdKafka::Producer::~Producer()
-{
-}
-
 TEST(collector, submit)
 {
     std::unique_ptr<RdKafka::Producer> producer(new MockProducer());
@@ -14,7 +10,7 @@ TEST(collector, submit)
 
     zipkin::KafkaCollector collector(producer, topic);
 
-    std::unique_ptr<zipkin::Tracer> tracer(zipkin::Tracer::create(&collector, "test"));
+    std::unique_ptr<zipkin::Tracer> tracer(zipkin::Tracer::create(&collector));
 
     auto span = static_cast<zipkin::CachedSpan *>(tracer->span("test"));
 
@@ -22,7 +18,7 @@ TEST(collector, submit)
                             RdKafka::Topic::PARTITION_UA, // partition
                             0,                            // msgflags
                             span->cache_ptr(),            // payload
-                            70,                           // len
+                            81,                           // len
                             &span->name(),                // key
                             span))                        // msg_opaque
         .Times(1)
@@ -37,4 +33,6 @@ TEST(collector, submit)
         .WillOnce(Return(RdKafka::ErrorCode::ERR_NO_ERROR));
 
     collector.submit(span);
+
+    collector.shutdown(std::chrono::milliseconds(0));
 }

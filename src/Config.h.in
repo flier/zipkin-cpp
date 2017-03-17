@@ -1,0 +1,5 @@
+#pragma once
+
+#cmakedefine WITH_CURL  @CURL_ENABLED@
+
+#cmakedefine WITH_GRPC  @GRPC_ENABLED@

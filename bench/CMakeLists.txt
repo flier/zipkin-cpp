@@ -10,5 +10,5 @@ add_executable(bench ${zipkin_bench_SRCS})
 target_link_libraries(bench
                       zipkin
                       ${zipkin_DEPENDENCIES}
-                      ${CONAN_LIBS_GOOGLE-BENCHMARK}
+                      ${GBENCH_LIBRARY}
                       )

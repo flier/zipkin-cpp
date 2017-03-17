@@ -39,6 +39,7 @@
 #include <glog/logging.h>
 #include <grpc++/grpc++.h>
 
+#include <folly/Format.h>
 #include <folly/String.h>
 #include <folly/Uri.h>
 
@@ -57,7 +58,7 @@ class GreeterClient
 {
   public:
     GreeterClient(std::shared_ptr<Channel> channel, std::shared_ptr<zipkin::Collector> collector)
-        : stub_(Greeter::NewStub(channel)), tracer_(zipkin::Tracer::create(collector.get(), "greeter"))
+        : stub_(Greeter::NewStub(channel)), tracer_(zipkin::Tracer::create(collector.get()))
     {
     }
 
@@ -79,27 +80,12 @@ class GreeterClient
         // the server and/or tweak certain RPC behaviors.
         ClientContext context;
 
-        zipkin::Endpoint endpoint("greeter");
+        zipkin::Propagation::inject(context, span);
 
-        span << std::make_pair("name", user) << endpoint;
+        zipkin::Endpoint endpoint("greeter_client");
 
-        auto send_header = [&context](const char *key, const std::string &value) {
-            std::string lower_key(key);
-            folly::toLowerAscii(const_cast<char *>(lower_key.data()), lower_key.size());
-            context.AddMetadata(lower_key, value);
-        };
-
-        send_header(ZIPKIN_X_TRACE_ID, folly::to<std::string>(span.trace_id()));
-        send_header(ZIPKIN_X_SPAN_ID, folly::to<std::string>(span.id()));
-
-        if (span.parent_id())
-            send_header(ZIPKIN_X_PARENT_SPAN_ID, folly::to<std::string>(span.parent_id()));
-        if (span.sampled())
-            send_header(ZIPKIN_X_SAMPLED, "1");
-        if (span.debug())
-            send_header(ZIPKIN_X_FLAGS, "1");
-
-        span << zipkin::TraceKeys::CLIENT_SEND << endpoint;
+        span << std::make_pair("name", user) << endpoint
+             << zipkin::TraceKeys::CLIENT_SEND << endpoint;
 
         // The actual RPC.
         Status status = stub_->SayHello(&context, request, &reply);
@@ -127,31 +113,18 @@ class GreeterClient
 };
 
 DEFINE_string(grpc_addr, "localhost:50051", "GRPC server address");
-DEFINE_string(kafka_uri, "", "Kafka URI for tracing");
-DEFINE_string(msg_codec, "pretty_json", "Message codec");
+DEFINE_string(collector_uri, "", "Collector URI for tracing");
 
 int main(int argc, char **argv)
 {
     google::InitGoogleLogging(argv[0]);
     int arg = gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-    std::shared_ptr<zipkin::KafkaCollector> collector;
+    std::shared_ptr<zipkin::Collector> collector;
 
-    if (!FLAGS_kafka_uri.empty())
+    if (!FLAGS_collector_uri.empty())
     {
-        folly::Uri uri(FLAGS_kafka_uri);
-
-        std::vector<folly::StringPiece> parts;
-        folly::split("/", uri.path(), parts);
-
-        std::string init_brokers = uri.hostname().toStdString();
-        std::string topic_name = parts.size() < 2 ? "zipkin" : parts[1].str();
-
-        zipkin::KafkaConf conf(init_brokers, topic_name);
-
-        conf.message_codec = zipkin::parse_message_codec(FLAGS_msg_codec);
-
-        collector.reset(conf.create());
+        collector.reset(zipkin::Collector::create(FLAGS_collector_uri));
     }
 
     // Instantiate the client. It requires a channel, out of which the actual RPCs
@@ -164,7 +137,8 @@ int main(int argc, char **argv)
     std::string reply = greeter.SayHello(user);
     std::cout << "Greeter received: " << reply << std::endl;
 
-    collector->flush(std::chrono::seconds(5));
+    if (collector.get())
+        collector->shutdown(std::chrono::seconds(5));
 
     google::ShutdownGoogleLogging();
 

@@ -1,39 +1,19 @@
 #pragma once
 
-#include <string>
 #include <chrono>
+#include <atomic>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
-#include <librdkafka/rdkafkacpp.h>
+#include <boost/lockfree/queue.hpp>
+
+#include <thrift/transport/TBufferTransports.h>
 
 #include "Span.h"
 
 namespace zipkin
 {
-
-/**
-* \brief Push Span as messages to transport
-*/
-struct Collector
-{
-  virtual ~Collector() = default;
-
-  /**
-  * \brief Async submit Span to transport
-  *
-  * \param span encoded to message and send to the transport,
-  *
-  * Span#release will be call after the message was sent.
-  */
-  virtual void submit(Span *span) = 0;
-
-  /**
-  * \brief Wait until all outstanding messages, et.al, are sent.
-  *
-  * \param timeout_ms the maximum amount of time (in milliseconds) that the call will block waiting.
-  * \return \c true if all outstanding messages were sent, or \c false if the \p timeout_ms was reached.
-  */
-  virtual bool flush(std::chrono::milliseconds timeout_ms) = 0;
-};
 
 /**
  * \brief use for compressing message sets.
@@ -51,163 +31,176 @@ enum CompressionCodec
 CompressionCodec parse_compression_codec(const std::string &codec);
 const std::string to_string(CompressionCodec codec);
 
+class BinaryCodec;
+class JsonCodec;
+class PrettyJsonCodec;
+
 /**
 * \brief use for encoding message sets.
 */
-enum MessageCodec
+class MessageCodec
 {
-  binary,      ///< Thrift binary encoding
-  json,        ///< JSON encoding
-  pretty_json, ///< Pretty print JSON encoding
-};
-
-MessageCodec parse_message_codec(const std::string &codec);
-const std::string to_string(MessageCodec codec);
-
-/**
- * \brief This collector push messages to a Kafka topic
- *
- * Those message was lists of spans as JSON encoded or TBinaryProtocol big-endian encoded.
- */
-class KafkaCollector : public Collector
-{
-  std::unique_ptr<RdKafka::Producer> m_producer;
-  std::unique_ptr<RdKafka::Topic> m_topic;
-  std::unique_ptr<RdKafka::DeliveryReportCb> m_reporter;
-  std::unique_ptr<RdKafka::PartitionerCb> m_partitioner;
-  int m_partition;
-  MessageCodec m_message_codec;
-
 public:
-  KafkaCollector(std::unique_ptr<RdKafka::Producer> &producer,
-                 std::unique_ptr<RdKafka::Topic> &topic,
-                 std::unique_ptr<RdKafka::DeliveryReportCb> reporter = nullptr,
-                 std::unique_ptr<RdKafka::PartitionerCb> partitioner = nullptr,
-                 int partition = RdKafka::Topic::PARTITION_UA,
-                 MessageCodec message_codec = MessageCodec::binary)
-      : m_producer(std::move(producer)), m_topic(std::move(topic)), m_reporter(std::move(reporter)),
-        m_partitioner(std::move(partitioner)), m_partition(partition), m_message_codec(message_codec)
-  {
-  }
-  virtual ~KafkaCollector() override
-  {
-    flush(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::microseconds(500)));
-  }
+  virtual ~MessageCodec(void) = default;
 
-  /**
-  * \brief Kafka producer
-  */
-  RdKafka::Producer *producer(void) const { return m_producer.get(); }
+  virtual const std::string name(void) const = 0;
 
-  /**
-  * \brief Kafka topic
-  */
-  RdKafka::Topic *topic(void) const { return m_topic.get(); }
+  virtual const std::string mime_type(void) const = 0;
 
-  /**
-  * \brief Kafka topic partition
-  */
-  int partition(void) const { return m_partition; }
+  virtual size_t encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) = 0;
 
-  // Implement Collector
+  static std::shared_ptr<MessageCodec> parse(const std::string &codec);
 
-  virtual void submit(Span *span) override;
-
-  virtual bool flush(std::chrono::milliseconds timeout_ms) override
-  {
-    return RdKafka::ERR_NO_ERROR == m_producer->flush(timeout_ms.count());
-  }
+  static std::shared_ptr<BinaryCodec> binary;
+  static std::shared_ptr<JsonCodec> json;
+  static std::shared_ptr<PrettyJsonCodec> pretty_json;
 };
 
 /**
-* \brief Configuration for KafkaCollector
-*
-* \sa https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
+* \brief Thrift binary encoding
 */
-struct KafkaConf
+class BinaryCodec : public MessageCodec
 {
-  /**
-  * \brief Initial list of brokers.
-  */
-  std::string initial_brokers;
+public:
+  virtual const std::string name(void) const override { return "binary"; }
+
+  virtual const std::string mime_type(void) const override { return "application/x-thrift"; }
+
+  virtual size_t encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) override;
+};
+
+/**
+* \brief JSON encoding
+*/
+class JsonCodec : public MessageCodec
+{
+public:
+  virtual const std::string name(void) const override { return "json"; }
+
+  virtual const std::string mime_type(void) const override { return "application/json"; }
+
+  virtual size_t encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) override;
+};
+
+/**
+* \brief Pretty print JSON encoding
+*/
+class PrettyJsonCodec : public MessageCodec
+{
+public:
+  virtual const std::string name(void) const override { return "pretty_json"; }
+
+  virtual const std::string mime_type(void) const override { return "application/json"; }
+
+  virtual size_t encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) override;
+};
+
+/**
+* \brief Push Span as messages to transport
+*/
+struct Collector
+{
+  virtual ~Collector() = default;
+
+  virtual const char *name(void) const = 0;
 
   /**
-  * \brief The topic to produce to
-  */
-  std::string topic_name;
-
-  /**
-  * \brief The partition to produce to.
+  * \brief Async submit Span to transport
   *
-  * default: PARTITION_UA (UnAssigned)
+  * \param span encoded to message and send to the transport,
+  *
+  * Span#release will be call after the message was sent.
   */
-  int topic_partition;
+  virtual void submit(Span *span) = 0;
 
   /**
-  * \brief Compression codec to use for compressing message sets.
+  * \brief Wait until all outstanding messages, et.al, are sent.
   *
-  * default: none
+  * \param timeout_ms the maximum amount of time (in milliseconds) that the call will block waiting.
+  * \return \c true if all outstanding messages were sent, or \c false if the \p timeout_ms was reached.
   */
-  CompressionCodec compression_codec;
+  virtual bool flush(std::chrono::milliseconds timeout_ms) = 0;
 
+  /**
+  * \brief Shutdown the collector
+  */
+  virtual void shutdown(std::chrono::milliseconds timeout_ms) = 0;
+
+  static Collector *create(const std::string &uri);
+};
+
+struct BaseConf
+{
   /**
   * \brief Message codec to use for encoding message sets.
   *
   * default: binary
   */
-  MessageCodec message_codec;
+  std::shared_ptr<MessageCodec> message_codec = MessageCodec::binary;
 
   /**
-  * \brief Minimum number of messages to wait for to accumulate in the local queue before sending off a message set.
+  * \brief the maximum batch size, after which a collect will be triggered.
   *
-  * default: 10000
+  * The default batch size is 100 traces.
   */
-  size_t batch_num_messages;
+  size_t batch_size = 100;
 
   /**
-  * \brief Maximum number of messages allowed on the producer queue.
+  * \brief the maximum backlog size
   *
-  * default: 100000
+  * when batch size reaches this threshold spans from the beginning of the batch will be disposed
+  *
+  * The default maximum backlog size is 1000
   */
-  size_t queue_buffering_max_messages;
+  size_t backlog = 1000;
 
   /**
-  * \brief Maximum total message size sum allowed on the producer queue.
+  * \brief the maximum duration we will buffer traces before emitting them to the collector.
   *
-  * default: 4000000
+  * The default batch interval is 1 second.
   */
-  size_t queue_buffering_max_kbytes;
+  std::chrono::milliseconds batch_interval = std::chrono::seconds(1);
+};
 
-  /**
-  * \brief How long to wait for batch.num.messages to fill up in the local queue.
-  *
-  * default: 1000ms
-  */
-  std::chrono::milliseconds queue_buffering_max_ms;
+class BaseCollector : public Collector
+{
+  boost::lockfree::queue<Span *> m_spans;
+  std::atomic_size_t m_queued_spans = ATOMIC_VAR_INIT(0);
 
-  /**
-  * \brief How many times to retry sending a failing MessageSet. Note: retrying may cause reordering.
-  *
-  * default: 2
-  */
-  size_t message_send_max_retries;
+  std::thread m_worker;
+  std::atomic_bool m_terminated = ATOMIC_VAR_INIT(false);
+  std::mutex m_sending;
+  std::condition_variable m_flush, m_sent;
 
-  /**
-  * \brief Construct a configuration for KafkaCollector
-  *
-  * \param brokers Initial list of brokers.
-  * \param name The topic to produce to
-  * \param partition The partition to produce to.
-  */
-  KafkaConf(const std::string &brokers, const std::string &name, int partition = RdKafka::Topic::PARTITION_UA)
-      : initial_brokers(brokers), topic_name(name), topic_partition(partition), compression_codec(none), message_codec(binary), batch_num_messages(0), queue_buffering_max_messages(0), queue_buffering_max_kbytes(0), queue_buffering_max_ms(0), message_send_max_retries(0)
+  bool drop_front_span(void);
+
+  void try_send_spans(void);
+
+  void send_spans(void);
+
+  static void run(BaseCollector *collector);
+
+protected:
+  std::unique_ptr<const BaseConf> m_conf;
+
+protected:
+  BaseCollector(const BaseConf *conf)
+      : m_conf(conf), m_spans(conf->backlog), m_worker(BaseCollector::run, this)
   {
   }
 
-  /**
-  * \brief Create KafkaCollector base on the configuration
-  */
-  KafkaCollector *create(void) const;
+  virtual ~BaseCollector() = default;
+
+  virtual void send_message(const uint8_t *msg, size_t size) = 0;
+
+public:
+  // Implement Collector
+
+  virtual void submit(Span *span) override;
+
+  virtual bool flush(std::chrono::milliseconds timeout_ms) override;
+
+  virtual void shutdown(std::chrono::milliseconds timeout_ms) override;
 };
 
 } // namespace zipkin

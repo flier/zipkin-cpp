@@ -1,61 +1,80 @@
 sudo: required
-
 dist: trusty
-
-services:
-    - docker
-
 os:
     - linux
     - osx
+osx_image: xcode8.2
 
 addons:
     apt:
-        packages:
+        packages: &default_packages
             - automake
+            - autoconf
             - bison
             - flex
+            - libtool
+            - libc++-dev
             - build-essential
-            - clang
-            - cmake
-            - g++
-            - libboost-dev
-            - libboost-filesystem-dev
-            - libboost-program-options-dev
-            - libboost-system-dev
-            - libboost-test-dev
+            - libboost-all-dev
             - libevent-dev
             - libssl-dev
-            - libtool
+            - libcurl4-openssl-dev
+            - libdouble-conversion-dev
+            - thrift-compiler
             - make
             - pkg-config
-            - curl
             - tree
 
 language: cpp
-
-compiler:
-    - clang
-    - gcc
+cache: ccache
 
 python:
     - "2.7"
 
 env:
     global:
-        - THRIFT_VERSION=0.10.0
-        - RDKAFKA_VERSION=0.9.4
+        - CMAKE_VERSION=3.7.2
 
-install:
-    - pip install --upgrade pip
-    - pip install --user conan
+matrix:
+  include:
+    - os: osx
+    - os: linux
+      env: COMPILER_NAME=gcc CXX=g++-5 CC=gcc-5
+      addons:
+        apt:
+          packages:
+            - *default_packages
+            - g++-5
+          sources: &sources
+            - llvm-toolchain-precise-3.8
+            - ubuntu-toolchain-r-test
+    - os: linux
+      env: COMPILER_NAME=clang CXX=clang++-3.8 CC=clang-3.8
+      addons:
+        apt:
+          packages:
+            - *default_packages
+            - clang-3.8
+          sources: *sources
 
 before_script:
     - .travis/install-dependencies.sh
 
 script:
-    - scons
+    - mkdir build && cd build && rm -rf *
+    - echo travis_fold:start:cmake CMake configure
+    - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ../cmake-$CMAKE_VERSION-Linux-x86_64/bin/cmake .. ;fi
+    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then cmake .. -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ;fi
+    - echo travis_fold:end:cmake
+    - make && make test
 
 after_failure:
     - echo `pwd`
+    - cat externals/src/Folly/folly/config.log
+    - cat externals/src/Thrift/config.log
     - tree -h
+
+cache:
+  ccache: true
+  directories:
+    - cmake-$CMAKE_VERSION-Linux-x86_64

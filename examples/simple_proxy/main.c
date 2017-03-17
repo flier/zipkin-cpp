@@ -85,27 +85,47 @@ zipkin_span_t create_session_span(struct mg_connection *nc, struct http_message 
   return span;
 }
 
-zipkin_endpoint_t create_session_endpoint(struct mg_connection *nc, const char *service)
+zipkin_endpoint_t create_session_endpoint(struct mg_connection *nc, struct sockaddr *addr)
 {
-  union socket_address addr;
-  socklen_t addr_len = sizeof(addr);
+  union socket_address sock_addr = {0};
+  socklen_t addr_len = sizeof(sock_addr);
+  const char *service;
 
   if (!session_tracer(nc))
     return NULL;
 
   if (MG_F_UPSTREAM == (nc->flags & MG_F_UPSTREAM))
   {
-    return zipkin_endpoint_new(service, (struct sockaddr *)&nc->sa.sin);
+    service = "upstream";
+
+    if (!addr && 0 == getpeername(nc->sock, &sock_addr.sa, &addr_len) && sock_addr.sa.sa_family)
+    {
+      addr = (struct sockaddr *)&sock_addr.sin;
+    }
+  }
+  else if (MG_F_TUNNEL == (nc->flags & MG_F_TUNNEL))
+  {
+    service = "tunnel";
+  }
+  else if (MG_F_PROXY == (nc->flags & MG_F_PROXY))
+  {
+    service = "proxy";
+  }
+  else
+  {
+    service = "http";
   }
 
-  getsockname(nc->sock, &addr.sa, &addr_len);
+  if (!addr && 0 == getsockname(nc->sock, &sock_addr.sa, &addr_len) && sock_addr.sa.sa_family)
+  {
+    addr = (struct sockaddr *)&sock_addr.sin;
+  }
 
-  return zipkin_endpoint_new(service, (struct sockaddr *)&addr.sin);
+  return zipkin_endpoint_new(service, addr);
 }
 
-void forward_tcp_connection(struct mg_connection *nc, struct http_message *hm)
+void forward_tcp_connection(struct mg_connection *nc, struct http_message *hm, zipkin_endpoint_t endpoint)
 {
-  zipkin_endpoint_t endpoint = create_session_endpoint(nc, "tunnel");
   zipkin_span_t span = create_session_span(nc, hm, endpoint);
   struct mg_connection *cc;
   const char *errmsg = NULL;
@@ -124,9 +144,9 @@ void forward_tcp_connection(struct mg_connection *nc, struct http_message *hm)
 
   if (cc)
   {
-    cc->user_data = span = zipkin_span_new_child(span, "upstream", nc);
+    cc->user_data = span = zipkin_span_new_child(span, addr, nc);
 
-    ANNOTATE(span, ZIPKIN_CLIENT_SEND, NULL);
+    ANNOTATE(span, ZIPKIN_CLIENT_SEND, endpoint);
 
     mg_send_head(nc, 200, 0, HTTP_PROXY_AGENT ": " APP_NAME "/" APP_VERSION);
   }
@@ -136,18 +156,15 @@ void forward_tcp_connection(struct mg_connection *nc, struct http_message *hm)
 
     mg_http_send_error(cc, 400, errmsg);
   }
-
-  zipkin_endpoint_free(endpoint);
 }
 
-void forward_http_request(struct mg_connection *nc, struct http_message *hm)
+void forward_http_request(struct mg_connection *nc, struct http_message *hm, zipkin_endpoint_t endpoint)
 {
-  zipkin_endpoint_t endpoint = create_session_endpoint(nc, "proxy"), peer_endpoint;
   zipkin_span_t span = create_session_span(nc, hm, endpoint);
   struct mg_connection *cc;
   int i;
   const char *errmsg = NULL;
-  struct mg_connect_opts opts = {nc, MG_F_UPSTREAM, &errmsg};
+  struct mg_connect_opts opts = {nc, MG_F_UPSTREAM | MG_F_PROXY, &errmsg};
   char *uri = strndup(hm->uri.p, hm->uri.len);
   char hostname[MAXHOSTNAMELEN] = {0};
   char local_addr[64] = {0}, peer_addr[64] = {0};
@@ -196,30 +213,7 @@ void forward_http_request(struct mg_connection *nc, struct http_message *hm)
 
   if (span)
   {
-    if (zipkin_span_trace_id_high(span))
-    {
-      p += snprintf(p, end - p, ZIPKIN_X_TRACE_ID ": " ZIPKIN_SPAN_ID_FMT ZIPKIN_SPAN_ID_FMT CRLF,
-                    zipkin_span_trace_id_high(span), zipkin_span_trace_id(span));
-    }
-    else
-    {
-      p += snprintf(p, end - p, ZIPKIN_X_TRACE_ID ": " ZIPKIN_SPAN_ID_FMT CRLF, zipkin_span_trace_id(span));
-    }
-
-    p += snprintf(p, end - p, ZIPKIN_X_SPAN_ID ": " ZIPKIN_SPAN_ID_FMT CRLF, zipkin_span_id(span));
-
-    if (zipkin_span_parent_id(span))
-    {
-      p += snprintf(p, end - p, ZIPKIN_X_PARENT_SPAN_ID ": " ZIPKIN_SPAN_ID_FMT CRLF, zipkin_span_parent_id(span));
-    }
-    if (zipkin_span_sampled(span))
-    {
-      p += snprintf(p, end - p, ZIPKIN_X_SAMPLED ": 1" CRLF);
-    }
-    if (zipkin_span_debug(span))
-    {
-      p += snprintf(p, end - p, ZIPKIN_X_FLAGS ": 1" CRLF);
-    }
+    p += zipkin_propagation_inject_headers(p, end - p, span);
   }
 
   cc = mg_connect_http_opt(nc->mgr, ev_handler, opts, uri, extra_headers, hm->body.len ? hm->body.p : NULL);
@@ -228,6 +222,8 @@ void forward_http_request(struct mg_connection *nc, struct http_message *hm)
   ZF_LOGD("headers:\n%s", extra_headers);
 
   ANNOTATE_STR(span, ZIPKIN_HTTP_URL, hm->uri.p, hm->uri.len, endpoint);
+  ANNOTATE(span, ZIPKIN_CLIENT_SEND, endpoint);
+  ANNOTATE_INT32(span, ZIPKIN_HTTP_REQUEST_SIZE, cc->send_mbuf.size, endpoint);
 
   nc->user_data = zipkin_span_set_userdata(span, cc);
 
@@ -235,13 +231,7 @@ void forward_http_request(struct mg_connection *nc, struct http_message *hm)
   {
     if (span)
     {
-      peer_endpoint = create_session_endpoint(cc, "upstream");
-      cc->user_data = span = zipkin_span_new_child(span, uri, nc);
-
-      ANNOTATE(span, ZIPKIN_CLIENT_SEND, peer_endpoint);
-      ANNOTATE_INT32(span, ZIPKIN_HTTP_REQUEST_SIZE, cc->send_mbuf.size, peer_endpoint);
-
-      zipkin_endpoint_free(peer_endpoint);
+      cc->user_data = zipkin_span_new_child(span, uri, nc);
     }
   }
   else
@@ -252,13 +242,10 @@ void forward_http_request(struct mg_connection *nc, struct http_message *hm)
   }
 
   free(uri);
-
-  zipkin_endpoint_free(endpoint);
 }
 
-void reply_json_response(struct mg_connection *nc, struct http_message *hm)
+void reply_json_response(struct mg_connection *nc, struct http_message *hm, zipkin_endpoint_t endpoint)
 {
-  zipkin_endpoint_t endpoint = create_session_endpoint(nc, "http");
   zipkin_span_t span = create_session_span(nc, hm, endpoint);
   char local_addr[64] = {0}, peer_addr[64] = {0};
   int i;
@@ -308,8 +295,6 @@ void reply_json_response(struct mg_connection *nc, struct http_message *hm)
   ANNOTATE_INT16(span, ZIPKIN_HTTP_STATUS_CODE, 200, endpoint);
   ANNOTATE_INT32(span, ZIPKIN_HTTP_REQUEST_SIZE, hm->message.len, endpoint);
   ANNOTATE_INT32(span, ZIPKIN_HTTP_RESPONSE_SIZE, nc->send_mbuf.size, endpoint);
-
-  zipkin_endpoint_free(endpoint);
 }
 
 void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
@@ -318,6 +303,7 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
   zipkin_tracer_t tracer = session_tracer(nc);
   zipkin_span_t span = tracer ? (zipkin_span_t)nc->user_data : NULL;
   struct mg_connection *cc = tracer ? (struct mg_connection *)zipkin_span_userdata(span) : (zipkin_span_t)nc->user_data;
+  zipkin_endpoint_t endpoint = NULL;
 
   switch (ev)
   {
@@ -326,21 +312,41 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
 
     ZF_LOG_IF(hm->body.len, ZF_LOGD_MEM(hm->body.p, hm->body.len, "received %zu bytes body", hm->body.len));
 
+    if (tracer && !zipkin_tracer_userdata(tracer))
+    {
+      socklen_t addr_len = sizeof(union socket_address);
+      union socket_address *addr = malloc(addr_len);
+
+      if (0 == getsockname(nc->sock, (struct sockaddr *)&addr->sa, &addr_len) && addr->sa.sa_family)
+      {
+        zipkin_tracer_set_userdata(tracer, addr);
+      }
+    }
+
     if (!mg_vcasecmp(&hm->method, "CONNECT"))
     {
-      forward_tcp_connection(nc, hm);
+      nc->flags |= MG_F_TUNNEL;
 
-      nc->flags |= MG_F_PROXY;
+      if (tracer)
+        endpoint = create_session_endpoint(nc, NULL);
+
+      forward_tcp_connection(nc, hm, endpoint);
     }
     else if (mg_get_http_header(hm, HTTP_PROXY_CONNECTION))
     {
-      forward_http_request(nc, hm);
-
       nc->flags |= MG_F_PROXY;
+
+      if (tracer)
+        endpoint = create_session_endpoint(nc, NULL);
+
+      forward_http_request(nc, hm, endpoint);
     }
     else
     {
-      reply_json_response(nc, hm);
+      if (tracer)
+        endpoint = create_session_endpoint(nc, NULL);
+
+      reply_json_response(nc, hm, endpoint);
     }
 
     break;
@@ -348,9 +354,12 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
   case MG_EV_HTTP_REPLY:
     ZF_LOGI("received HTTP response from %s:%d, conn=%p", inet_ntoa(nc->sa.sin.sin_addr), nc->sa.sin.sin_port, nc);
 
-    ANNOTATE(span, ZIPKIN_CLIENT_RECV, NULL);
-    ANNOTATE_INT16(span, ZIPKIN_HTTP_STATUS_CODE, hm->resp_code, NULL);
-    ANNOTATE_INT32(span, ZIPKIN_HTTP_RESPONSE_SIZE, hm->message.len, NULL);
+    if (tracer)
+      endpoint = create_session_endpoint(nc, (struct sockaddr *)&nc->sa.sin);
+
+    ANNOTATE(span, ZIPKIN_CLIENT_RECV, endpoint);
+    ANNOTATE_INT16(span, ZIPKIN_HTTP_STATUS_CODE, hm->resp_code, endpoint);
+    ANNOTATE_INT32(span, ZIPKIN_HTTP_RESPONSE_SIZE, hm->message.len, endpoint);
 
     mg_send(cc, hm->message.p, hm->message.len);
 
@@ -362,22 +371,29 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
   case MG_EV_CONNECT:
     ZF_LOGI("connection to %s:%d was %s, conn=%p", inet_ntoa(nc->sa.sin.sin_addr), nc->sa.sin.sin_port, *(int *)ev_data ? "refused" : "accepted", nc);
 
+    if (tracer)
+      endpoint = create_session_endpoint(nc, (struct sockaddr *)&nc->sa.sin);
+
     if (*(int *)ev_data != 0)
     {
-      ANNOTATE(span, "refused", NULL);
+      ANNOTATE(span, "refused", endpoint);
 
       mg_http_send_error(cc, 502, NULL);
     }
     else
     {
-      ANNOTATE(span, "connected", NULL);
+      ANNOTATE(span, "connected", endpoint);
     }
+
     break;
 
   case MG_EV_RECV:
     ZF_LOGD("received TCP data %d bytes from %s:%d, conn=%p", *(int *)ev_data, inet_ntoa(nc->sa.sin.sin_addr), nc->sa.sin.sin_port, nc);
 
-    ANNOTATE_INT32(span, ZIPKIN_WIRE_RECV, *(int *)ev_data, NULL);
+    if (tracer)
+      endpoint = create_session_endpoint(nc, NULL);
+
+    ANNOTATE_INT32(span, ZIPKIN_WIRE_RECV, *(int *)ev_data, endpoint);
 
     if (cc)
     {
@@ -389,7 +405,10 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
   case MG_EV_SEND:
     ZF_LOGD("sent TCP data %d bytes to %s:%d, conn=%p", *(int *)ev_data, inet_ntoa(nc->sa.sin.sin_addr), nc->sa.sin.sin_port, nc);
 
-    ANNOTATE_INT32(span, ZIPKIN_WIRE_SEND, *(int *)ev_data, NULL);
+    if (tracer)
+      endpoint = create_session_endpoint(nc, NULL);
+
+    ANNOTATE_INT32(span, ZIPKIN_WIRE_SEND, *(int *)ev_data, endpoint);
 
     break;
 
@@ -401,55 +420,18 @@ void ev_handler(struct mg_connection *nc, int ev, void *ev_data)
       cc->flags |= MG_F_SEND_AND_CLOSE;
     }
 
-    ANNOTATE_IF(0 == (nc->flags & MG_F_UPSTREAM), span, ZIPKIN_SERVER_SEND, NULL);
+    if (tracer)
+      endpoint = create_session_endpoint(nc, zipkin_tracer_userdata(tracer));
+
+    ANNOTATE_IF(0 == (nc->flags & MG_F_UPSTREAM), span, ZIPKIN_SERVER_SEND, endpoint);
 
     zipkin_span_submit(span);
 
     break;
   }
-}
 
-zipkin_tracer_t create_collector(const char *kafka_uri, int binary_encoding)
-{
-  struct mg_str host, path;
-  unsigned int port = 0;
-  char broker[1024] = {0};
-  char *topic;
-  const char *message_codec = binary_encoding ? ZIPKIN_ENCODING_BINARY : ZIPKIN_ENCODING_PRETTY_JSON;
-  zipkin_conf_t conf = NULL;
-  zipkin_collector_t collector = NULL;
-
-  if (mg_parse_uri(mg_mk_str(kafka_uri), NULL, NULL, &host, &port, &path, NULL, NULL))
-    return NULL;
-
-  if (port)
-  {
-    snprintf(broker, sizeof(broker), "%.*s:%d", (int)host.len, host.p, port);
-  }
-  else
-  {
-    snprintf(broker, sizeof(broker), "%.*s", (int)host.len, host.p);
-  }
-
-  topic = strtok((char *)path.p, "/");
-
-  conf = zipkin_conf_new(broker, topic);
-
-  if (conf)
-  {
-    zipkin_conf_set_message_codec(conf, message_codec);
-
-    collector = zipkin_collector_new(conf);
-
-    if (collector)
-    {
-      ZF_LOGI("collector created, broker=%s, topic=%s, message_codec=%s", broker, topic, message_codec);
-    }
-
-    zipkin_conf_free(conf);
-  }
-
-  return collector;
+  if (endpoint)
+    zipkin_endpoint_free(endpoint);
 }
 
 enum cs_log_level
@@ -472,7 +454,7 @@ int main(int argc, char **argv)
   int c;
 
   const char *http_port = "8000";
-  const char *kafka_uri = NULL;
+  const char *collector_uri = NULL;
   int binary_encoding = 0;
 
   zipkin_collector_t collector = NULL;
@@ -485,10 +467,16 @@ int main(int argc, char **argv)
   cs_log_set_level(LL_WARN);
   zf_log_set_output_level(ZF_LOG_WARN);
 
-  while ((c = getopt(argc, argv, "dvp:bt:h")) != -1)
+  while ((c = getopt(argc, argv, "dvtp:bu:h")) != -1)
   {
     switch (c)
     {
+    case 't':
+      zipkin_set_logging_level(LOG_TRACE);
+      cs_log_set_level(LL_VERBOSE_DEBUG);
+      zf_log_set_output_level(ZF_LOG_VERBOSE);
+      break;
+
     case 'd':
       zipkin_set_logging_level(LOG_DEBUG);
       cs_log_set_level(LL_DEBUG);
@@ -505,8 +493,8 @@ int main(int argc, char **argv)
       http_port = optarg;
       break;
 
-    case 't':
-      kafka_uri = optarg;
+    case 'u':
+      collector_uri = optarg;
       break;
 
     case 'b':
@@ -516,11 +504,11 @@ int main(int argc, char **argv)
     case 'h':
     case '?':
       printf("%s [options]\n\n", argv[0]);
+      printf("-t\t\tShow trace messages\n");
       printf("-d\t\tShow debug messages\n");
       printf("-v\t\tShow verbose messages\n");
       printf("-p <port>\tListen on port (default: %s)\n", http_port);
-      printf("-t <uri>\tKafka URI for tracing\n");
-      printf("-b\t\tEncode message in binary\n");
+      printf("-u <uri>\tCollector URI for tracing\n");
 
       return 1;
 
@@ -534,9 +522,9 @@ int main(int argc, char **argv)
   signal(SIGTERM, signal_handler);
   signal(SIGINT, signal_handler);
 
-  if (kafka_uri)
+  if (collector_uri)
   {
-    collector = create_collector(kafka_uri, binary_encoding);
+    collector = zipkin_collector_new(collector_uri);
 
     if (!collector)
     {
@@ -544,7 +532,7 @@ int main(int argc, char **argv)
       return -2;
     }
 
-    tracer = zipkin_tracer_new(collector, APP_NAME);
+    tracer = zipkin_tracer_new(collector);
 
     if (!tracer)
     {
@@ -576,13 +564,11 @@ int main(int argc, char **argv)
 
   ZF_LOGI("proxy stopped");
 
-  if (tracer)
-  {
-    zipkin_tracer_free(tracer);
-  }
-
   if (collector)
   {
+    zipkin_collector_shutdown(collector, 2000);
+    free(zipkin_tracer_userdata(tracer));
+    zipkin_tracer_free(tracer);
     zipkin_collector_free(collector);
   }
 

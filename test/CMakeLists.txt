@@ -1,5 +1,4 @@
-set(EXTRA_CXX_FLAGS "${EXTRA_CXX_FLAGS} -std=c++11 -Wno-invalid-offsetof")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXTRA_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-invalid-offsetof")
 
 add_definitions(-DUSE_BOOST_THREAD=1)
 
@@ -14,7 +13,8 @@ add_executable(unittest ${zipkin_test_SRCS})
 target_link_libraries(unittest
                       zipkin
                       ${zipkin_DEPENDENCIES}
-                      ${CONAN_LIBS_GTEST}
+                      ${GTEST_LIBRARIES}
+                      ${GMOCK_LIBRARIES}
                       )
 
 add_test(

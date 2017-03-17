@@ -5,27 +5,23 @@
 using namespace testing;
 
 #include "Span.h"
-#include "Collector.h"
 #include "Tracer.h"
+#include "Collector.h"
+#include "KafkaCollector.h"
+#ifdef WITH_CURL
+#include "HttpCollector.h"
+#endif
 
 class MockTracer : public zipkin::Tracer
 {
 public:
-  MOCK_CONST_METHOD0(id, trace_id_t(void));
-
-  MOCK_METHOD1(set_id, void(trace_id_t));
-
-  MOCK_CONST_METHOD0(id_high, trace_id_t(void));
-
-  MOCK_METHOD1(set_id_high, void(trace_id_t));
-
-  MOCK_METHOD1(set_id, void(const x_trace_id_t &));
-
-  MOCK_CONST_METHOD0(name, const std::string &(void));
-
   MOCK_CONST_METHOD0(sample_rate, size_t(void));
 
   MOCK_METHOD1(set_sample_rate, void(size_t sample_rate));
+
+  MOCK_CONST_METHOD0(userdata, userdata_t(void));
+
+  MOCK_METHOD1(set_userdata, void(userdata_t userdata));
 
   MOCK_CONST_METHOD0(collector, zipkin::Collector *(void));
 
@@ -39,9 +35,13 @@ public:
 class MockCollector : public zipkin::Collector
 {
 public:
+  MOCK_CONST_METHOD0(name, const char *(void));
+
   MOCK_METHOD1(submit, void(zipkin::Span *span));
 
   MOCK_METHOD1(flush, bool(std::chrono::milliseconds timeout_ms));
+
+  MOCK_METHOD1(shutdown, void(std::chrono::milliseconds timeout_ms));
 };
 
 class MockProducer : public RdKafka::Producer

@@ -1,162 +1,26 @@
 #include "Collector.h"
 
-#include <ios>
-#include <algorithm>
-#include <cstdio>
-#include <cstdlib>
-#include <memory>
-#include <string>
-#include <functional>
-
-#include <glog/logging.h>
-
-#include <boost/smart_ptr.hpp>
-
-#include <thrift/transport/TBufferTransports.h>
 #include <thrift/protocol/TBinaryProtocol.h>
 
 #define RAPIDJSON_HAS_STDSTRING 1
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/prettywriter.h>
 
-#include "zipkinCore_types.h"
+#include <folly/Uri.h>
 
-#include "Tracer.h"
+#include "KafkaCollector.h"
+#ifdef WITH_CURL
+#include "HttpCollector.h"
+#endif
+#include "ScribeCollector.h"
+#include "XRayCollector.h"
 
 namespace zipkin
 {
 
-struct SpanDeliveryReporter : public RdKafka::DeliveryReportCb
-{
-    void dr_cb(RdKafka::Message &message)
-    {
-        CachedSpan *span = static_cast<CachedSpan *>(message.msg_opaque());
-
-        if (RdKafka::ErrorCode::ERR_NO_ERROR == message.err())
-        {
-            VLOG(2) << "Deliveried Span `" << std::hex << span->id()
-                    << "` to topic " << message.topic_name()
-                    << " #" << message.partition() << " @" << message.offset()
-                    << " with " << message.len() << " bytes";
-        }
-        else
-        {
-            LOG(WARNING) << "Fail to delivery Span `" << std::hex << span->id()
-                         << "` to topic " << message.topic_name()
-                         << " #" << message.partition() << " @" << message.offset()
-                         << ", " << message.errstr();
-        }
-
-        span->release();
-    }
-};
-
-struct HashPartitioner : public RdKafka::PartitionerCb
-{
-    std::hash<std::string> hasher;
-
-    virtual int32_t partitioner_cb(const RdKafka::Topic *topic,
-                                   const std::string *key,
-                                   int32_t partition_cnt,
-                                   void *msg_opaque) override
-    {
-        return hasher(*key) % partition_cnt;
-    }
-};
-
-class ReusableMemoryBuffer : public apache::thrift::transport::TMemoryBuffer
-{
-  public:
-    ReusableMemoryBuffer(CachedSpan *cached_span)
-        : TMemoryBuffer(cached_span->cache_ptr(), cached_span->cache_size())
-    {
-        resetBuffer();
-
-        size_t size = cached_span->cache_size();
-
-        wBound_ += size;
-        bufferSize_ = size;
-    }
-};
-
-void KafkaCollector::submit(Span *span)
-{
-    boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new ReusableMemoryBuffer(static_cast<CachedSpan *>(span)));
-
-    uint32_t wrote = 0;
-
-    switch (m_message_codec)
-    {
-    case MessageCodec::binary:
-    {
-        apache::thrift::protocol::TBinaryProtocol protocol(buf);
-
-        wrote = protocol.writeByte(12) + // type of the list elements: 12 == struct
-                protocol.writeI32(1);    // count of spans that will follow
-
-        wrote += span->serialize_binary(protocol);
-
-        break;
-    }
-
-    case MessageCodec::json:
-    case MessageCodec::pretty_json:
-    {
-        rapidjson::StringBuffer buffer;
-
-        if (m_message_codec == MessageCodec::pretty_json)
-        {
-            rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
-
-            writer.StartArray();
-            span->serialize_json(writer);
-            writer.EndArray(1);
-        }
-        else
-        {
-            rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-
-            writer.StartArray();
-            span->serialize_json(writer);
-            writer.EndArray(1);
-        }
-
-        buf->write((const uint8_t *)buffer.GetString(), buffer.GetSize());
-
-        wrote = buffer.GetSize();
-
-        break;
-    }
-    }
-
-    VLOG(2) << "Span @ " << span << " wrote " << wrote << " bytes to message, id=" << std::hex << span->id();
-    VLOG(3) << span->message();
-
-    uint8_t *ptr = nullptr;
-    uint32_t len = 0;
-
-    buf->getBuffer(&ptr, &len);
-
-    assert(ptr);
-    assert(wrote == len);
-
-    RdKafka::ErrorCode err = m_producer->produce(m_topic.get(),
-                                                 m_partition,
-                                                 0,             // msgflags
-                                                 (void *)ptr,   // payload
-                                                 len,           // payload length
-                                                 &span->name(), // key
-                                                 span);         // msg_opaque
-
-    if (RdKafka::ErrorCode::ERR_NO_ERROR != err)
-    {
-        LOG(WARNING) << "fail to submit message to Kafka, " << err2str(err);
-    }
-    else
-    {
-        m_producer->poll(0);
-    }
-}
+std::shared_ptr<BinaryCodec> MessageCodec::binary(new BinaryCodec());
+std::shared_ptr<JsonCodec> MessageCodec::json(new JsonCodec());
+std::shared_ptr<PrettyJsonCodec> MessageCodec::pretty_json(new PrettyJsonCodec());
 
 CompressionCodec parse_compression_codec(const std::string &codec)
 {
@@ -185,130 +49,244 @@ const std::string to_string(CompressionCodec codec)
     }
 }
 
-MessageCodec parse_message_codec(const std::string &codec)
+std::shared_ptr<MessageCodec> MessageCodec::parse(const std::string &codec)
 {
     if (codec == "binary")
-        return MessageCodec::binary;
+        return binary;
     if (codec == "json")
-        return MessageCodec::json;
+        return json;
+    if (codec == "pretty_json")
+        return pretty_json;
 
-    return MessageCodec::pretty_json;
+    return nullptr;
 }
 
-const std::string to_string(MessageCodec codec)
+size_t BinaryCodec::encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans)
 {
-    switch (codec)
+    apache::thrift::protocol::TBinaryProtocol protocol(buf);
+
+    size_t wrote = protocol.writeListBegin(apache::thrift::protocol::T_STRUCT, spans.size());
+
+    for (auto &span : spans)
     {
-    case MessageCodec::binary:
-        return "binary";
-    case MessageCodec::json:
-        return "json";
-    case MessageCodec::pretty_json:
-        return "pretty_json";
+        wrote += span->serialize_binary(protocol);
+    }
+
+    return wrote + protocol.writeListEnd();
+}
+
+size_t JsonCodec::encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans)
+{
+    rapidjson::StringBuffer buffer;
+
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+
+    writer.StartArray();
+
+    for (auto &span : spans)
+    {
+        span->serialize_json(writer);
+    }
+
+    writer.EndArray();
+
+    buf->write((const uint8_t *)buffer.GetString(), buffer.GetSize());
+
+    return buffer.GetSize();
+}
+
+size_t PrettyJsonCodec::encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans)
+{
+    rapidjson::StringBuffer buffer;
+
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+
+    writer.StartArray();
+
+    for (auto &span : spans)
+    {
+        span->serialize_json(writer);
+    }
+
+    writer.EndArray();
+
+    buf->write((const uint8_t *)buffer.GetString(), buffer.GetSize());
+
+    return buffer.GetSize();
+}
+
+Collector *Collector::create(const std::string &uri)
+{
+    folly::Uri u(uri);
+
+    if (u.scheme() == "kafka")
+    {
+        KafkaConf *conf = new KafkaConf(u);
+
+        return conf->create();
+    }
+
+#ifdef WITH_CURL
+    if (u.scheme() == "http" || u.scheme() == "https")
+    {
+        HttpConf *conf = new HttpConf(u);
+
+        return conf->create();
+    }
+#endif
+
+    if (u.scheme() == "scribe" || u.scheme() == "thrift")
+    {
+        ScribeConf *conf = new ScribeConf(u);
+
+        return conf->create();
+    }
+
+    if (u.scheme() == "xray")
+    {
+        XRayConf *conf = new XRayConf(u);
+
+        return conf->create();
+    }
+
+    return nullptr;
+}
+
+void BaseCollector::submit(Span *span)
+{
+    while (m_queued_spans >= m_conf->backlog)
+    {
+        if (drop_front_span())
+            m_queued_spans--;
+    }
+
+    if (m_spans.push(span))
+        m_queued_spans++;
+
+    if (m_queued_spans >= m_conf->batch_size)
+        flush(std::chrono::milliseconds(0));
+}
+
+bool BaseCollector::drop_front_span()
+{
+    CachedSpan *span = nullptr;
+
+    if (m_spans.pop(span) && span)
+    {
+        LOG(WARNING) << "Drop Span `" << std::hex << span->id() << " exceed backlog";
+
+        span->release();
+
+        return true;
+    }
+
+    return false;
+}
+
+bool BaseCollector::flush(std::chrono::milliseconds timeout_ms)
+{
+    std::unique_lock<std::mutex> lock(m_sending);
+
+    m_flush.notify_one();
+
+    if (m_terminated)
+    {
+        VLOG(3) << "shutdow " << name() << " collector and wait " << timeout_ms.count() << " ms";
+    }
+    else if (m_spans.empty())
+    {
+        VLOG(3) << "no pendding spans to flush";
+    }
+    else
+    {
+        VLOG(3) << "flush pendding " << m_queued_spans << " spans and wait " << timeout_ms.count() << " ms";
+    }
+
+    return std::cv_status::no_timeout == m_sent.wait_for(lock, timeout_ms) && m_spans.empty();
+}
+
+void BaseCollector::shutdown(std::chrono::milliseconds timeout_ms)
+{
+    m_terminated = true;
+
+    if (!flush(timeout_ms) && m_worker.joinable())
+    {
+        VLOG(3) << "join thread " << m_worker.get_id();
+
+        m_worker.join();
+    }
+
+    m_worker.detach();
+}
+
+void BaseCollector::run(BaseCollector *collector)
+{
+    LOG(INFO) << collector->name() << " collector started";
+
+    do
+    {
+        collector->try_send_spans();
+
+        if (collector->m_terminated)
+        {
+            VLOG(3) << "collector thread " << std::this_thread::get_id() << " terminated";
+
+            break;
+        }
+
+        std::this_thread::yield();
+    } while (!collector->m_terminated);
+}
+
+void BaseCollector::try_send_spans(void)
+{
+    std::unique_lock<std::mutex> lock(m_sending);
+
+    if (m_flush.wait_for(lock, m_conf->batch_interval, [this] { return m_terminated || !m_spans.empty(); }))
+    {
+        if (!m_spans.empty())
+        {
+            send_spans();
+        }
+        else
+        {
+            VLOG(1) << name() << " collector " << (m_terminated ? "terminated" : "flushed");
+        }
+
+        m_sent.notify_all();
     }
 }
 
-bool kafka_conf_set(std::unique_ptr<RdKafka::Conf> &conf, const std::string &name, const std::string &value)
+void BaseCollector::send_spans(void)
 {
-    std::string errstr;
+    VLOG(2) << "sending " << m_queued_spans << " spans";
 
-    bool ok = RdKafka::Conf::CONF_OK == conf->set(name, value, errstr);
+    std::vector<Span *> spans;
 
-    if (!ok)
+    m_queued_spans -= m_spans.consume_all([&spans](Span *span) {
+        spans.push_back(span);
+    });
+
+    if (!spans.empty())
     {
-        LOG(ERROR) << "fail to set " << name << " to " << value << ", " << errstr;
-    }
+        boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer());
 
-    return ok;
-}
+        VLOG(1) << "encode " << spans.size() << " spans with `" << m_conf->message_codec->name() << "` codec";
 
-KafkaCollector *KafkaConf::create(void) const
-{
-    std::string errstr;
+        m_conf->message_codec->encode(buf, spans);
 
-    std::unique_ptr<RdKafka::Conf> producer_conf(RdKafka::Conf::create(RdKafka::Conf::ConfType::CONF_GLOBAL));
-    std::unique_ptr<RdKafka::Conf> topic_conf(RdKafka::Conf::create(RdKafka::Conf::ConfType::CONF_TOPIC));
-    std::unique_ptr<RdKafka::DeliveryReportCb> reporter(new SpanDeliveryReporter());
-    std::unique_ptr<RdKafka::PartitionerCb> partitioner;
-
-    if (!kafka_conf_set(producer_conf, "metadata.broker.list", initial_brokers))
-        return nullptr;
-
-    if (RdKafka::Conf::CONF_OK != producer_conf->set("dr_cb", reporter.get(), errstr))
-    {
-        LOG(ERROR) << "fail to set delivery reporter, " << errstr;
-        return nullptr;
-    }
-
-    if (compression_codec != CompressionCodec::none && !kafka_conf_set(producer_conf, "compression.codec", to_string(compression_codec)))
-        return nullptr;
-
-    if (batch_num_messages && !kafka_conf_set(producer_conf, "batch.num.messages", std::to_string(batch_num_messages)))
-        return nullptr;
-
-    if (queue_buffering_max_messages && !kafka_conf_set(producer_conf, "queue.buffering.max.messages", std::to_string(queue_buffering_max_messages)))
-        return nullptr;
-
-    if (queue_buffering_max_kbytes && !kafka_conf_set(producer_conf, "queue.buffering.max.kbytes", std::to_string(queue_buffering_max_kbytes)))
-        return nullptr;
-
-    if (queue_buffering_max_ms.count() && !kafka_conf_set(producer_conf, "queue.buffering.max.ms", std::to_string(queue_buffering_max_ms.count())))
-        return nullptr;
-
-    if (message_send_max_retries && !kafka_conf_set(producer_conf, "message.send.max.retries", std::to_string(message_send_max_retries)))
-        return nullptr;
-
-    if (topic_partition == RdKafka::Topic::PARTITION_UA)
-    {
-        partitioner.reset(new HashPartitioner());
-
-        if (RdKafka::Conf::CONF_OK != topic_conf->set("partitioner_cb", partitioner.get(), errstr))
+        for (auto span : spans)
         {
-            LOG(ERROR) << "fail to set partitioner, " << errstr;
-            return nullptr;
-        }
-    }
-
-    if (VLOG_IS_ON(2))
-    {
-        VLOG(2) << "# Global config";
-
-        std::unique_ptr<std::list<std::string>> producer_conf_items(producer_conf->dump());
-
-        for (auto it = producer_conf_items->begin(); it != producer_conf_items->end();)
-        {
-            VLOG(2) << *it++ << " = " << *it++;
+            span->release();
         }
 
-        VLOG(2) << "# Topic config";
+        uint8_t *msg = nullptr;
+        uint32_t size = 0;
 
-        std::unique_ptr<std::list<std::string>> topic_conf_items(topic_conf->dump());
+        buf->getBuffer(&msg, &size);
 
-        for (auto it = topic_conf_items->begin(); it != topic_conf_items->end();)
-        {
-            VLOG(2) << *it++ << " = " << *it++;
-        }
+        send_message(msg, size);
     }
-
-    std::unique_ptr<RdKafka::Producer> producer(RdKafka::Producer::create(producer_conf.get(), errstr));
-
-    if (!producer)
-    {
-        LOG(ERROR) << "fail to connect Kafka broker @ " << initial_brokers << ", " << errstr;
-
-        return nullptr;
-    }
-
-    std::unique_ptr<RdKafka::Topic> topic(RdKafka::Topic::create(producer.get(), topic_name, topic_conf.get(), errstr));
-
-    if (!topic)
-    {
-        LOG(ERROR) << "fail to create topic `" << topic_name << "`, " << errstr;
-
-        return nullptr;
-    }
-
-    return new KafkaCollector(producer, topic, std::move(reporter), std::move(partitioner), topic_partition, message_codec);
 }
 
 } // namespace zipkin

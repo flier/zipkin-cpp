@@ -5,19 +5,22 @@ if (NOT FOLLY_FOUND OR USE_BUNDLED_FOLLY)
     endif()
 
     ExternalProject_Add(folly
+        DEPENDS             gflags glog
         DOWNLOAD_NAME       folly-${FOLLY_VERSION}.tar.gz
         URL                 https://github.com/facebook/folly/archive/v${FOLLY_VERSION}.tar.gz
         URL_MD5             ${FOLLY_URL_MD5}
         CONFIGURE_COMMAND   cd <SOURCE_DIR>/folly &&
                             autoreconf -vi &&
                             LD_LIBRARY_PATH=<INSTALL_DIR>/lib
+                            LIBRARY_PATH=<INSTALL_DIR>/lib
                             LDFLAGS=-L<INSTALL_DIR>/lib
                             PKG_CONFIG_PATH=<INSTALL_DIR>/lib/pkgconfig
                             CFLAGS=-I<INSTALL_DIR>/include
                             CXXFLAGS=-I<INSTALL_DIR>/include
+                            LIBS=${CMAKE_THREAD_LIBS_INIT}
                             <SOURCE_DIR>/folly/configure
-                                --prefix=<INSTALL_DIR> ${WITH_OPENSSL}
-                                --with-boost=${BOOST_ROOT}
+                                --prefix=<INSTALL_DIR>
+                                ${WITH_OPENSSL}
         BUILD_COMMAND       cd <SOURCE_DIR>/folly && make
         INSTALL_COMMAND     cd <SOURCE_DIR>/folly && make install
     )

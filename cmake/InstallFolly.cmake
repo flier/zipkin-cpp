@@ -5,7 +5,6 @@ if (NOT FOLLY_FOUND OR USE_BUNDLED_FOLLY)
     endif()
 
     ExternalProject_Add(Folly
-        DEPENDS             GFlags GLog
         DOWNLOAD_NAME       Folly-${FOLLY_VERSION}.tar.gz
         URL                 https://github.com/facebook/folly/archive/v${FOLLY_VERSION}.tar.gz
         URL_MD5             ${FOLLY_URL_MD5}

@@ -40,26 +40,16 @@ macro(install_external_project project_name)
                 DEPENDERS   install
             )
 
-            ExternalProject_Get_Property(${project_name} TEST_COMMAND)
-
-            if (${TEST_COMMAND})
-                ExternalProject_Add_Step(${project_name} ${project_name}_test
-                    COMMAND     echo "\\ntravis_fold:end:${project_name}.install\r"
-                    COMMAND     echo "\\ntravis_fold:start:${project_name}.test\tTest ${project_name}"
-                    DEPENDEES   install
-                    DEPENDERS   test
-                )
-                ExternalProject_Add_Step(${project_name} ${project_name}_end
-                    COMMAND     echo "\\ntravis_fold:end:${project_name}.test\r"
-                    DEPENDEES   test
-                )
-            elseif ()
-                ExternalProject_Add_Step(${project_name} ${project_name}_end
-                    COMMAND     echo "\\ntravis_fold:end:${project_name}.install\r"
-                    DEPENDEES   install
-                    DEPENDERS   test
-                )
-            endif ()
+            ExternalProject_Add_Step(${project_name} ${project_name}_test
+                COMMAND     echo "\\ntravis_fold:end:${project_name}.install\r"
+                COMMAND     echo "\\ntravis_fold:start:${project_name}.test\tTest ${project_name}"
+                DEPENDEES   install
+                DEPENDERS   test
+            )
+            ExternalProject_Add_Step(${project_name} ${project_name}_end
+                COMMAND     echo "\\ntravis_fold:end:${project_name}.test\r"
+                DEPENDEES   test
+            )
         endif ()
     endif ()
 endmacro ()

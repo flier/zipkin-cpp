@@ -6,11 +6,8 @@ os:
 osx_image: xcode8.2
 
 addons:
-    sources:
-        - llvm-toolchain-precise
     apt:
         packages:
-            - clang-3.8
             - automake
             - autoconf
             - bison
@@ -30,9 +27,6 @@ addons:
 
 language: cpp
 cache: ccache
-compiler:
-    - clang
-    - gcc
 
 python:
     - "2.7"
@@ -40,6 +34,27 @@ python:
 env:
     global:
         - CMAKE_VERSION=3.7.2
+
+matrix:
+  include:
+    - os: osx
+    - os: linux
+    - os: linux
+      env: COMPILER_NAME=gcc CXX=g++-5 CC=gcc-5
+      addons:
+        apt:
+          packages:
+            - g++-5
+          sources: &sources
+            - llvm-toolchain-precise-3.8
+            - ubuntu-toolchain-r-test
+    - os: linux
+      env: COMPILER_NAME=clang CXX=clang++-3.8 CC=clang-3.8
+      addons:
+        apt:
+          packages:
+            - clang-3.8
+          sources: *sources
 
 before_script:
     - .travis/install-dependencies.sh

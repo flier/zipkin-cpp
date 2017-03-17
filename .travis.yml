@@ -56,8 +56,8 @@ script:
 
 after_failure:
     - echo `pwd`
-    - cat build/externals/src/folly/folly/config.log
-    - cat build/externals/src/thrift/config.log
+    - cat externals/src/folly/folly/config.log
+    - cat externals/src/thrift/config.log
     - tree -h
 
 cache:

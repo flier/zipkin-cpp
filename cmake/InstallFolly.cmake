@@ -10,7 +10,14 @@ if (NOT FOLLY_FOUND OR USE_BUNDLED_FOLLY)
         URL_MD5             ${FOLLY_URL_MD5}
         CONFIGURE_COMMAND   cd <SOURCE_DIR>/folly &&
                             autoreconf -vi &&
-                            CXXFLAGS=-I<INSTALL_DIR>/include LDFLAGS=-L<INSTALL_DIR>/lib PKG_CONFIG_PATH=<INSTALL_DIR>/lib/pkgconfig GFLAGS_CFLAGS=-I${GFLAGS_INCLUDE_DIRS} GFLAGS_LIBS=${GFLAGS_LIBRARIES} GLOG_CFLAGS=-I${GLOG_INCLUDE_PATH} GLOG_LIBS=${GLOG_LIBRARY} <SOURCE_DIR>/folly/configure --prefix=<INSTALL_DIR> ${WITH_OPENSSL} --with-boost=${BOOST_ROOT}
+                            LD_LIBRARY_PATH=<INSTALL_DIR>/lib
+                            LDFLAGS=-L<INSTALL_DIR>/lib
+                            PKG_CONFIG_PATH=<INSTALL_DIR>/lib/pkgconfig
+                            CFLAGS=-I<INSTALL_DIR>/include
+                            CXXFLAGS=-I<INSTALL_DIR>/include
+                            <SOURCE_DIR>/folly/configure
+                                --prefix=<INSTALL_DIR> ${WITH_OPENSSL}
+                                --with-boost=${BOOST_ROOT}
         BUILD_COMMAND       cd <SOURCE_DIR>/folly && make
         INSTALL_COMMAND     cd <SOURCE_DIR>/folly && make install
     )

@@ -18,18 +18,6 @@ if (APPLE)
     set (CMAKE_MACOSX_RPATH ON)
 endif ()
 
-if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    set ( COMPILER_IS_CLANG TRUE )
-    set ( STDLIB libc++ )
-elseif ()
-    set( COMPILER_IS_CLANG FALSE )
-    set ( STDLIB libstdc++ )
-endif ()
-
-message(STATUS "link with ${STDLIB} for ${CMAKE_CXX_COMPILER_ID}")
-
-add_compile_options ( -stdlib=${STDLIB} )
-
 if (NOT CMAKE_BUILD_TYPE)
     message(STATUS "Default build type 'Release with debug info'")
     set(CMAKE_BUILD_TYPE RELWITHDEBINFO CACHE STRING "" FORCE )

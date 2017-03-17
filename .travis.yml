@@ -33,7 +33,7 @@ addons:
             - tree
 
 language: cpp
-
+cache: ccache
 compiler:
     - clang
     - gcc

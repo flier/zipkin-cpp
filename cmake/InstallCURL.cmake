@@ -4,7 +4,7 @@ if (NOT CURL_FOUND OR USE_BUNDLED_CURL)
         set (CURL_URL_MD5               9e49bb4cb275bf4464e7b69eb48613c0)
     endif ()
 
-    ExternalProject_Add(curl
+    ExternalProject_Add(CURL
         URL                 https://curl.haxx.se/download/curl-${CURL_VERSION_STRING}.tar.gz
         URL_MD5             ${CURL_URL_MD5}
         CONFIGURE_COMMAND   <SOURCE_DIR>/configure
@@ -14,9 +14,10 @@ if (NOT CURL_FOUND OR USE_BUNDLED_CURL)
                                 --disable-ldap
         BUILD_COMMAND       make
         INSTALL_COMMAND     make install
+        TEST_COMMAND        ""
     )
 
-    ExternalProject_Get_Property(curl INSTALL_DIR)
+    ExternalProject_Get_Property(CURL INSTALL_DIR)
 
     set (CURL_ROOT_DIR          ${INSTALL_DIR})
     set (CURL_INCLUDE_DIRS      ${CURL_ROOT_DIR}/include)

@@ -4,7 +4,7 @@ if (NOT THRIFT_FOUND OR USE_BUNDLED_THRIFT)
         set (THRIFT_URL_MD5               795c5dd192e310ffff38cfd9430d6b29)
     endif ()
 
-    ExternalProject_Add(thrift
+    ExternalProject_Add(Thrift
         URL                 http://www-us.apache.org/dist/thrift/${THRIFT_VERSION_STRING}/thrift-${THRIFT_VERSION_STRING}.tar.gz
         URL_MD5             ${THRIFT_URL_MD5}
         CONFIGURE_COMMAND   CXXFLAGS=-I<BINARY_DIR>/lib/cpp/src
@@ -27,9 +27,10 @@ if (NOT THRIFT_FOUND OR USE_BUNDLED_THRIFT)
                             --disable-plugin
         BUILD_COMMAND       CXXFLAGS=-I<BINARY_DIR>/lib/cpp/src make
         INSTALL_COMMAND     make install
+        TEST_COMMAND        ""
     )
 
-    ExternalProject_Get_Property(thrift INSTALL_DIR)
+    ExternalProject_Get_Property(Thrift INSTALL_DIR)
 
     set (THRIFT_ROOT_DIR        ${INSTALL_DIR})
     set (THRIFT_INCLUDE_DIRS    ${THRIFT_ROOT_DIR}/include)

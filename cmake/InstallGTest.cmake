@@ -4,14 +4,15 @@ if (NOT GTEST_FOUND OR USE_BUNDLED_GTEST)
         set (GTEST_URL_MD5      16877098823401d1bf2ed7891d7dce36)
     endif ()
 
-    ExternalProject_Add(google-test
-        DOWNLOAD_NAME       google-test-${GTEST_VERSION}.tar.gz
+    ExternalProject_Add(GTest
+        DOWNLOAD_NAME       GTest-${GTEST_VERSION}.tar.gz
         URL                 https://github.com/google/googletest/archive/release-${GTEST_VERSION}.tar.gz
         URL_MD5             ${GTEST_URL_MD5}
         CMAKE_ARGS          -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+        TEST_COMMAND        ""
     )
 
-    ExternalProject_Get_Property(google-test INSTALL_DIR)
+    ExternalProject_Get_Property(GTest INSTALL_DIR)
 
     set (GTEST_ROOT                 ${INSTALL_DIR})
     set (GTEST_INCLUDE_DIRS         ${GTEST_ROOT}/include)
@@ -33,12 +34,12 @@ if (NOT GTEST_FOUND OR USE_BUNDLED_GTEST)
 
     foreach (lib GTEST_LIBRARIES GTEST_MAIN_LIBRARIES GMOCK_LIBRARIES GMOCK_MAIN_LIBRARIES)
         add_library(${lib} SHARED IMPORTED)
-        add_dependencies(${lib} google-test)
+        add_dependencies(${lib} GTest)
     endforeach ()
 
     foreach (lib GTEST_LIBRARY_PATH GTEST_MAIN_LIBRARY_PATH GMOCK_LIBRARY_PATH GMOCK_MAIN_LIBRARY_PATH)
         add_library(${lib} STATIC IMPORTED)
-        add_dependencies(${lib} google-test)
+        add_dependencies(${lib} GTest)
     endforeach ()
 
     mark_as_advanced(GTEST_LIBRARIES GTEST_MAIN_LIBRARIES GMOCK_LIBRARIES GMOCK_MAIN_LIBRARIES GTEST_INCLUDE_DIRS)

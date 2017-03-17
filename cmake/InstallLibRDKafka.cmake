@@ -11,6 +11,7 @@ if (NOT LIBRDKAFKA_FOUND OR USE_BUNDLED_LIBRDKAFKA)
         CMAKE_ARGS      -DRDKAFKA_BUILD_EXAMPLES=OFF
                         -DRDKAFKA_BUILD_TESTS=OFF
                         -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+        TEST_COMMAND    ""
     )
 
     ExternalProject_Get_Property(LibRDKafka INSTALL_DIR)

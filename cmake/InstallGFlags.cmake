@@ -4,7 +4,7 @@ if (NOT GFLAGS_FOUND OR USE_BUNDLED_GFLAGS)
         set (GFLAGS_URL_MD5     b99048d9ab82d8c56e876fb1456c285e)
     endif ()
 
-    ExternalProject_Add(gflags
+    ExternalProject_Add(GFlags
         DOWNLOAD_NAME       gflags-${GFLAGS_VERSION}.tar.gz
         URL                 https://github.com/gflags/gflags/archive/v${GFLAGS_VERSION}.tar.gz
         URL_MD5             ${GFLAGS_URL_MD5}
@@ -12,9 +12,10 @@ if (NOT GFLAGS_FOUND OR USE_BUNDLED_GFLAGS)
                             -DCMAKE_POSITION_INDEPENDENT_CODE=ON
                             -DGFLAGS_BUILD_SHARED_LIBS=ON
                             -DGFLAGS_BUILD_STATIC_LIBS=ON
+        TEST_COMMAND        ""
     )
 
-    ExternalProject_Get_Property(gflags INSTALL_DIR)
+    ExternalProject_Get_Property(GFlags INSTALL_DIR)
 
     set (GFLAGS_ROOT_DIR        ${INSTALL_DIR})
     set (GFLAGS_INCLUDE_DIRS    ${GFLAGS_ROOT_DIR}/include)

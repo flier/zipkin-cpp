@@ -9,6 +9,7 @@ if (NOT RAPIDJSON_FOUND OR USE_BUNDLED_RAPIDJSON)
         URL             https://github.com/miloyip/rapidjson/archive/v${RAPIDJSON_VERSION}.tar.gz
         URL_MD5         ${RAPIDJSON_URL_MD5}
         CMAKE_ARGS      -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+        TEST_COMMAND    ""
     )
 
     ExternalProject_Get_Property(RapidJSON INSTALL_DIR)

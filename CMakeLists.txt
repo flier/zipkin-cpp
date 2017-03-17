@@ -62,13 +62,15 @@ find_package(Gperftools)
 find_package(Doxygen)
 
 if (OPENSSL_FOUND)
+    list(GET OPENSSL_LIBRARIES 0 openssl_libname)
+    get_filename_component(OPENSSL_LIBRARY_DIR ${openssl_libname} DIRECTORY)
+    get_filename_component(OPENSSL_ROOT_DIR ${OPENSSL_LIBRARY_DIR} DIRECTORY)
+
     if (APPLE)
-        set (WITH_OPENSSL   "--with-openssl=/usr/local/opt/openssl")
-    else ()
-        set (WITH_OPENSSL   "")
+        set (WITH_OPENSSL   "--with-openssl=${OPENSSL_ROOT_DIR}")
     endif ()
 
-    message(STATUS "Found OpenSSL ${OPENSSL_VERSION} @ ${OPENSSL_INCLUDE_DIR} with libraries: ${OPENSSL_LIBRARIES}")
+    message(STATUS "Found OpenSSL ${OPENSSL_VERSION}, inc=${OPENSSL_INCLUDE_DIR}, libs=${OPENSSL_LIBRARIES} root=${OPENSSL_ROOT_DIR}")
 endif ()
 
 include(InstallExternalProjects)

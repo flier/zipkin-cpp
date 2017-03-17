@@ -18,6 +18,8 @@ if (NOT FOLLY_FOUND OR USE_BUNDLED_FOLLY)
                             CFLAGS=-I<INSTALL_DIR>/include
                             CXXFLAGS=-I<INSTALL_DIR>/include
                             LIBS=${CMAKE_THREAD_LIBS_INIT}
+                            OPENSSL_CFLAGS=-I${OPENSSL_INCLUDE_DIR}
+                            OPENSSL_LIBS=-L${OPENSSL_LIBRARY_DIR}
                             <SOURCE_DIR>/folly/configure
                                 --prefix=<INSTALL_DIR>
                                 ${WITH_OPENSSL}

@@ -1,7 +1,5 @@
 sudo: required
 dist: trusty
-services:
-    - docker
 os:
     - linux
     - osx
@@ -53,8 +51,8 @@ script:
 
 after_failure:
     - echo `pwd`
-    - cat externals/src/folly/folly/config.log
-    - cat externals/src/thrift/config.log
+    - cat externals/src/Folly/folly/config.log
+    - cat externals/src/Thrift/config.log
     - tree -h
 
 cache:

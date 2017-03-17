@@ -42,7 +42,8 @@ matrix:
       env: COMPILER_NAME=gcc CXX=g++-5 CC=gcc-5
       addons:
         apt:
-          packages: *default_packages
+          packages:
+            - *default_packages
             - g++-5
           sources: &sources
             - llvm-toolchain-precise-3.8
@@ -51,7 +52,8 @@ matrix:
       env: COMPILER_NAME=clang CXX=clang++-3.8 CC=clang-3.8
       addons:
         apt:
-          packages: *default_packages
+          packages:
+            - *default_packages
             - clang-3.8
           sources: *sources
 

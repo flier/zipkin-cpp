@@ -6,8 +6,11 @@ os:
 osx_image: xcode8.2
 
 addons:
+    sources:
+        - llvm-toolchain-precise
     apt:
         packages:
+            - clang-3.8
             - automake
             - autoconf
             - bison

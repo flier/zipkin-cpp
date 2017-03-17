@@ -16,13 +16,7 @@ addons:
             - flex
             - libtool
             - build-essential
-            - libboost-dev
-            - libboost-filesystem-dev
-            - libboost-program-options-dev
-            - libboost-system-dev
-            - libboost-thread-dev
-            - libboost-regex-dev
-            - libboost-test-dev
+            - libboost-all-dev
             - libevent-dev
             - libssl-dev
             - libcurl4-openssl-dev

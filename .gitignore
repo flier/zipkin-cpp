@@ -1,5 +1,6 @@
 .sconf_temp
 .vscode
+.idea
 bin
 build
 dist

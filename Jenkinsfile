@@ -16,8 +16,12 @@ pipeline {
             steps {
                 echo "Build ${env.JOB_NAME} #${env.BUILD_ID} on ${env.JENKINS_URL}"
 
-                sh 'mkdir -p build && cd build'
-                sh "cmake .. -DCMAKE_INSTALL_PREFIX=${env.WORKSPACE}/dist && make"
+                sh 'mkdir -p build'
+
+                dir('build') {
+                     sh "cmake .. -DCMAKE_INSTALL_PREFIX=${env.WORKSPACE}/dist"
+                     sh 'make'
+                }
             }
         }
 
@@ -25,7 +29,9 @@ pipeline {
             steps {
                 echo "Test ${env.JOB_NAME} #${env.BUILD_ID}"
 
-                sh 'make test'
+                dir('build') {
+                    sh 'make test'
+                }
             }
         }
 
@@ -33,7 +39,9 @@ pipeline {
             steps {
                 echo "Deploy ${env.JOB_NAME} #${env.BUILD_ID}"
 
-                sh 'make install'
+                dir('build') {
+                    sh 'make install'
+                }
             }
         }
 

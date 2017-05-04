@@ -12,9 +12,6 @@ pipeline {
     }
 
     stages {
-        def build_dir = "${env.WORKSPACE}/build"
-        def dist_dir = "${env.WORKSPACE}/dist"
-
         stage('Checkout') {
             steps {
                 echo "Checkout branch `${env.GIT_BRANCH}` @ ${env.GIT_URL}"
@@ -27,8 +24,8 @@ pipeline {
             steps {
                 echo "Build ${env.JOB_NAME} #${env.BUILD_ID} on ${env.JENKINS_URL}"
 
-                sh "mkdir -p ${build_dir} && cd ${build_dir}"
-                sh "cmake .. -DCMAKE_INSTALL_PREFIX=${dist_dir} && make"
+                sh 'mkdir -p build && cd build'
+                sh "cmake .. -DCMAKE_INSTALL_PREFIX=${env.WORKSPACE}/dist && make"
             }
         }
 

@@ -3,10 +3,6 @@
 pipeline {
     agent any
 
-    tools {
-        cmake 'cmake-3'
-    }
-
     triggers {
         cron('H 4/* 0 0 1-5')
     }

@@ -52,7 +52,7 @@ python:
 
 env:
     global:
-        - CMAKE_VERSION=3.7.2
+        - CMAKE_VERSION=3.8.2
 
 matrix:
     fast_finish: true

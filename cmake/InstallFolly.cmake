@@ -1,7 +1,7 @@
 if (NOT FOLLY_FOUND OR USE_BUNDLED_FOLLY)
     if (NOT FOLLY_VERSION OR USE_BUNDLED_FOLLY)
-        set (FOLLY_VERSION              2017.03.13.00)
-        set (FOLLY_URL_MD5              3ba9d455edcf6e930b6f43e93e9f99f7)
+        set (FOLLY_VERSION              2017.06.26.01)
+        set (FOLLY_URL_MD5              cf7a05081adb16913b5d7039ac62d46b)
     endif()
 
     ExternalProject_Add(Folly

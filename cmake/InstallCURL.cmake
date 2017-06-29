@@ -1,7 +1,7 @@
 if (NOT CURL_FOUND OR USE_BUNDLED_CURL)
     if (NOT CURL_VERSION_STRING OR USE_BUNDLED_CURL)
-        set (CURL_VERSION_STRING        7.53.1)
-        set (CURL_URL_MD5               9e49bb4cb275bf4464e7b69eb48613c0)
+        set (CURL_VERSION_STRING        7.54.1)
+        set (CURL_URL_MD5               21a6e5658fd55103a90b11de7b2a8a8c)
     endif ()
 
     ExternalProject_Add(CURL

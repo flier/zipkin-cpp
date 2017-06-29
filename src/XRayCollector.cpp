@@ -79,7 +79,7 @@ size_t XRayCodec::encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuf
 
 XRayConf::XRayConf(folly::Uri &uri)
 {
-    host = uri.host().toStdString();
+    host = folly::toStdString(uri.host());
 
     if (uri.port())
         port = uri.port();
@@ -88,7 +88,7 @@ XRayConf::XRayConf(folly::Uri &uri)
     {
         if (param.first == "format")
         {
-            message_codec = MessageCodec::parse(param.second.toStdString());
+            message_codec = MessageCodec::parse(folly::toStdString(param.second));
         }
         else if (param.first == "batch_size")
         {

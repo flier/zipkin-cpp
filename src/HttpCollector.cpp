@@ -51,7 +51,7 @@ HttpConf::HttpConf(folly::Uri &uri)
     {
         if (param.first == "format")
         {
-            message_codec = MessageCodec::parse(param.second.toStdString());
+            message_codec = MessageCodec::parse(folly::toStdString(param.second));
         }
         else if (param.first == "batch_size")
         {

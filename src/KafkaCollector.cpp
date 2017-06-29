@@ -93,7 +93,7 @@ KafkaConf::KafkaConf(folly::Uri &uri)
     }
     else
     {
-        initial_brokers = uri.host().toStdString();
+        initial_brokers = folly::toStdString(uri.host());
     }
 
     folly::split("/", uri.path(), parts);
@@ -105,11 +105,11 @@ KafkaConf::KafkaConf(folly::Uri &uri)
     {
         if (param.first == "compression")
         {
-            compression_codec = parse_compression_codec(param.second.toStdString());
+            compression_codec = parse_compression_codec(folly::toStdString(param.second));
         }
         else if (param.first == "format")
         {
-            message_codec = MessageCodec::parse(param.second.toStdString());
+            message_codec = MessageCodec::parse(folly::toStdString(param.second));
         }
         else if (param.first == "batch_num_messages")
         {

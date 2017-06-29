@@ -10,18 +10,22 @@ if (NOT FOLLY_FOUND OR USE_BUNDLED_FOLLY)
         URL_MD5             ${FOLLY_URL_MD5}
         CONFIGURE_COMMAND   cd <SOURCE_DIR>/folly &&
                             autoreconf -vi &&
+                            <SOURCE_DIR>/folly/configure
+                            --prefix=<INSTALL_DIR>
+                            --with-pic
+                            --with-jemalloc
+                            ${WITH_OPENSSL}
                             LD_LIBRARY_PATH=<INSTALL_DIR>/lib
+                            LD_RUN_PATH=<INSTALL_DIR>/lib
                             LIBRARY_PATH=<INSTALL_DIR>/lib
                             LDFLAGS=-L<INSTALL_DIR>/lib
                             PKG_CONFIG_PATH=<INSTALL_DIR>/lib/pkgconfig
                             CFLAGS=-I<INSTALL_DIR>/include
                             CXXFLAGS=-I<INSTALL_DIR>/include
+                            CPPFLAGS=-I<INSTALL_DIR>/include
                             LIBS=${CMAKE_THREAD_LIBS_INIT}
                             OPENSSL_CFLAGS=-I${OPENSSL_INCLUDE_DIR}
                             OPENSSL_LIBS=-L${OPENSSL_LIBRARY_DIR}
-                            <SOURCE_DIR>/folly/configure
-                                --prefix=<INSTALL_DIR>
-                                ${WITH_OPENSSL}
         BUILD_COMMAND       cd <SOURCE_DIR>/folly &&
                             make
         INSTALL_COMMAND     cd <SOURCE_DIR>/folly &&

@@ -1,7 +1,7 @@
 if (NOT GLOG_FOUND OR USE_BUNDLED_GLOG)
     if (NOT GLOG_VERSION OR USE_BUNDLED_GLOG)
-        set (GLOG_VERSION       0.3.4)
-        set (GLOG_URL_MD5       df92e05c9d02504fb96674bc776a41cb)
+        set (GLOG_VERSION       0.3.5)
+        set (GLOG_URL_MD5       5df6d78b81e51b90ac0ecd7ed932b0d4)
     endif ()
 
     ExternalProject_Add(GLog

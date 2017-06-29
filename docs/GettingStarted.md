@@ -116,33 +116,24 @@ Here's an example of a client span:
 // before you send a request, add metadata that describes the operation
 zipkin::Span& span = *tracer->span("get");
 
-span << std::make_pair("clnt/zipkin-cpp.version", "0.3.0")
-     << std::make_pair(zipkin::TraceKeys::HTTP_PATH, "/api")
-     << zipkin::Endpoint("backend", "127.0.0.1", 8080);
+// ...
 
-// if you have callbacks for when data is on the wire, note those events
-span << zipkin::TraceKeys::WIRE_SEND;
-span << zipkin::TraceKeys::WIRE_RECV;
+ClientContext context;
+
+zipkin::Propagation::inject(context, span);
+
+zipkin::Endpoint endpoint("greeter_client");
+
+span << std::make_pair("name", user) << endpoint
+     << zipkin::TraceKeys::CLIENT_SEND << endpoint;
+
+// The actual RPC.
+Status status = stub_->SayHello(&context, request, &reply);
+
+span << zipkin::TraceKeys::CLIENT_RECV << endpoint;
 
 // when the response is complete, finish the span
 span.submit();
-```
----
-```c
-// before you send a request, add metadata that describes the operation
-zipkin_span_t span = zipkin_span_new(tracer, "get", NULL);
-zipkin_endpoint_t endpoint = zipkin_endpoint_new("backend", &addr);
-
-ANNOTATE_STR(span, "clnt/zipkin-cpp.version", "0.3.0", -1, NULL);
-ANNOTATE_STR(span, HTTP_PATH, "/api", -1, endpoint);
-
-// if you have callbacks for when data is on the wire, note those events
-ANNOTATE(span, WIRE_SEND, -1);
-ANNOTATE(span, WIRE_RECV, -1);
-
-// when the response is complete, finish the span
-zipkin_span_submit(span);
-zipkin_endpoint_free(endpoint);
 ```
 
 ## Sampling

@@ -7,7 +7,8 @@
 You could install dependencies with [Homebrew](https://brew.sh/).
 
 ```sh
-$ brew install boost curl double-conversion folly thrift librdkafka
+$ brew update
+$ brew install curl double-conversion gflags glog google-benchmark gperftools rapidjson folly thrift librdkafka grpc doxygen
 ```
 
 ### Linux
@@ -17,7 +18,7 @@ $ brew install boost curl double-conversion folly thrift librdkafka
 #### Ubuntu
 
 ```sh
-$ sudo apt-get install autoconf libevent-dev libboost-all-dev libcurl4-openssl-dev libdouble-conversion-dev thrift-compiler libgflags-dev libgoogle-glog-dev thrift-compiler
+$ sudo apt-get install build-essential automake autoconf bison flex libevent-dev libboost-all-dev libssl-dev libcurl4-openssl-dev libdouble-conversion-dev thrift-compiler thrift-compiler
 ```
 
 #### CentOS
@@ -28,7 +29,7 @@ $ sudo yum install autoconf libtool libevent-devel boost-devel libcurl-devel dou
 
 ### Install from Source
 
-If the OS missed some packages, you could build and install from source.
+`zipkin-cpp` will try to install the missing packages from source, or you could build and install those by manual.
 
 #### folly
 
@@ -58,12 +59,21 @@ $ cd build
 $ cmake ..
 ```
 
+When build with `homebrew` at OSX, we must give the OPENSSL_DIR
+```
+$ cmake .. -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl
+```
+
 ### CMake options
 - [CMAKE_BUILD_TYPE](https://cmake.org/cmake/help/v3.0/variable/CMAKE_BUILD_TYPE.html) default is `RELWITHDEBINFO`
 - [CMAKE_INSTALL_PREFIX](https://cmake.org/cmake/help/v3.0/variable/CMAKE_INSTALL_PREFIX.html) default is `/usr/local`
 
 ### Build options
 
+- **WITH_CURL**     Build with cURL propagation
+- **WITH_GRPC**     Build with gRPC propagation
 - **WITH_FPIC**     Build with -fPIC for shared library, default is `OFF`
+- **WITH_TCMALLOC** Build with tcmalloc library
+- **WITH_PROFILER** Build with CPU profiler
 - **SHARED_LIB**    Build shared library, default is `STATIC`
 - **BUILD_DOCS**    Build API documentation (requires Doxygen), default is `AUTO`

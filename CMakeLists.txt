@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 3.0.0)
 
 project(zipkin-cpp
-    VERSION 0.3.0
+    VERSION 0.3.1
     LANGUAGES C CXX)
 
 include(CTest)

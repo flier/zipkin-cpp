@@ -7,4 +7,5 @@ Name: zipkin
 Description: Zipkin tracing library for C/C++
 Version: @VERSION@
 Libs: -L${libdir} -lzipkin
+Libs.private: -lc++ -lboost_system
 Cflags: -I${includedir}

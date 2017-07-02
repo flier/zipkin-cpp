@@ -65,7 +65,7 @@ class KafkaCollector : public Collector
 
     virtual void shutdown(std::chrono::milliseconds timeout_ms) override
     {
-        flush(std::chrono::milliseconds(500));
+        flush(timeout_ms);
     }
 };
 

@@ -191,7 +191,7 @@ bool BaseCollector::flush(std::chrono::milliseconds timeout_ms)
 
     if (m_terminated)
     {
-        VLOG(3) << "shutdow " << name() << " collector and wait " << timeout_ms.count() << " ms";
+        VLOG(3) << "shutdown " << name() << " collector and wait " << timeout_ms.count() << " ms";
     }
     else if (m_spans.empty())
     {
@@ -207,7 +207,7 @@ bool BaseCollector::flush(std::chrono::milliseconds timeout_ms)
 
 void BaseCollector::shutdown(std::chrono::milliseconds timeout_ms)
 {
-    m_terminated = true;
+    if (m_terminated.exchange(true)) return;
 
     if (!flush(timeout_ms) && m_worker.joinable())
     {

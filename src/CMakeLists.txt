@@ -39,6 +39,7 @@ add_custom_command (
 set (zipkin_INCS
     ${CMAKE_CURRENT_BINARY_DIR}/Version.h
     ${CMAKE_CURRENT_BINARY_DIR}/Config.h
+    Base64.h
     Span.h
     Tracer.h
     Propagation.h

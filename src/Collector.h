@@ -189,7 +189,12 @@ protected:
   {
   }
 
-  virtual ~BaseCollector() = default;
+  virtual ~BaseCollector()
+  {
+    if (!m_terminated.exchange(true)) {
+      m_worker.detach();
+    }
+  }
 
   virtual void send_message(const uint8_t *msg, size_t size) = 0;
 

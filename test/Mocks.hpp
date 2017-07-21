@@ -78,6 +78,10 @@ public:
 
   MOCK_METHOD1(set_log_queue, RdKafka::ErrorCode(RdKafka::Queue *queue));
 
+  MOCK_METHOD0(yield, void());
+
+  MOCK_METHOD1(clusterid, const std::string(int timeout_ms));
+
   // Mock RdKafka::Producer
   MOCK_METHOD7(produce,
                RdKafka::ErrorCode(RdKafka::Topic *topic, int32_t partition,

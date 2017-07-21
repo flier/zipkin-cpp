@@ -1,7 +1,7 @@
 if (NOT LIBRDKAFKA_FOUND OR USE_BUNDLED_LIBRDKAFKA)
     if (NOT LibRDKafka_VERSION OR USE_BUNDLED_LIBRDKAFKA)
-        set (LibRDKafka_VERSION         0.9.5)
-        set (LibRDKafka_URL_MD5         8e5685baa01554108ae8c8e9c97dc495)
+        set (LibRDKafka_VERSION         0.11.0)
+        set (LibRDKafka_URL_MD5         68f4712491a92423c9722be9054678d8)
     endif ()
 
     ExternalProject_Add(LibRDKafka

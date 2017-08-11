@@ -37,11 +37,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 ENV CMAKE_DIR   /cmake
-ENV BASE_DIR    /zipkin-cpp
-ENV SRC_DIR     $BASE_DIR
-ENV BUILD_DIR   $BASE_DIR/build
-ENV DIST_DIR    $BASE_DIR/dist
-ENV EXT_DIR     $BUILD_DIR/externals
+ENV SRC_DIR     /source
+ENV DIST_DIR    /dist
+ENV BUILD_DIR   /build
+ENV EXT_DIR     /externals
 
 ENV CMAKE_VERSION   3.8.2
 RUN wget https://cmake.org/files/v3.8/cmake-$CMAKE_VERSION-Linux-x86_64.tar.gz && \

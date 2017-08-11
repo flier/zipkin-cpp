@@ -6,6 +6,7 @@
 #include <locale>
 #include <memory>
 #include <chrono>
+#include <sstream>
 
 #include <boost/locale/encoding_utf.hpp>
 #include <boost/asio.hpp>
@@ -543,6 +544,8 @@ class Span
     ::Span m_span;
     userdata_t m_userdata;
     bool m_sampled;
+    bool m_shared;
+    std::shared_ptr<Endpoint> m_local_endpoint, m_remote_endpoint;
 
     static const ::Endpoint host(const Endpoint *endpoint);
 
@@ -550,16 +553,16 @@ class Span
     /**
      * \brief Construct a span
      */
-    Span(Tracer *tracer, const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr, bool sampled = true)
+    Span(Tracer *tracer, const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr, bool sampled = true, bool shared = false)
         : m_tracer(tracer)
     {
-        reset(name, parent_id, userdata, sampled);
+        reset(name, parent_id, userdata, sampled, shared);
     }
 
     /**
      * \brief Reset a span
      */
-    void reset(const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr, bool sampled = true);
+    void reset(const std::string &name, span_id_t parent_id = 0, userdata_t userdata = nullptr, bool sampled = true, bool shared = false);
 
     /**
      * \brief Submit a Span to Tracer
@@ -727,6 +730,41 @@ class Span
     inline Span &with_sampled(bool sampled = true)
     {
         m_sampled = sampled;
+        return *this;
+    }
+
+    /**
+    * \brief Report the span is sharing between the client and the server.
+    */
+    inline bool shared(void) const { return m_shared; }
+
+    /** \sa Span#shared */
+    inline Span &with_shared(bool shared = true)
+    {
+        m_shared = shared;
+        return *this;
+    }
+
+    /**
+    * \brief Local endpoint
+    */
+    inline std::shared_ptr<Endpoint> local_endpoint(void) const { return m_local_endpoint; }
+
+    /** \sa Span#local_endpoint */
+    inline Span &with_local_endpoint(std::shared_ptr<Endpoint> local_endpoint)
+    {
+        m_local_endpoint = local_endpoint;
+        return *this;
+    }
+    /**
+    * \brief Remote endpoint
+    */
+    inline std::shared_ptr<Endpoint> remote_endpoint(void) const { return m_remote_endpoint; }
+
+    /** \sa Span#remote_endpoint */
+    inline Span &with_remote_endpoint(std::shared_ptr<Endpoint> remote_endpoint)
+    {
+        remote_endpoint = remote_endpoint;
         return *this;
     }
 
@@ -915,6 +953,9 @@ class Span
 
     template <class RapidJsonWriter>
     void serialize_json(RapidJsonWriter &writer) const;
+
+    template <class RapidJsonWriter>
+    void serialize_json_v2(RapidJsonWriter &writer) const;
 
     class Scope
     {
@@ -1370,6 +1411,181 @@ void Span::serialize_json(RapidJsonWriter &writer) const
     {
         writer.Key("duration");
         writer.Int64(m_span.duration);
+    }
+
+    writer.EndObject();
+}
+
+template <class RapidJsonWriter>
+void Span::serialize_json_v2(RapidJsonWriter &writer) const
+{
+    auto serialize_endpoint = [&writer](const Endpoint *host) {
+        writer.StartObject();
+
+        writer.Key("serviceName");
+        writer.String(host->service_name());
+
+        writer.Key("ipv4");
+        writer.String(host->addr().to_v4().to_string());
+
+        writer.Key("port");
+        writer.Int(host->port());
+
+        writer.EndObject();
+    };
+
+    auto serialize_value = [&writer](const std::string &data, AnnotationType type) {
+        std::ostringstream oss;
+
+        switch (type)
+        {
+        case AnnotationType::BOOL:
+            oss << *reinterpret_cast<const bool *>(data.c_str());
+            break;
+
+        case AnnotationType::I16:
+            oss << __impl::big_to_native(*reinterpret_cast<const uint16_t *>(data.c_str()));
+            break;
+
+        case AnnotationType::I32:
+            oss << __impl::big_to_native(*reinterpret_cast<const uint32_t *>(data.c_str()));
+            break;
+
+        case AnnotationType::I64:
+            oss << __impl::big_to_native(*reinterpret_cast<const uint64_t *>(data.c_str()));
+            break;
+
+        case AnnotationType::DOUBLE:
+            oss << *reinterpret_cast<const double *>(data.c_str());
+            break;
+
+        case AnnotationType::BYTES:
+            oss << base64::encode(data);
+            break;
+
+        case AnnotationType::STRING:
+            oss << data;
+            break;
+        }
+
+        writer.String(oss.str());
+    };
+
+    char str[64];
+
+    writer.StartObject();
+
+    writer.Key("traceId");
+    if (m_span.trace_id_high)
+    {
+        writer.String(str, snprintf(str, sizeof(str), SPAN_ID_FMT SPAN_ID_FMT, m_span.trace_id_high, m_span.trace_id));
+    }
+    else
+    {
+        writer.String(str, snprintf(str, sizeof(str), "0000000000000000" SPAN_ID_FMT, m_span.trace_id));
+    }
+
+    writer.Key("name");
+    writer.String(m_span.name);
+
+    writer.Key("id");
+    writer.String(str, snprintf(str, sizeof(str), SPAN_ID_FMT, m_span.id));
+
+    if (m_span.__isset.parent_id)
+    {
+        writer.Key("parentId");
+        writer.String(str, snprintf(str, sizeof(str), SPAN_ID_FMT, m_span.parent_id));
+    }
+
+    for (auto &annotation : m_span.annotations)
+    {
+        if (annotation.value == TraceKeys::CLIENT_SEND || annotation.value == TraceKeys::CLIENT_RECV) {
+            writer.Key("kind");
+            writer.String("CLIENT");
+            break;
+        }
+        if (annotation.value == TraceKeys::SERVER_SEND || annotation.value == TraceKeys::SERVER_RECV) {
+            writer.Key("kind");
+            writer.String("SERVER");
+            break;
+        }
+    }
+
+    if (m_span.__isset.timestamp)
+    {
+        writer.Key("timestamp");
+        writer.Int64(m_span.timestamp);
+    }
+
+    if (m_span.__isset.duration)
+    {
+        writer.Key("duration");
+        writer.Int64(m_span.duration);
+    }
+
+    auto local_endpoint = m_local_endpoint;
+    auto remote_endpoint = m_remote_endpoint;
+
+    for (auto &annotation : m_span.binary_annotations)
+    {
+        if (!local_endpoint && annotation.value == TraceKeys::CLIENT_ADDR &&
+            (annotation.host.__isset.ipv4 || annotation.host.__isset.ipv6)) {
+            local_endpoint.reset(new Endpoint(annotation.host));
+        }
+        if (!remote_endpoint && annotation.value == TraceKeys::SERVER_ADDR &&
+            (annotation.host.__isset.ipv4 || annotation.host.__isset.ipv6)) {
+            remote_endpoint.reset(new Endpoint(annotation.host));
+        }
+    }
+
+    if (local_endpoint) {
+        writer.Key("localEndpoint");
+        serialize_endpoint(m_local_endpoint.get());
+    }
+
+    if (remote_endpoint) {
+        writer.Key("remoteEndpoint");
+        serialize_endpoint(m_remote_endpoint.get());
+    }
+
+    writer.Key("annotations");
+    writer.StartArray();
+
+    for (auto &annotation : m_span.annotations)
+    {
+        writer.StartObject();
+
+        writer.Key("timestamp");
+        writer.Int64(annotation.timestamp);
+
+        writer.Key("value");
+        writer.String(annotation.value);
+
+        writer.EndObject();
+    }
+
+    writer.EndArray(m_span.annotations.size());
+
+    writer.Key("tags");
+    writer.StartObject();
+
+    for (auto &annotation : m_span.binary_annotations)
+    {
+        writer.Key(annotation.key.c_str());
+        serialize_value(annotation.value, annotation.annotation_type);
+    }
+
+    writer.EndObject();
+
+    if (m_span.debug)
+    {
+        writer.Key("debug");
+        writer.Bool(m_span.debug);
+    }
+
+    if (m_shared) {
+        writer.Key("shared");
+        writer.Bool(m_shared);
     }
 
     writer.EndObject();

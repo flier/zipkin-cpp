@@ -152,7 +152,7 @@ const char *to_string(AnnotationType type)
     }
 }
 
-void Span::reset(const std::string &name, span_id_t parent_id, userdata_t userdata, bool sampled)
+void Span::reset(const std::string &name, span_id_t parent_id, userdata_t userdata, bool sampled, bool shared)
 {
     m_span.debug = false;
     m_span.duration = 0;
@@ -178,6 +178,9 @@ void Span::reset(const std::string &name, span_id_t parent_id, userdata_t userda
 
     m_userdata = userdata;
     m_sampled = sampled;
+    m_shared = shared;
+    m_local_endpoint.reset();
+    m_remote_endpoint.reset();
 }
 
 void Span::submit(void)

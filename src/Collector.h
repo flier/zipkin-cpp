@@ -4,6 +4,7 @@
 #include <atomic>
 #include <thread>
 #include <mutex>
+
 #include <condition_variable>
 
 #include <boost/lockfree/queue.hpp>
@@ -54,6 +55,8 @@ public:
   static std::shared_ptr<BinaryCodec> binary;
   static std::shared_ptr<JsonCodec> json;
   static std::shared_ptr<PrettyJsonCodec> pretty_json;
+  static std::shared_ptr<JsonCodec> json_v2;
+  static std::shared_ptr<PrettyJsonCodec> pretty_json_v2;
 };
 
 /**
@@ -74,7 +77,10 @@ public:
 */
 class JsonCodec : public MessageCodec
 {
+  int m_format_version;
 public:
+  JsonCodec(int format_version = 1) : m_format_version(format_version) {}
+
   virtual const std::string name(void) const override { return "json"; }
 
   virtual const std::string mime_type(void) const override { return "application/json"; }
@@ -87,7 +93,10 @@ public:
 */
 class PrettyJsonCodec : public MessageCodec
 {
+  int m_format_version;
 public:
+  PrettyJsonCodec(int format_version = 1) : m_format_version(format_version) {}
+
   virtual const std::string name(void) const override { return "pretty_json"; }
 
   virtual const std::string mime_type(void) const override { return "application/json"; }

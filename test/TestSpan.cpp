@@ -245,6 +245,31 @@ static const char *json_template = R"###({
     "timestamp": %lld
 })###";
 
+static const char *json_v2_template = R"###({
+    "traceId": "%016llx%016llx",
+    "name": "test",
+    "id": "%016llx",
+    "parentId": "%016llx",
+    "kind": "CLIENT",
+    "timestamp": %lld,
+    "annotations": [
+        {
+            "timestamp": %lld,
+            "value": "cs"
+        }
+    ],
+    "tags": {
+        "sa": "8.8.8.8",
+        "bool": "1",
+        "i16": "123",
+        "i32": "123",
+        "i64": "123",
+        "double": "12.3",
+        "string": "测试",
+        "bytes": "AQID"
+    }
+})###";
+
 TEST(span, serialize_json)
 {
     MockTracer tracer;
@@ -274,8 +299,39 @@ TEST(span, serialize_json)
     span.serialize_json(writer);
 
     char str[2048] = {0};
-    int str_len = snprintf(str, sizeof(str), json_template, span.trace_id_high(), span.trace_id(), span.id(), span.parent_id(),
-                           span.message().annotations[0].timestamp, span.message().timestamp);
+    int str_len = snprintf(str, sizeof(str), json_template, span.trace_id_high(), span.trace_id(), span.id(),  span.parent_id(), span.message().annotations[0].timestamp, span.message().timestamp);
+
+    ASSERT_EQ(std::string(buffer.GetString(), buffer.GetSize()), std::string(str, str_len));
+}
+
+TEST(span, serialize_json_v2)
+{
+    MockTracer tracer;
+
+    zipkin::Span span(&tracer, "test", zipkin::Span::next_id());
+    zipkin::Endpoint host("host", "127.0.0.1", 80);
+    zipkin::Endpoint remote("remote", "8.8.8.8");
+
+    span.client_send(&host);
+    span.server_addr("8.8.8.8", &remote);
+    span.annotate("bool", true, &host);
+    span.annotate("i16", (int16_t)123);
+    span.annotate("i32", (int32_t)123);
+    span.annotate("i64", (int64_t)123);
+    span.annotate("double", 12.3);
+    span.annotate("string", std::wstring(L"测试"));
+
+    uint8_t bytes[] = {1, 2, 3};
+
+    span.annotate("bytes", bytes);
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+
+    span.serialize_json_v2(writer);
+
+    char str[2048] = {0};
+    int str_len = snprintf(str, sizeof(str), json_v2_template, span.trace_id_high(), span.trace_id(), span.id(), span.parent_id(), span.message().timestamp, span.message().annotations[0].timestamp);
 
     ASSERT_EQ(std::string(buffer.GetString(), buffer.GetSize()), std::string(str, str_len));
 }

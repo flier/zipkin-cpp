@@ -21,6 +21,8 @@ namespace zipkin
 std::shared_ptr<BinaryCodec> MessageCodec::binary(new BinaryCodec());
 std::shared_ptr<JsonCodec> MessageCodec::json(new JsonCodec());
 std::shared_ptr<PrettyJsonCodec> MessageCodec::pretty_json(new PrettyJsonCodec());
+std::shared_ptr<JsonCodec> MessageCodec::json_v2(new JsonCodec(2));
+std::shared_ptr<PrettyJsonCodec> MessageCodec::pretty_json_v2(new PrettyJsonCodec(2));
 
 CompressionCodec parse_compression_codec(const std::string &codec)
 {
@@ -57,7 +59,10 @@ std::shared_ptr<MessageCodec> MessageCodec::parse(const std::string &codec)
         return json;
     if (codec == "pretty_json")
         return pretty_json;
-
+    if (codec == "json_v2")
+        return json_v2;
+    if (codec == "pretty_json_v2")
+        return pretty_json_v2;
     return nullptr;
 }
 
@@ -85,7 +90,11 @@ size_t JsonCodec::encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuf
 
     for (auto &span : spans)
     {
-        span->serialize_json(writer);
+        if (m_format_version == 2) {
+            span->serialize_json_v2(writer);
+        } else {
+            span->serialize_json(writer);
+        }
     }
 
     writer.EndArray();
@@ -105,7 +114,11 @@ size_t PrettyJsonCodec::encode(boost::shared_ptr<apache::thrift::transport::TMem
 
     for (auto &span : spans)
     {
-        span->serialize_json(writer);
+        if (m_format_version == 2) {
+            span->serialize_json_v2(writer);
+        } else {
+            span->serialize_json(writer);
+        }
     }
 
     writer.EndArray();

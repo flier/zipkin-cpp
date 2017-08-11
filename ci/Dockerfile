@@ -110,12 +110,62 @@ RUN wget https://github.com/edenhill/librdkafka/archive/v$LibRDKafka_VERSION.tar
         -DRDKAFKA_BUILD_EXAMPLES=OFF \
         -DRDKAFKA_BUILD_TESTS=OFF \
         -DCMAKE_INSTALL_PREFIX=$EXT_DIR \
+        -DCMAKE_PREFIX_PATH=$EXT_DIR \
         $EXT_DIR/src/LibRDKafka/ && \
     make && \
     make install && \
     make clean && \
     rm -rf $EXT_DIR/src/LibRDKafka
 
+ENV RAPIDJSON_VERSION   1.1.0
+RUN wget https://github.com/miloyip/rapidjson/archive/v$RAPIDJSON_VERSION.tar.gz -O RapidJSON-$RAPIDJSON_VERSION.tar.gz && \
+    mkdir -p $EXT_DIR/src/RapidJSON/build && \
+    tar xzvf RapidJSON-$RAPIDJSON_VERSION.tar.gz -C $EXT_DIR/src/RapidJSON --strip-components=1 && \
+    rm RapidJSON-$RAPIDJSON_VERSION.tar.gz && \
+    cd $EXT_DIR/src/RapidJSON/build && \
+    $CMAKE_DIR/bin/cmake \
+        -DCMAKE_INSTALL_PREFIX=$EXT_DIR \
+        -DCMAKE_PREFIX_PATH=$EXT_DIR \
+        -DRAPIDJSON_BUILD_DOC=OFF \
+        -DRAPIDJSON_BUILD_EXAMPLES=OFF \
+        -DRAPIDJSON_BUILD_TESTS=OFF \
+        $EXT_DIR/src/RapidJSON/ && \
+    make && \
+    make install && \
+    make clean && \
+    rm -rf $EXT_DIR/src/RapidJSON
+
+ENV GTEST_VERSION   1.8.0
+RUN wget https://github.com/google/googletest/archive/release-$GTEST_VERSION.tar.gz -O GTest-$GTEST_VERSION.tar.gz && \
+    mkdir -p $EXT_DIR/src/GTest/build && \
+    tar xzvf GTest-$GTEST_VERSION.tar.gz -C $EXT_DIR/src/GTest --strip-components=1 && \
+    rm GTest-$GTEST_VERSION.tar.gz && \
+    cd $EXT_DIR/src/GTest/build && \
+    $CMAKE_DIR/bin/cmake \
+        -DCMAKE_INSTALL_PREFIX=$EXT_DIR \
+        -DCMAKE_PREFIX_PATH=$EXT_DIR \
+        $EXT_DIR/src/GTest/ && \
+    make && \
+    make install && \
+    make clean && \
+    rm -rf $EXT_DIR/src/GTest
+
+ENV GBENCH_VERSION  1.1.0
+RUN wget https://github.com/google/benchmark/archive/v$GBENCH_VERSION.tar.gz -O GBench-$GBENCH_VERSION.tar.gz && \
+    mkdir -p $EXT_DIR/src/GBench/build && \
+    tar xzvf GBench-$GBENCH_VERSION.tar.gz -C $EXT_DIR/src/GBench --strip-components=1 && \
+    rm GBench-$GBENCH_VERSION.tar.gz && \
+    cd $EXT_DIR/src/GBench/build && \
+    $CMAKE_DIR/bin/cmake \
+        -DCMAKE_INSTALL_PREFIX=$EXT_DIR \
+        -DCMAKE_PREFIX_PATH=$EXT_DIR \
+        -DBENCHMARK_ENABLE_TESTING=OFF \
+        -DBENCHMARK_ENABLE_LTO=ON \
+        $EXT_DIR/src/GBench/ && \
+    make && \
+    make install && \
+    make clean && \
+    rm -rf $EXT_DIR/src/GBench
 
 ENV ZIPKIN_VERSION  0.3.1
 

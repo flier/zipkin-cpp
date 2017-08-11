@@ -20,6 +20,7 @@ else
 fi
 
 function container_is_exists {
+    echo "docker ps -a -q -f \"name=${CONTAINER_NAME}\" -f \"ancestor=${IMAGE_NAME}\""
     local CONTAINER_ID=`docker ps -a -q -f "name=${CONTAINER_NAME}" -f "ancestor=${IMAGE_NAME}"`
 
     [[ -n $CONTAINER_ID ]]
@@ -27,6 +28,12 @@ function container_is_exists {
 
 function container_is_running {
     local CONTAINER_ID=`docker ps -q -f "name=${CONTAINER_NAME}" -f "ancestor=${IMAGE_NAME}"`
+
+    [[ -n $CONTAINER_ID ]]
+}
+
+function container_has_outdated {
+    local CONTAINER_ID=`docker ps -a -q -f "name=${CONTAINER_NAME}"`
 
     [[ -n $CONTAINER_ID ]]
 }
@@ -41,11 +48,19 @@ if container_is_exists; then
     if container_is_running; then
         docker logs -f ${CONTAINER_NAME}
     else
+        echo "remove stopped container"
+
         docker rm ${CONTAINER_NAME}
 
         run_container
     fi
 else
+    if container_has_outdated; then
+        echo "remove outdated container"
+
+        docker rm ${CONTAINER_NAME}
+    fi
+
     run_container
 fi
 

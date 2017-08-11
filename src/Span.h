@@ -1425,6 +1425,14 @@ void Span::serialize_json(RapidJsonWriter &writer) const
     writer.EndObject();
 }
 
+inline bool endpoint_is_set(const ::Annotation &annotation) {
+    return annotation.host.__isset.ipv4 || annotation.host.__isset.ipv6;
+}
+
+inline bool endpoint_is_set(const ::BinaryAnnotation &annotation) {
+    return annotation.host.__isset.ipv4 || annotation.host.__isset.ipv6;
+}
+
 template <class RapidJsonWriter>
 void Span::serialize_json_v2(RapidJsonWriter &writer) const
 {
@@ -1487,8 +1495,9 @@ void Span::serialize_json_v2(RapidJsonWriter &writer) const
 
     char str[64];
 
-    auto local_endpoint = m_local_endpoint;
-    auto remote_endpoint = m_remote_endpoint;
+    bool client_mode = false;
+    std::shared_ptr<Endpoint> local_endpoint = m_local_endpoint;
+    std::shared_ptr<Endpoint> remote_endpoint = m_remote_endpoint;
 
     writer.StartObject();
 
@@ -1521,10 +1530,12 @@ void Span::serialize_json_v2(RapidJsonWriter &writer) const
             writer.Key("kind");
             writer.String("CLIENT");
 
-            if (annotation.host.__isset.ipv4 || annotation.host.__isset.ipv6)
+            if (endpoint_is_set(annotation))
             {
                 local_endpoint.reset(new Endpoint(annotation.host));
             }
+
+            client_mode = true;
 
             break;
         }
@@ -1533,10 +1544,12 @@ void Span::serialize_json_v2(RapidJsonWriter &writer) const
             writer.Key("kind");
             writer.String("SERVER");
 
-            if (annotation.host.__isset.ipv4 || annotation.host.__isset.ipv6)
+            if (endpoint_is_set(annotation))
             {
                 local_endpoint.reset(new Endpoint(annotation.host));
             }
+
+            client_mode = false;
 
             break;
         }
@@ -1552,28 +1565,6 @@ void Span::serialize_json_v2(RapidJsonWriter &writer) const
     {
         writer.Key("duration");
         writer.Int64(m_span.duration);
-    }
-
-    for (auto &annotation : m_span.binary_annotations)
-    {
-        if (!local_endpoint && annotation.key == TraceKeys::CLIENT_ADDR &&
-            (annotation.host.__isset.ipv4 || annotation.host.__isset.ipv6)) {
-            local_endpoint.reset(new Endpoint(annotation.host));
-        }
-        if (!remote_endpoint && annotation.key == TraceKeys::SERVER_ADDR &&
-            (annotation.host.__isset.ipv4 || annotation.host.__isset.ipv6)) {
-            remote_endpoint.reset(new Endpoint(annotation.host));
-        }
-    }
-
-    if (local_endpoint) {
-        writer.Key("localEndpoint");
-        serialize_endpoint(local_endpoint.get());
-    }
-
-    if (remote_endpoint) {
-        writer.Key("remoteEndpoint");
-        serialize_endpoint(remote_endpoint.get());
     }
 
     writer.Key("annotations");
@@ -1599,11 +1590,45 @@ void Span::serialize_json_v2(RapidJsonWriter &writer) const
 
     for (auto &annotation : m_span.binary_annotations)
     {
-        writer.Key(annotation.key.c_str());
-        serialize_value(annotation.value, annotation.annotation_type);
+        auto endpoint = [&annotation]() {
+            return std::shared_ptr<Endpoint>(
+                endpoint_is_set(annotation) ?
+                    new Endpoint(annotation.host) :
+                    new Endpoint(annotation.value, annotation.value)
+            );
+        };
+
+        if (annotation.key == TraceKeys::CLIENT_ADDR) {
+            if (client_mode) {
+                if (!local_endpoint) { local_endpoint = endpoint(); }
+            } else {
+                if (!remote_endpoint) { remote_endpoint = endpoint(); }
+            }
+        } else if (annotation.key == TraceKeys::SERVER_ADDR) {
+            if (endpoint_is_set(annotation)) {
+                if (client_mode) {
+                    if (!remote_endpoint) { remote_endpoint = endpoint(); }
+                } else {
+                    if (!local_endpoint) { local_endpoint = endpoint(); }
+                }
+            }
+        } else {
+            writer.Key(annotation.key.c_str());
+            serialize_value(annotation.value, annotation.annotation_type);
+        }
     }
 
     writer.EndObject();
+
+    if (local_endpoint) {
+        writer.Key("localEndpoint");
+        serialize_endpoint(local_endpoint.get());
+    }
+
+    if (remote_endpoint) {
+        writer.Key("remoteEndpoint");
+        serialize_endpoint(remote_endpoint.get());
+    }
 
     if (m_span.debug)
     {

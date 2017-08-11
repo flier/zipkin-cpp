@@ -252,11 +252,6 @@ static const char *json_v2_template = R"###({
     "parentId": "%016llx",
     "kind": "CLIENT",
     "timestamp": %lld,
-    "remoteEndpoint": {
-        "serviceName": "remote",
-        "ipv6": "::1",
-        "port": 80
-    },
     "annotations": [
         {
             "timestamp": %lld,
@@ -264,7 +259,6 @@ static const char *json_v2_template = R"###({
         }
     ],
     "tags": {
-        "sa": "8.8.8.8",
         "bool": "true",
         "i16": "123",
         "i32": "123",
@@ -272,6 +266,11 @@ static const char *json_v2_template = R"###({
         "double": "12.3",
         "string": "测试",
         "bytes": "AQID"
+    },
+    "remoteEndpoint": {
+        "serviceName": "remote",
+        "ipv6": "::1",
+        "port": 80
     }
 })###";
 

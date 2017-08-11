@@ -9,6 +9,8 @@ if (NOT GBENCH_FOUND OR USE_BUNDLED_GBENCH)
         URL                 https://github.com/google/benchmark/archive/v${GBENCH_VERSION}.tar.gz
         URL_MD5             ${GBENCH_URL_MD5}
         CMAKE_ARGS          -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+                            -DBENCHMARK_ENABLE_TESTING=OFF
+                            -DBENCHMARK_ENABLE_LTO=ON
         TEST_COMMAND        ""
     )
 

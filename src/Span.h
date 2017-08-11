@@ -1440,7 +1440,7 @@ void Span::serialize_json_v2(RapidJsonWriter &writer) const
         switch (type)
         {
         case AnnotationType::BOOL:
-            oss << *reinterpret_cast<const bool *>(data.c_str());
+            oss << std::boolalpha << *reinterpret_cast<const bool *>(data.c_str());
             break;
 
         case AnnotationType::I16:

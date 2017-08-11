@@ -260,7 +260,7 @@ static const char *json_v2_template = R"###({
     ],
     "tags": {
         "sa": "8.8.8.8",
-        "bool": "1",
+        "bool": "true",
         "i16": "123",
         "i32": "123",
         "i64": "123",

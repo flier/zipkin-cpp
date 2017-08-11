@@ -5,6 +5,7 @@ set -e
 [[ -z "${ZIPKIN_VERSION}" ]] && ZIPKIN_VERSION="0.3.1"
 
 BASE_DIR=`pwd`/..
+SRC_DIR=${BASE_DIR}
 DIST_DIR=${BASE_DIR}/dist
 
 IMAGE_NAME=zipkin-cpp-build:ubuntu
@@ -41,7 +42,11 @@ function container_has_outdated {
 function run_container {
     echo "run new container"
 
-    docker run --name ${CONTAINER_NAME} -u "${USER}":"${USER_GROUP}" -v ${DIST_DIR}:/zipkin-cpp/dist ${IMAGE_NAME} $1
+    if [[ $1 == 'latest' ]]; then
+        docker run --name ${CONTAINER_NAME} -u "${USER}":"${USER_GROUP}" -v ${SRC_DIR}:/source -v ${DIST_DIR}:/dist ${IMAGE_NAME} $1
+    else
+        docker run --name ${CONTAINER_NAME} -u "${USER}":"${USER_GROUP}" -v ${DIST_DIR}:/dist ${IMAGE_NAME} $1
+    fi
 }
 
 if container_is_exists; then
@@ -52,7 +57,7 @@ if container_is_exists; then
 
         docker rm ${CONTAINER_NAME}
 
-        run_container
+        run_container $@
     fi
 else
     if container_has_outdated; then
@@ -61,7 +66,7 @@ else
         docker rm ${CONTAINER_NAME}
     fi
 
-    run_container
+    run_container $@
 fi
 
 PKG_TYPE=$2

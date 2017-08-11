@@ -74,10 +74,10 @@ RUN wget https://github.com/facebook/folly/archive/v$FOLLY_VERSION.tar.gz -O fol
     rm -rf $EXT_DIR/src/Folly/folly
 
 ENV THRIFT_VERSION_STRING   0.10.0
-RUN wget http://www-us.apache.org/dist/thrift/$THRIFT_VERSION_STRING/thrift-$THRIFT_VERSION_STRING.tar.gz -O thrift-$$THRIFT_VERSION_STRING.tar.gz && \
+RUN wget http://www-us.apache.org/dist/thrift/$THRIFT_VERSION_STRING/thrift-$THRIFT_VERSION_STRING.tar.gz && \
     mkdir -p $EXT_DIR/src/Thrift && \
-    tar xzvf thrift-$$THRIFT_VERSION_STRING.tar.gz -C $EXT_DIR/src/Thrift --strip-components=1 && \
-    rm thrift-$$THRIFT_VERSION_STRING.tar.gz && \
+    tar xzvf thrift-$THRIFT_VERSION_STRING.tar.gz -C $EXT_DIR/src/Thrift --strip-components=1 && \
+    rm thrift-$THRIFT_VERSION_STRING.tar.gz && \
     cd $EXT_DIR/src/Thrift && \
     ./configure \
         --prefix=$EXT_DIR \
@@ -99,6 +99,23 @@ RUN wget http://www-us.apache.org/dist/thrift/$THRIFT_VERSION_STRING/thrift-$THR
     make install && \
     make clean && \
     rm -rf $EXT_DIR/src/Thrift
+
+ENV LibRDKafka_VERSION      0.11.0
+RUN wget https://github.com/edenhill/librdkafka/archive/v$LibRDKafka_VERSION.tar.gz -O LibRDKafka-$LibRDKafka_VERSION.tar.gz && \
+    mkdir -p $EXT_DIR/src/LibRDKafka/build && \
+    tar xzvf LibRDKafka-$LibRDKafka_VERSION.tar.gz -C $EXT_DIR/src/LibRDKafka --strip-components=1 && \
+    rm LibRDKafka-$LibRDKafka_VERSION.tar.gz && \
+    cd $EXT_DIR/src/LibRDKafka/build && \
+    $CMAKE_DIR/bin/cmake \
+        -DRDKAFKA_BUILD_EXAMPLES=OFF \
+        -DRDKAFKA_BUILD_TESTS=OFF \
+        -DCMAKE_INSTALL_PREFIX=$EXT_DIR \
+        $EXT_DIR/src/LibRDKafka/ && \
+    make && \
+    make install && \
+    make clean && \
+    rm -rf $EXT_DIR/src/LibRDKafka
+
 
 ENV ZIPKIN_VERSION  0.3.1
 

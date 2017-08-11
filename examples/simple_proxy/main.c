@@ -192,6 +192,7 @@ void forward_http_request(struct mg_connection *nc, struct http_message *hm, zip
     else if (0 == mg_vcmp(hn, ZIPKIN_X_SPAN_ID))
     {
       zipkin_span_set_parent_id(span, strtoull(hv->p, NULL, 16));
+      zipkin_span_set_shared(span, 1);
     }
     else
     {
@@ -273,6 +274,7 @@ void reply_json_response(struct mg_connection *nc, struct http_message *hm, zipk
     else if (0 == mg_vcmp(hn, ZIPKIN_X_SPAN_ID))
     {
       zipkin_span_set_parent_id(span, strtoull(hv->p, NULL, 16));
+      zipkin_span_set_shared(span, 1);
     }
     else if (0 == mg_vcmp(hn, ZIPKIN_X_SAMPLED))
     {

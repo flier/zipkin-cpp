@@ -112,7 +112,8 @@ void Propagation::extract(grpc::ServerContext &context, Span &span)
         }
         else if (item.first == ZIPKIN_X_SPAN_ID_LOWERCASE)
         {
-            span.with_parent_id(folly::to<uint64_t>(value));
+            span.with_parent_id(folly::to<uint64_t>(value))
+                .with_shared(true);
         }
         else if (item.first == ZIPKIN_X_SAMPLED_LOWERCASE)
         {

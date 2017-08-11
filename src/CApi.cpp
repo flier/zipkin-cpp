@@ -154,6 +154,17 @@ zipkin_span_t zipkin_span_set_debug(zipkin_span_t span, int debug)
 
     return span;
 }
+int zipkin_span_shared(zipkin_span_t span)
+{
+    return span ? static_cast<zipkin::Span *>(span)->shared() : false;
+}
+zipkin_span_t zipkin_span_set_shared(zipkin_span_t span, int shared)
+{
+    if (span)
+        static_cast<zipkin::Span *>(span)->with_shared(shared);
+
+    return span;
+}
 int zipkin_span_sampled(zipkin_span_t span)
 {
     return span ? static_cast<zipkin::Span *>(span)->sampled() : false;

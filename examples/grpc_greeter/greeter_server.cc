@@ -77,7 +77,7 @@ struct GreeterServiceImpl final : public Greeter::Service
 };
 
 DEFINE_string(grpc_addr, "localhost:50051", "GRPC server address");
-DEFINE_string(collector_uri, "", "Collector URI for tracing");
+DEFINE_string(collector_uri, "http://localhost:9411/zipkin/api/v1", "Collector URI for tracing");
 
 void RunServer(std::shared_ptr<zipkin::Collector> collector)
 {

@@ -1273,8 +1273,17 @@ void Span::serialize_json(RapidJsonWriter &writer) const
         writer.Key("serviceName");
         writer.String(host.service_name);
 
-        writer.Key("ipv4");
-        writer.String(inet_ntoa({static_cast<in_addr_t>(htonl(host.ipv4))}));
+        if (host.__isset.ipv6) {
+            char buf[INET6_ADDRSTRLEN+1] = {0};
+
+            inet_ntop(AF_INET6, host.ipv6.c_str(), buf, INET6_ADDRSTRLEN);
+
+            writer.Key("ipv6");
+            writer.String(buf);
+        } else {
+            writer.Key("ipv4");
+            writer.String(inet_ntoa({static_cast<in_addr_t>(htonl(host.ipv4))}));
+        }
 
         writer.Key("port");
         writer.Int(host.port);
@@ -1425,8 +1434,13 @@ void Span::serialize_json_v2(RapidJsonWriter &writer) const
         writer.Key("serviceName");
         writer.String(host->service_name());
 
-        writer.Key("ipv4");
-        writer.String(host->addr().to_v4().to_string());
+        if (host->addr().is_v6()) {
+            writer.Key("ipv6");
+            writer.String(host->addr().to_v6().to_string());
+        } else {
+            writer.Key("ipv4");
+            writer.String(host->addr().to_v4().to_string());
+        }
 
         writer.Key("port");
         writer.Int(host->port());
@@ -1473,6 +1487,9 @@ void Span::serialize_json_v2(RapidJsonWriter &writer) const
 
     char str[64];
 
+    auto local_endpoint = m_local_endpoint;
+    auto remote_endpoint = m_remote_endpoint;
+
     writer.StartObject();
 
     writer.Key("traceId");
@@ -1499,14 +1516,28 @@ void Span::serialize_json_v2(RapidJsonWriter &writer) const
 
     for (auto &annotation : m_span.annotations)
     {
-        if (annotation.value == TraceKeys::CLIENT_SEND || annotation.value == TraceKeys::CLIENT_RECV) {
+        if (annotation.value == TraceKeys::CLIENT_SEND || annotation.value == TraceKeys::CLIENT_RECV)
+        {
             writer.Key("kind");
             writer.String("CLIENT");
+
+            if (annotation.host.__isset.ipv4 || annotation.host.__isset.ipv6)
+            {
+                local_endpoint.reset(new Endpoint(annotation.host));
+            }
+
             break;
         }
-        if (annotation.value == TraceKeys::SERVER_SEND || annotation.value == TraceKeys::SERVER_RECV) {
+        if (annotation.value == TraceKeys::SERVER_SEND || annotation.value == TraceKeys::SERVER_RECV)
+        {
             writer.Key("kind");
             writer.String("SERVER");
+
+            if (annotation.host.__isset.ipv4 || annotation.host.__isset.ipv6)
+            {
+                local_endpoint.reset(new Endpoint(annotation.host));
+            }
+
             break;
         }
     }
@@ -1523,16 +1554,13 @@ void Span::serialize_json_v2(RapidJsonWriter &writer) const
         writer.Int64(m_span.duration);
     }
 
-    auto local_endpoint = m_local_endpoint;
-    auto remote_endpoint = m_remote_endpoint;
-
     for (auto &annotation : m_span.binary_annotations)
     {
-        if (!local_endpoint && annotation.value == TraceKeys::CLIENT_ADDR &&
+        if (!local_endpoint && annotation.key == TraceKeys::CLIENT_ADDR &&
             (annotation.host.__isset.ipv4 || annotation.host.__isset.ipv6)) {
             local_endpoint.reset(new Endpoint(annotation.host));
         }
-        if (!remote_endpoint && annotation.value == TraceKeys::SERVER_ADDR &&
+        if (!remote_endpoint && annotation.key == TraceKeys::SERVER_ADDR &&
             (annotation.host.__isset.ipv4 || annotation.host.__isset.ipv6)) {
             remote_endpoint.reset(new Endpoint(annotation.host));
         }
@@ -1540,12 +1568,12 @@ void Span::serialize_json_v2(RapidJsonWriter &writer) const
 
     if (local_endpoint) {
         writer.Key("localEndpoint");
-        serialize_endpoint(m_local_endpoint.get());
+        serialize_endpoint(local_endpoint.get());
     }
 
     if (remote_endpoint) {
         writer.Key("remoteEndpoint");
-        serialize_endpoint(m_remote_endpoint.get());
+        serialize_endpoint(remote_endpoint.get());
     }
 
     writer.Key("annotations");

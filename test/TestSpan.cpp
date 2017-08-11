@@ -204,8 +204,8 @@ static const char *json_template = R"###({
     "binaryAnnotations": [
         {
             "endpoint": {
-                "serviceName": "host",
-                "ipv4": "127.0.0.1",
+                "serviceName": "ipv6_host",
+                "ipv6": "::1",
                 "port": 80
             },
             "key": "bool",
@@ -252,6 +252,11 @@ static const char *json_v2_template = R"###({
     "parentId": "%016llx",
     "kind": "CLIENT",
     "timestamp": %lld,
+    "remoteEndpoint": {
+        "serviceName": "remote",
+        "ipv6": "::1",
+        "port": 80
+    },
     "annotations": [
         {
             "timestamp": %lld,
@@ -280,9 +285,10 @@ TEST(span, serialize_json)
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     addr.sin_port = htons(80);
     zipkin::Endpoint host("host", &addr);
+    zipkin::Endpoint ipv6_host("ipv6_host", "::1", 80);
 
     span.client_send(&host);
-    span.annotate("bool", true, &host);
+    span.annotate("bool", true, &ipv6_host);
     span.annotate("i16", (int16_t)123);
     span.annotate("i32", (int32_t)123);
     span.annotate("i64", (int64_t)123);
@@ -310,7 +316,7 @@ TEST(span, serialize_json_v2)
 
     zipkin::Span span(&tracer, "test", zipkin::Span::next_id());
     zipkin::Endpoint host("host", "127.0.0.1", 80);
-    zipkin::Endpoint remote("remote", "8.8.8.8");
+    zipkin::Endpoint remote("remote", "::1", 80);
 
     span.client_send(&host);
     span.server_addr("8.8.8.8", &remote);

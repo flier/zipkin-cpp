@@ -81,7 +81,9 @@ class JsonCodec : public MessageCodec
 public:
   JsonCodec(int format_version = 1) : m_format_version(format_version) {}
 
-  virtual const std::string name(void) const override { return "json"; }
+  virtual const std::string name(void) const override {
+    return m_format_version > 1 ? "json_v2" : "json";
+  }
 
   virtual const std::string mime_type(void) const override { return "application/json"; }
 
@@ -97,7 +99,9 @@ class PrettyJsonCodec : public MessageCodec
 public:
   PrettyJsonCodec(int format_version = 1) : m_format_version(format_version) {}
 
-  virtual const std::string name(void) const override { return "pretty_json"; }
+  virtual const std::string name(void) const override {
+    return m_format_version > 1 ? "pretty_json_v2" : "pretty_json";
+  }
 
   virtual const std::string mime_type(void) const override { return "application/json"; }
 

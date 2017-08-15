@@ -90,8 +90,10 @@ size_t JsonCodec::encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuf
 
     for (auto &span : spans)
     {
-        if (m_format_version == 2) {
-            span->serialize_json_v2(writer);
+        if (m_format_version > 1) {
+            for (auto &span2: __impl::Span2::from_span(span)) {
+                span2.serialize_json(writer);
+            }
         } else {
             span->serialize_json(writer);
         }
@@ -114,8 +116,10 @@ size_t PrettyJsonCodec::encode(boost::shared_ptr<apache::thrift::transport::TMem
 
     for (auto &span : spans)
     {
-        if (m_format_version == 2) {
-            span->serialize_json_v2(writer);
+        if (m_format_version > 1) {
+            for (auto &span2: __impl::Span2::from_span(span)) {
+                span2.serialize_json(writer);
+            }
         } else {
             span->serialize_json(writer);
         }

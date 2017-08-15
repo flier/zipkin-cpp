@@ -7,6 +7,7 @@
 #include <memory>
 #include <chrono>
 #include <sstream>
+#include <tuple>
 
 #include <boost/locale/encoding_utf.hpp>
 #include <boost/asio.hpp>
@@ -36,6 +37,12 @@ typedef void *userdata_t;
 namespace zipkin
 {
 
+struct Tracer;
+class CachedTracer;
+class Span;
+
+namespace __impl { class Span2; }
+
 /**
  * \brief Indicates the network context of a service recording an annotation with two exceptions.
  */
@@ -43,6 +50,7 @@ class Endpoint
 {
     ::Endpoint m_host;
 
+    friend class __impl::Span2;
   public:
     Endpoint()
     {
@@ -137,10 +145,6 @@ class Endpoint
 
     inline const ::Endpoint &host(void) const { return m_host; }
 };
-
-struct Tracer;
-class CachedTracer;
-class Span;
 
 /**
 * \brief Associates an event that explains latency with a timestamp.
@@ -549,6 +553,7 @@ class Span
 
     static const ::Endpoint host(const Endpoint *endpoint);
 
+    friend class __impl::Span2;
   public:
     /**
      * \brief Construct a span
@@ -1134,6 +1139,7 @@ inline Endpoint &Endpoint::with_port(port_t port)
 
 namespace __impl
 {
+
 inline uint16_t native_to_big(uint16_t value) { return htons(value); }
 
 inline uint32_t native_to_big(uint32_t value) { return htonl(value); }
@@ -1425,6 +1431,9 @@ void Span::serialize_json(RapidJsonWriter &writer) const
     writer.EndObject();
 }
 
+namespace __impl
+{
+
 inline bool endpoint_is_set(const ::Annotation &annotation) {
     return annotation.host.__isset.ipv4 || annotation.host.__isset.ipv6;
 }
@@ -1433,8 +1442,205 @@ inline bool endpoint_is_set(const ::BinaryAnnotation &annotation) {
     return annotation.host.__isset.ipv4 || annotation.host.__isset.ipv6;
 }
 
+inline bool endpoint_close_enough(const ::Endpoint &lhs, const ::Endpoint &rhs) {
+    return lhs.__isset.service_name && rhs.__isset.service_name &&
+           lhs.service_name == rhs.service_name;
+}
+
+inline bool endpoint_close_enough(const zipkin::Endpoint *lhs, const zipkin::Endpoint *rhs) {
+    return lhs->host().__isset.service_name && rhs->host().__isset.service_name &&
+           lhs->host().service_name == rhs->host().service_name;
+}
+
+struct Span2 {
+    enum Kind {
+        UNKNOWN,
+        CLIENT,
+        SERVER,
+    };
+
+    const Span *span;
+    Kind kind;
+    int64_t timestamp, duration;
+    const zipkin::Endpoint *local_endpoint;
+    const zipkin::Endpoint *remote_endpoint;
+    std::vector<const ::Annotation *> annotations;
+    std::vector<const ::BinaryAnnotation *> binary_annotations;
+
+    static const std::vector<Span2> from_span(const Span *span);
+
+    template <class RapidJsonWriter>
+    void serialize_json(RapidJsonWriter &writer) const;
+};
+
+inline const std::vector<Span2> Span2::from_span(const Span *span) {
+    const ::Annotation *cs = nullptr, *sr = nullptr, *ss = nullptr, *cr = nullptr, *ws = nullptr, *wr = nullptr;
+
+    std::vector<Span2> spans;
+    Kind kind = UNKNOWN;
+    int64_t timestamp, duration;
+    const zipkin::Endpoint *local_endpoint = NULL;
+    const zipkin::Endpoint *remote_endpoint = NULL;
+    std::vector<const ::Annotation *> annotations;
+    std::vector<const ::BinaryAnnotation *> binary_annotations;
+
+    auto new_span = [span, &spans](const Endpoint *host) {
+        spans.push_back(Span2 { .span = span, .local_endpoint = host });
+
+        return spans.back();
+    };
+
+    auto for_endpoint = [span, &spans, new_span](const Endpoint *host) {
+        if (!host) return spans[0]; // allocate missing endpoint data to first span
+
+        for (auto &next : spans) {
+            if (!next.local_endpoint) {
+                next.local_endpoint = host;
+                return next;
+            }
+
+            if (endpoint_close_enough(next.local_endpoint, host)) {
+                return next;
+            }
+        }
+
+        return new_span(host);
+    };
+
+    auto maybe_timestamp_and_duration = [&](const ::Annotation *begin, const ::Annotation *end) {
+        if (span->m_span.__isset.timestamp && span->m_span.__isset.duration) {
+            timestamp = span->m_span.timestamp;
+            duration = span->m_span.duration;
+        } else {
+            timestamp = begin->timestamp;
+            duration = end ? (end->timestamp - begin->timestamp) : 0;
+        }
+    };
+
+    for (auto &annotation : span->m_span.annotations)
+    {
+        if (annotation.value.size() == 2 && endpoint_is_set(annotation)) {
+            // core annotations require an endpoint. Don't give special treatment when that's missing
+            switch (* reinterpret_cast<const uint16_t *>(annotation.value.c_str())) {
+                case 0x7363: // CLIENT_SEND
+                    kind = CLIENT;
+                    cs = &annotation;
+                    break;
+
+                case 0x7273: // SERVER_RECV
+                    kind = SERVER;
+                    sr = &annotation;
+                    break;
+
+                case 0x7373: // SERVER_SEND
+                    kind = SERVER;
+                    ss = &annotation;
+                    break;
+
+                case 0x7263: // CLIENT_RECV
+                    kind = CLIENT;
+                    cr = &annotation;
+                    break;
+
+                case 0x7377: // WIRE_SEND
+                    ws = &annotation;
+                    break;
+
+                case 0x7277: // WIRE_RECV
+                    wr = &annotation;
+                    break;
+
+                default:
+                    annotations.push_back(&annotation);
+                    break;
+            }
+        } else {
+            annotations.push_back(&annotation);
+        }
+    }
+
+    if (cs && sr) {
+        // in a shared span, the client side owns span duration by annotations or explicit timestamp
+        maybe_timestamp_and_duration(cs, cr);
+
+        // special-case loopback: We need to make sure on loopback there are two span2s
+        auto client = for_endpoint(&cs->host);
+        auto server;
+
+        if (endpoint_close_enough(cs->host, sr->host)) {
+            client.kind = CLIENT;
+
+            // fork a new span for the server side
+            server = new_span(sr->host);
+            server.kind = SERVER;
+        } else {
+            server = for_endpoint(&sr->host);
+        }
+    } else if (cs && cr) {
+        maybe_timestamp_and_duration(cs, cr);
+    } else if (sr && ss) {
+        maybe_timestamp_and_duration(sr, ss);
+    } else {
+        // otherwise, the span is incomplete. revert special-casing
+
+    }
+
+    for (auto &annotation : span->m_span.binary_annotations)
+    {
+        auto endpoint = [&annotation]() {
+            return std::shared_ptr<Endpoint>(
+                endpoint_is_set(annotation) ?
+                    new Endpoint(annotation.host) :
+                    new Endpoint(annotation.value, annotation.value)
+            );
+        };
+
+        if (annotation.key == TraceKeys::CLIENT_ADDR) {
+            if (endpoint_is_set(annotation)) {
+                switch (kind) {
+                case CLIENT:
+                    if (!local_endpoint) { local_endpoint = endpoint(); }
+                    break;
+
+                case SERVER:
+                    if (!remote_endpoint) { remote_endpoint = endpoint(); }
+                    break;
+
+                case UNKNOWN: // ignore it
+                    break;
+                }
+            }
+        } else if (annotation.key == TraceKeys::SERVER_ADDR) {
+            if (endpoint_is_set(annotation)) {
+                switch (kind) {
+                case CLIENT:
+                    if (!remote_endpoint) { remote_endpoint = endpoint(); }
+                    break;
+
+                case SERVER:
+                    if (!local_endpoint) { local_endpoint = endpoint(); }
+                    break;
+
+                case UNKNOWN: // ignore it
+                    break;
+                }
+            }
+        } else {
+            binary_annotations.push_back(&annotation);
+        }
+    }
+
+    spans.push_back(Span2 {
+        span, kind, timestamp, duration,
+        local_endpoint, remote_endpoint,
+        std::move(annotations), std::move(binary_annotations)
+    });
+
+    return std::move(spans);
+}
+
 template <class RapidJsonWriter>
-void Span::serialize_json_v2(RapidJsonWriter &writer) const
+void Span2::serialize_json(RapidJsonWriter &writer) const
 {
     auto serialize_endpoint = [&writer](const Endpoint *host) {
         writer.StartObject();
@@ -1495,127 +1701,86 @@ void Span::serialize_json_v2(RapidJsonWriter &writer) const
 
     char str[64];
 
-    bool client_mode = false;
-    std::shared_ptr<Endpoint> local_endpoint = m_local_endpoint;
-    std::shared_ptr<Endpoint> remote_endpoint = m_remote_endpoint;
-
     writer.StartObject();
 
     writer.Key("traceId");
-    if (m_span.trace_id_high)
+    if (span->trace_id_high())
     {
-        writer.String(str, snprintf(str, sizeof(str), SPAN_ID_FMT SPAN_ID_FMT, m_span.trace_id_high, m_span.trace_id));
+        writer.String(str, snprintf(str, sizeof(str), SPAN_ID_FMT SPAN_ID_FMT, span->trace_id_high(), span->trace_id()));
     }
     else
     {
-        writer.String(str, snprintf(str, sizeof(str), "0000000000000000" SPAN_ID_FMT, m_span.trace_id));
+        writer.String(str, snprintf(str, sizeof(str), "0000000000000000" SPAN_ID_FMT, span->trace_id()));
     }
 
     writer.Key("name");
-    writer.String(m_span.name);
+    writer.String(span->name());
 
     writer.Key("id");
-    writer.String(str, snprintf(str, sizeof(str), SPAN_ID_FMT, m_span.id));
+    writer.String(str, snprintf(str, sizeof(str), SPAN_ID_FMT, span->id()));
 
-    if (m_span.__isset.parent_id)
+    if (span->m_span.__isset.parent_id)
     {
         writer.Key("parentId");
-        writer.String(str, snprintf(str, sizeof(str), SPAN_ID_FMT, m_span.parent_id));
+        writer.String(str, snprintf(str, sizeof(str), SPAN_ID_FMT, span->parent_id()));
     }
 
-    for (auto &annotation : m_span.annotations)
-    {
-        if (annotation.value == TraceKeys::CLIENT_SEND || annotation.value == TraceKeys::CLIENT_RECV)
-        {
+    switch (kind) {
+        case CLIENT:
             writer.Key("kind");
             writer.String("CLIENT");
-
-            if (endpoint_is_set(annotation))
-            {
-                local_endpoint.reset(new Endpoint(annotation.host));
-            }
-
-            client_mode = true;
-
             break;
-        }
-        if (annotation.value == TraceKeys::SERVER_SEND || annotation.value == TraceKeys::SERVER_RECV)
-        {
+
+        case SERVER:
             writer.Key("kind");
             writer.String("SERVER");
-
-            if (endpoint_is_set(annotation))
-            {
-                local_endpoint.reset(new Endpoint(annotation.host));
-            }
-
-            client_mode = false;
-
             break;
-        }
+
+        case UNKNOWN: // ignore it
+            break;
     }
 
-    if (m_span.__isset.timestamp)
-    {
+    if (span->m_span.__isset.timestamp) {
         writer.Key("timestamp");
-        writer.Int64(m_span.timestamp);
+        writer.Int64(span->m_span.timestamp);
+    } else if (timestamp) {
+        writer.Key("timestamp");
+        writer.Int64(timestamp);
     }
 
-    if (m_span.__isset.duration)
-    {
+    if (span->m_span.__isset.duration) {
         writer.Key("duration");
-        writer.Int64(m_span.duration);
+        writer.Int64(span->m_span.duration);
+    } else if (duration) {
+        writer.Key("duration");
+        writer.Int64(duration);
     }
 
     writer.Key("annotations");
     writer.StartArray();
 
-    for (auto &annotation : m_span.annotations)
+    for (auto annotation : annotations)
     {
         writer.StartObject();
 
         writer.Key("timestamp");
-        writer.Int64(annotation.timestamp);
+        writer.Int64(annotation->timestamp);
 
         writer.Key("value");
-        writer.String(annotation.value);
+        writer.String(annotation->value);
 
         writer.EndObject();
     }
 
-    writer.EndArray(m_span.annotations.size());
+    writer.EndArray(annotations.size());
 
     writer.Key("tags");
     writer.StartObject();
 
-    for (auto &annotation : m_span.binary_annotations)
+    for (auto &annotation : binary_annotations)
     {
-        auto endpoint = [&annotation]() {
-            return std::shared_ptr<Endpoint>(
-                endpoint_is_set(annotation) ?
-                    new Endpoint(annotation.host) :
-                    new Endpoint(annotation.value, annotation.value)
-            );
-        };
-
-        if (annotation.key == TraceKeys::CLIENT_ADDR) {
-            if (client_mode) {
-                if (!local_endpoint) { local_endpoint = endpoint(); }
-            } else {
-                if (!remote_endpoint) { remote_endpoint = endpoint(); }
-            }
-        } else if (annotation.key == TraceKeys::SERVER_ADDR) {
-            if (endpoint_is_set(annotation)) {
-                if (client_mode) {
-                    if (!remote_endpoint) { remote_endpoint = endpoint(); }
-                } else {
-                    if (!local_endpoint) { local_endpoint = endpoint(); }
-                }
-            }
-        } else {
-            writer.Key(annotation.key.c_str());
-            serialize_value(annotation.value, annotation.annotation_type);
-        }
+        writer.Key(annotation->key.c_str());
+        serialize_value(annotation->value, annotation->annotation_type);
     }
 
     writer.EndObject();
@@ -1630,18 +1795,20 @@ void Span::serialize_json_v2(RapidJsonWriter &writer) const
         serialize_endpoint(remote_endpoint.get());
     }
 
-    if (m_span.debug)
+    if (span->debug())
     {
         writer.Key("debug");
-        writer.Bool(m_span.debug);
+        writer.Bool(span->debug());
     }
 
-    if (m_shared) {
+    if (span->shared()) {
         writer.Key("shared");
-        writer.Bool(m_shared);
+        writer.Bool(span->shared());
     }
 
     writer.EndObject();
 }
+
+} // namespace __impl
 
 } // namespace zipkin

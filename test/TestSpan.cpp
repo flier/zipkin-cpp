@@ -333,7 +333,9 @@ TEST(span, serialize_json_v2)
     rapidjson::StringBuffer buffer;
     rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
 
-    span.serialize_json_v2(writer);
+    for (auto &span2: zipkin::__impl::Span2::from_span(&span)) {
+        span2.serialize_json(writer);
+    }
 
     char str[2048] = {0};
     int str_len = snprintf(str, sizeof(str), json_v2_template, span.trace_id_high(), span.trace_id(), span.id(), span.parent_id(), span.message().timestamp, span.message().annotations[0].timestamp);

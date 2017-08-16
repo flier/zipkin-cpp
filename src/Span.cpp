@@ -347,9 +347,16 @@ void CachedSpan::release(void)
 namespace __impl
 {
 
-const std::vector<Span2> Span2::from_span(const Span *span) {
-    const ::Annotation *cs = nullptr, *sr = nullptr, *ss = nullptr, *cr = nullptr, *ws = nullptr, *wr = nullptr;
+inline bool is_set(const ::Endpoint &host) {
+    return host.__isset.service_name && (host.__isset.ipv4 || host.__isset.ipv6);
+}
 
+inline bool close_enough(const ::Endpoint *lhs, const ::Endpoint *rhs) {
+    return lhs->__isset.service_name && rhs->__isset.service_name &&
+           lhs->service_name == rhs->service_name;
+}
+
+const std::vector<Span2> Span2::from_span(const Span *span) {
     std::vector<Span2> spans;
 
     auto new_span = [span, &spans](const ::Endpoint *host, Kind kind=UNKNOWN) -> Span2& {
@@ -358,25 +365,29 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
         return spans.back();
     };
 
-    auto for_endpoint = [span, &spans, new_span](const ::Endpoint *host) -> Span2& {
-        if (!host) return spans.front(); // allocate missing endpoint data to first span
-
-        for (auto &next : spans) {
-            if (!next.local_endpoint) {
-                next.local_endpoint = host;
-                return next;
+    auto for_endpoint = [span, &spans, new_span](const ::Endpoint &host) -> Span2& {
+        if (!spans.empty()) {
+            if (!is_set(host)) {
+                return spans.front(); // allocate missing endpoint data to first span
             }
 
-            if (endpoint_close_enough(next.local_endpoint, host)) {
-                return next;
+            for (auto &next : spans) {
+                if (!next.local_endpoint) {
+                    next.local_endpoint = &host;
+                    return next;
+                }
+
+                if (close_enough(next.local_endpoint, &host)) {
+                    return next;
+                }
             }
         }
 
-        return new_span(host);
+        return new_span(&host);
     };
 
     auto maybe_timestamp_and_duration = [span, for_endpoint](const ::Annotation *begin, const ::Annotation *end) {
-        auto span2 = for_endpoint(&begin->host);
+        auto span2 = for_endpoint(begin->host);
 
         if (span->m_span.__isset.timestamp && span->m_span.__isset.duration) {
             span2.timestamp = span->m_span.timestamp;
@@ -387,11 +398,14 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
         }
     };
 
+    const ::Annotation *cs = nullptr, *sr = nullptr, *ss = nullptr, *cr = nullptr, *ws = nullptr, *wr = nullptr;
+
+    // add annotations unless they are "core"
     for (auto &annotation : span->m_span.annotations)
     {
-        auto span2 = for_endpoint(&annotation.host);
+        auto span2 = for_endpoint(annotation.host);
 
-        if (annotation.value.size() == 2 && endpoint_is_set(annotation)) {
+        if (annotation.value.size() == 2 && is_set(annotation.host)) {
             // core annotations require an endpoint. Don't give special treatment when that's missing
             switch (* reinterpret_cast<const uint16_t *>(annotation.value.c_str())) {
                 case 0x7363: // CLIENT_SEND
@@ -436,11 +450,11 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
         maybe_timestamp_and_duration(cs, cr);
 
         // special-case loopback: We need to make sure on loopback there are two span2s
-        auto client = for_endpoint(&cs->host);
-        bool is_client = endpoint_close_enough(&cs->host, &sr->host);
+        auto client = for_endpoint(cs->host);
+        bool is_client = close_enough(&cs->host, &sr->host);
         auto server = is_client ?
             new_span(&sr->host, SERVER) : // fork a new span for the server side
-            for_endpoint(&sr->host);
+            for_endpoint(sr->host);
 
         if (is_client) {
             client.kind = CLIENT;
@@ -480,14 +494,15 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
     // Span v1 format did not have a shared flag. By convention, span.timestamp being absent
     // implied shared. When we only see the server-side, carry this signal over.
     if (!cs && (sr && !span->m_span.timestamp)) {
-        for_endpoint(&sr->host).shared = true;
+        for_endpoint(sr->host).shared = true;
     }
 
-    if (ws) for_endpoint(&ws->host).annotations.push_back(ws);
-    if (wr) for_endpoint(&wr->host).annotations.push_back(wr);
+    if (ws) for_endpoint(ws->host).annotations.push_back(ws);
+    if (wr) for_endpoint(wr->host).annotations.push_back(wr);
 
     const ::Endpoint *ca = nullptr, *sa = nullptr;
 
+    // convert binary annotations to tags and addresses
     for (auto &annotation : span->m_span.binary_annotations)
     {
         if (annotation.annotation_type == AnnotationType::BOOL) {
@@ -501,26 +516,26 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
                 break;
 
             default:
-                for_endpoint(&annotation.host).binary_annotations.push_back(&annotation);
+                for_endpoint(annotation.host).binary_annotations.push_back(&annotation);
                 break;
             }
 
             continue;
         }
 
-        for_endpoint(&annotation.host).binary_annotations.push_back(&annotation);
+        for_endpoint(annotation.host).binary_annotations.push_back(&annotation);
     }
 
-    if (cs && sa && !endpoint_close_enough(sa, &cs->host)) {
-        for_endpoint(&cs->host).remote_endpoint = sa;
+    if (cs && sa && !close_enough(sa, &cs->host)) {
+        for_endpoint(cs->host).remote_endpoint = sa;
     }
 
-    if (sr && ca && !endpoint_close_enough(ca, &sr->host)) {
-        for_endpoint(&sr->host).remote_endpoint = ca;
+    if (sr && ca && !close_enough(ca, &sr->host)) {
+        for_endpoint(sr->host).remote_endpoint = ca;
     }
 
     if ((!cs && !sr) && (ca && sa)) {
-        for_endpoint(ca).remote_endpoint = sa;
+        for_endpoint(*ca).remote_endpoint = sa;
     }
 
     return std::move(spans);

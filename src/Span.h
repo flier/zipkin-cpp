@@ -1434,19 +1434,6 @@ void Span::serialize_json(RapidJsonWriter &writer) const
 namespace __impl
 {
 
-inline bool endpoint_is_set(const ::Annotation &annotation) {
-    return annotation.host.__isset.ipv4 || annotation.host.__isset.ipv6;
-}
-
-inline bool endpoint_is_set(const ::BinaryAnnotation &annotation) {
-    return annotation.host.__isset.ipv4 || annotation.host.__isset.ipv6;
-}
-
-inline bool endpoint_close_enough(const ::Endpoint *lhs, const ::Endpoint *rhs) {
-    return lhs->__isset.service_name && rhs->__isset.service_name &&
-           lhs->service_name == rhs->service_name;
-}
-
 struct Span2 {
     enum Kind {
         UNKNOWN,
@@ -1463,6 +1450,7 @@ struct Span2 {
     std::vector<const ::Annotation *> annotations;
     std::vector<const ::BinaryAnnotation *> binary_annotations;
 
+    // Converts the input, parsing RPC annotations into Span2.
     static const std::vector<Span2> from_span(const Span *span);
 
     template <class RapidJsonWriter>

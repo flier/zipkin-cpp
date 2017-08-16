@@ -1442,14 +1442,9 @@ inline bool endpoint_is_set(const ::BinaryAnnotation &annotation) {
     return annotation.host.__isset.ipv4 || annotation.host.__isset.ipv6;
 }
 
-inline bool endpoint_close_enough(const ::Endpoint &lhs, const ::Endpoint &rhs) {
-    return lhs.__isset.service_name && rhs.__isset.service_name &&
-           lhs.service_name == rhs.service_name;
-}
-
-inline bool endpoint_close_enough(const zipkin::Endpoint *lhs, const zipkin::Endpoint *rhs) {
-    return lhs->host().__isset.service_name && rhs->host().__isset.service_name &&
-           lhs->host().service_name == rhs->host().service_name;
+inline bool endpoint_close_enough(const ::Endpoint *lhs, const ::Endpoint *rhs) {
+    return lhs->__isset.service_name && rhs->__isset.service_name &&
+           lhs->service_name == rhs->service_name;
 }
 
 struct Span2 {
@@ -1462,8 +1457,9 @@ struct Span2 {
     const Span *span;
     Kind kind;
     int64_t timestamp, duration;
-    const zipkin::Endpoint *local_endpoint;
-    const zipkin::Endpoint *remote_endpoint;
+    bool shared;
+    const ::Endpoint *local_endpoint;
+    const ::Endpoint *remote_endpoint;
     std::vector<const ::Annotation *> annotations;
     std::vector<const ::BinaryAnnotation *> binary_annotations;
 
@@ -1473,191 +1469,29 @@ struct Span2 {
     void serialize_json(RapidJsonWriter &writer) const;
 };
 
-inline const std::vector<Span2> Span2::from_span(const Span *span) {
-    const ::Annotation *cs = nullptr, *sr = nullptr, *ss = nullptr, *cr = nullptr, *ws = nullptr, *wr = nullptr;
-
-    std::vector<Span2> spans;
-    Kind kind = UNKNOWN;
-    int64_t timestamp, duration;
-    const zipkin::Endpoint *local_endpoint = NULL;
-    const zipkin::Endpoint *remote_endpoint = NULL;
-    std::vector<const ::Annotation *> annotations;
-    std::vector<const ::BinaryAnnotation *> binary_annotations;
-
-    auto new_span = [span, &spans](const Endpoint *host) {
-        spans.push_back(Span2 { .span = span, .local_endpoint = host });
-
-        return spans.back();
-    };
-
-    auto for_endpoint = [span, &spans, new_span](const Endpoint *host) {
-        if (!host) return spans[0]; // allocate missing endpoint data to first span
-
-        for (auto &next : spans) {
-            if (!next.local_endpoint) {
-                next.local_endpoint = host;
-                return next;
-            }
-
-            if (endpoint_close_enough(next.local_endpoint, host)) {
-                return next;
-            }
-        }
-
-        return new_span(host);
-    };
-
-    auto maybe_timestamp_and_duration = [&](const ::Annotation *begin, const ::Annotation *end) {
-        if (span->m_span.__isset.timestamp && span->m_span.__isset.duration) {
-            timestamp = span->m_span.timestamp;
-            duration = span->m_span.duration;
-        } else {
-            timestamp = begin->timestamp;
-            duration = end ? (end->timestamp - begin->timestamp) : 0;
-        }
-    };
-
-    for (auto &annotation : span->m_span.annotations)
-    {
-        if (annotation.value.size() == 2 && endpoint_is_set(annotation)) {
-            // core annotations require an endpoint. Don't give special treatment when that's missing
-            switch (* reinterpret_cast<const uint16_t *>(annotation.value.c_str())) {
-                case 0x7363: // CLIENT_SEND
-                    kind = CLIENT;
-                    cs = &annotation;
-                    break;
-
-                case 0x7273: // SERVER_RECV
-                    kind = SERVER;
-                    sr = &annotation;
-                    break;
-
-                case 0x7373: // SERVER_SEND
-                    kind = SERVER;
-                    ss = &annotation;
-                    break;
-
-                case 0x7263: // CLIENT_RECV
-                    kind = CLIENT;
-                    cr = &annotation;
-                    break;
-
-                case 0x7377: // WIRE_SEND
-                    ws = &annotation;
-                    break;
-
-                case 0x7277: // WIRE_RECV
-                    wr = &annotation;
-                    break;
-
-                default:
-                    annotations.push_back(&annotation);
-                    break;
-            }
-        } else {
-            annotations.push_back(&annotation);
-        }
-    }
-
-    if (cs && sr) {
-        // in a shared span, the client side owns span duration by annotations or explicit timestamp
-        maybe_timestamp_and_duration(cs, cr);
-
-        // special-case loopback: We need to make sure on loopback there are two span2s
-        auto client = for_endpoint(&cs->host);
-        auto server;
-
-        if (endpoint_close_enough(cs->host, sr->host)) {
-            client.kind = CLIENT;
-
-            // fork a new span for the server side
-            server = new_span(sr->host);
-            server.kind = SERVER;
-        } else {
-            server = for_endpoint(&sr->host);
-        }
-    } else if (cs && cr) {
-        maybe_timestamp_and_duration(cs, cr);
-    } else if (sr && ss) {
-        maybe_timestamp_and_duration(sr, ss);
-    } else {
-        // otherwise, the span is incomplete. revert special-casing
-
-    }
-
-    for (auto &annotation : span->m_span.binary_annotations)
-    {
-        auto endpoint = [&annotation]() {
-            return std::shared_ptr<Endpoint>(
-                endpoint_is_set(annotation) ?
-                    new Endpoint(annotation.host) :
-                    new Endpoint(annotation.value, annotation.value)
-            );
-        };
-
-        if (annotation.key == TraceKeys::CLIENT_ADDR) {
-            if (endpoint_is_set(annotation)) {
-                switch (kind) {
-                case CLIENT:
-                    if (!local_endpoint) { local_endpoint = endpoint(); }
-                    break;
-
-                case SERVER:
-                    if (!remote_endpoint) { remote_endpoint = endpoint(); }
-                    break;
-
-                case UNKNOWN: // ignore it
-                    break;
-                }
-            }
-        } else if (annotation.key == TraceKeys::SERVER_ADDR) {
-            if (endpoint_is_set(annotation)) {
-                switch (kind) {
-                case CLIENT:
-                    if (!remote_endpoint) { remote_endpoint = endpoint(); }
-                    break;
-
-                case SERVER:
-                    if (!local_endpoint) { local_endpoint = endpoint(); }
-                    break;
-
-                case UNKNOWN: // ignore it
-                    break;
-                }
-            }
-        } else {
-            binary_annotations.push_back(&annotation);
-        }
-    }
-
-    spans.push_back(Span2 {
-        span, kind, timestamp, duration,
-        local_endpoint, remote_endpoint,
-        std::move(annotations), std::move(binary_annotations)
-    });
-
-    return std::move(spans);
-}
-
 template <class RapidJsonWriter>
 void Span2::serialize_json(RapidJsonWriter &writer) const
 {
-    auto serialize_endpoint = [&writer](const Endpoint *host) {
+    auto serialize_endpoint = [&writer](const ::Endpoint *host) {
         writer.StartObject();
 
         writer.Key("serviceName");
-        writer.String(host->service_name());
+        writer.String(host->service_name);
 
-        if (host->addr().is_v6()) {
+        if (host->__isset.ipv6) {
+            char buf[INET6_ADDRSTRLEN+1] = {0};
+
+            inet_ntop(AF_INET6, host->ipv6.c_str(), buf, INET6_ADDRSTRLEN);
+
             writer.Key("ipv6");
-            writer.String(host->addr().to_v6().to_string());
+            writer.String(buf);
         } else {
             writer.Key("ipv4");
-            writer.String(host->addr().to_v4().to_string());
+            writer.String(inet_ntoa({static_cast<in_addr_t>(htonl(host->ipv4))}));
         }
 
         writer.Key("port");
-        writer.Int(host->port());
+        writer.Int(host->port);
 
         writer.EndObject();
     };
@@ -1787,23 +1621,23 @@ void Span2::serialize_json(RapidJsonWriter &writer) const
 
     if (local_endpoint) {
         writer.Key("localEndpoint");
-        serialize_endpoint(local_endpoint.get());
+        serialize_endpoint(local_endpoint);
     }
 
     if (remote_endpoint) {
         writer.Key("remoteEndpoint");
-        serialize_endpoint(remote_endpoint.get());
+        serialize_endpoint(remote_endpoint);
     }
 
     if (span->debug())
     {
         writer.Key("debug");
-        writer.Bool(span->debug());
+        writer.Bool(true);
     }
 
-    if (span->shared()) {
+    if (shared) {
         writer.Key("shared");
-        writer.Bool(span->shared());
+        writer.Bool(true);
     }
 
     writer.EndObject();

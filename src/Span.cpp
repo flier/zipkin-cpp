@@ -343,4 +343,189 @@ void CachedSpan::release(void)
     }
 }
 
+
+namespace __impl
+{
+
+const std::vector<Span2> Span2::from_span(const Span *span) {
+    const ::Annotation *cs = nullptr, *sr = nullptr, *ss = nullptr, *cr = nullptr, *ws = nullptr, *wr = nullptr;
+
+    std::vector<Span2> spans;
+
+    auto new_span = [span, &spans](const ::Endpoint *host, Kind kind=UNKNOWN) -> Span2& {
+        spans.push_back(Span2 { .span = span, .kind = kind, .local_endpoint = host });
+
+        return spans.back();
+    };
+
+    auto for_endpoint = [span, &spans, new_span](const ::Endpoint *host) -> Span2& {
+        if (!host) return spans.front(); // allocate missing endpoint data to first span
+
+        for (auto &next : spans) {
+            if (!next.local_endpoint) {
+                next.local_endpoint = host;
+                return next;
+            }
+
+            if (endpoint_close_enough(next.local_endpoint, host)) {
+                return next;
+            }
+        }
+
+        return new_span(host);
+    };
+
+    auto maybe_timestamp_and_duration = [span, for_endpoint](const ::Annotation *begin, const ::Annotation *end) {
+        auto span2 = for_endpoint(&begin->host);
+
+        if (span->m_span.__isset.timestamp && span->m_span.__isset.duration) {
+            span2.timestamp = span->m_span.timestamp;
+            span2.duration = span->m_span.duration;
+        } else {
+            span2.timestamp = begin->timestamp;
+            span2.duration = end ? (end->timestamp - begin->timestamp) : 0;
+        }
+    };
+
+    for (auto &annotation : span->m_span.annotations)
+    {
+        auto span2 = for_endpoint(&annotation.host);
+
+        if (annotation.value.size() == 2 && endpoint_is_set(annotation)) {
+            // core annotations require an endpoint. Don't give special treatment when that's missing
+            switch (* reinterpret_cast<const uint16_t *>(annotation.value.c_str())) {
+                case 0x7363: // CLIENT_SEND
+                    span2.kind = CLIENT;
+                    cs = &annotation;
+                    break;
+
+                case 0x7273: // SERVER_RECV
+                    span2.kind = SERVER;
+                    sr = &annotation;
+                    break;
+
+                case 0x7373: // SERVER_SEND
+                    span2.kind = SERVER;
+                    ss = &annotation;
+                    break;
+
+                case 0x7263: // CLIENT_RECV
+                    span2.kind = CLIENT;
+                    cr = &annotation;
+                    break;
+
+                case 0x7377: // WIRE_SEND
+                    ws = &annotation;
+                    break;
+
+                case 0x7277: // WIRE_RECV
+                    wr = &annotation;
+                    break;
+
+                default:
+                    span2.annotations.push_back(&annotation);
+                    break;
+            }
+        } else {
+            span2.annotations.push_back(&annotation);
+        }
+    }
+
+    if (cs && sr) {
+        // in a shared span, the client side owns span duration by annotations or explicit timestamp
+        maybe_timestamp_and_duration(cs, cr);
+
+        // special-case loopback: We need to make sure on loopback there are two span2s
+        auto client = for_endpoint(&cs->host);
+        bool is_client = endpoint_close_enough(&cs->host, &sr->host);
+        auto server = is_client ?
+            new_span(&sr->host, SERVER) : // fork a new span for the server side
+            for_endpoint(&sr->host);
+
+        if (is_client) {
+            client.kind = CLIENT;
+        }
+
+        // the server side is smaller than that, we have to read annotations to find out
+        server.shared = true;
+        server.timestamp = sr->timestamp;
+
+        if (ss) server.duration = ss->timestamp - sr->timestamp;
+        if (!cr && !span->m_span.duration) client.duration = 0; // one-way has no duration
+    } else if (cs && cr) {
+        maybe_timestamp_and_duration(cs, cr);
+    } else if (sr && ss) {
+        maybe_timestamp_and_duration(sr, ss);
+    } else {
+        // otherwise, the span is incomplete. revert special-casing
+        for (auto &next : spans) {
+            switch (next.kind) {
+            case CLIENT:
+                if (cs) next.timestamp = cs->timestamp;
+                break;
+            case SERVER:
+                if (sr) next.timestamp = sr->timestamp;
+                break;
+            case UNKNOWN:
+                break;
+            }
+        }
+
+        if (span->m_span.timestamp) {
+            spans.front().timestamp = span->m_span.timestamp;
+            spans.front().duration = span->m_span.duration;
+        }
+    }
+
+    // Span v1 format did not have a shared flag. By convention, span.timestamp being absent
+    // implied shared. When we only see the server-side, carry this signal over.
+    if (!cs && (sr && !span->m_span.timestamp)) {
+        for_endpoint(&sr->host).shared = true;
+    }
+
+    if (ws) for_endpoint(&ws->host).annotations.push_back(ws);
+    if (wr) for_endpoint(&wr->host).annotations.push_back(wr);
+
+    const ::Endpoint *ca = nullptr, *sa = nullptr;
+
+    for (auto &annotation : span->m_span.binary_annotations)
+    {
+        if (annotation.annotation_type == AnnotationType::BOOL) {
+            switch (* reinterpret_cast<const uint16_t *>(annotation.key.c_str())) {
+            case 0x6163: // CLIENT_ADDR
+                ca = &annotation.host;
+                break;
+
+            case 0x6173: // SERVER_ADDR
+                sa = &annotation.host;
+                break;
+
+            default:
+                for_endpoint(&annotation.host).binary_annotations.push_back(&annotation);
+                break;
+            }
+
+            continue;
+        }
+
+        for_endpoint(&annotation.host).binary_annotations.push_back(&annotation);
+    }
+
+    if (cs && sa && !endpoint_close_enough(sa, &cs->host)) {
+        for_endpoint(&cs->host).remote_endpoint = sa;
+    }
+
+    if (sr && ca && !endpoint_close_enough(ca, &sr->host)) {
+        for_endpoint(&sr->host).remote_endpoint = ca;
+    }
+
+    if ((!cs && !sr) && (ca && sa)) {
+        for_endpoint(ca).remote_endpoint = sa;
+    }
+
+    return std::move(spans);
+}
+
+} // namespace __impl
+
 } // namespace zipkin

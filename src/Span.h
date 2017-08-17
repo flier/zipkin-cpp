@@ -1477,16 +1477,20 @@ struct Span2 {
         UNKNOWN,
         CLIENT,
         SERVER,
+        PRODUCER,
+        CONSUMER,
     };
 
-    const Span *span;
-    Kind kind;
-    int64_t timestamp, duration;
-    bool shared;
-    const ::Endpoint *local_endpoint;
-    const ::Endpoint *remote_endpoint;
+    const Span *span = nullptr;
+    Kind kind = UNKNOWN;
+    int64_t timestamp = 0, duration = 0;
+    bool shared = false;
+    const ::Endpoint *local_endpoint = nullptr;
+    const ::Endpoint *remote_endpoint = nullptr;
     std::vector<const ::Annotation *> annotations;
     std::vector<const ::BinaryAnnotation *> binary_annotations;
+
+    Span2(const Span *source) : span(source) {}
 
     // Converts the input, parsing RPC annotations into Span2.
     static const std::vector<Span2> from_span(const Span *span);
@@ -1594,6 +1598,16 @@ void Span2::serialize_json(RapidJsonWriter &writer) const
         case SERVER:
             writer.Key("kind");
             writer.String("SERVER");
+            break;
+
+        case PRODUCER:
+            writer.Key("kind");
+            writer.String("PRODUCER");
+            break;
+
+        case CONSUMER:
+            writer.Key("kind");
+            writer.String("CONSUMER");
             break;
 
         case UNKNOWN: // ignore it

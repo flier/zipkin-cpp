@@ -359,10 +359,15 @@ inline bool close_enough(const ::Endpoint *lhs, const ::Endpoint *rhs) {
 }
 
 const std::vector<Span2> Span2::from_span(const Span *span) {
-    std::vector<Span2> spans = {{ Span2 { .span = span }}};
+    std::vector<Span2> spans = {{ Span2(span) }};
 
     auto new_span = [span, &spans](const ::Endpoint *host, Kind kind=UNKNOWN) -> Span2& {
-        spans.push_back(Span2 { .span = span, .kind = kind, .local_endpoint = host });
+        Span2 span2(span);
+
+        span2.kind = kind;
+        span2.local_endpoint = host;
+
+        spans.push_back(std::move(span2));
 
         return spans.back();
     };
@@ -398,7 +403,7 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
         }
     };
 
-    const ::Annotation *cs = nullptr, *sr = nullptr, *ss = nullptr, *cr = nullptr, *ws = nullptr, *wr = nullptr;
+    const ::Annotation *cs = nullptr, *sr = nullptr, *ss = nullptr, *cr = nullptr, *ms = nullptr, *mr = nullptr, *ws = nullptr, *wr = nullptr;
 
     // add annotations unless they are "core"
     for (const ::Annotation& annotation : span->m_span.annotations)
@@ -428,6 +433,16 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
                 case 0x7263: // CLIENT_RECV
                     span2.kind = CLIENT;
                     cr = &annotation;
+                    break;
+
+                case 0x736d: // MESSAGE_SEND
+                    span2.kind = PRODUCER;
+                    ms = &annotation;
+                    break;
+
+                case 0x726d: // MESSAGE_RECV
+                    span2.kind = CONSUMER;
+                    mr = &annotation;
                     break;
 
                 case 0x7377: // WIRE_SEND
@@ -482,6 +497,8 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
             case SERVER:
                 if (sr) next.timestamp = sr->timestamp;
                 break;
+            case PRODUCER:
+            case CONSUMER:
             case UNKNOWN:
                 break;
             }
@@ -501,10 +518,44 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
         for_endpoint(sr->host).shared = true;
     }
 
-    if (ws) for_endpoint(ws->host).annotations.push_back(ws);
-    if (wr) for_endpoint(wr->host).annotations.push_back(wr);
+    // ms and mr are not supposed to be in the same span, but in case they are..
+    if (ms && mr) {
+        // special-case loopback: We need to make sure on loopback there are two span2s
+        Span2& producer = for_endpoint(ms->host);
+        bool is_producer = close_enough(&ms->host, &mr->host);
+        Span2& consumer = is_producer ?
+            new_span(&mr->host, CONSUMER) : // fork a new span for the consumer side
+            for_endpoint(mr->host);
 
-    const ::Endpoint *ca = nullptr, *sa = nullptr;
+        if (is_producer) {
+            producer.kind = PRODUCER;
+        }
+
+        consumer.shared = true;
+
+        if (wr) {
+            consumer.timestamp = wr->timestamp;
+            consumer.duration = mr->timestamp - wr->timestamp;
+        } else {
+            consumer.timestamp = mr->timestamp;
+        }
+
+        producer.timestamp = ms->timestamp;
+        producer.duration = ws ? (ws->timestamp - ms->timestamp) : 0;
+    } else if (ms) {
+        maybe_timestamp_and_duration(ms, ws);
+    } else if (mr) {
+        if (wr) {
+            maybe_timestamp_and_duration(wr, mr);
+        } else {
+            maybe_timestamp_and_duration(mr, nullptr);
+        }
+    } else {
+        if (ws) for_endpoint(ws->host).annotations.push_back(ws);
+        if (wr) for_endpoint(wr->host).annotations.push_back(wr);
+    }
+
+    const ::Endpoint *ca = nullptr, *sa = nullptr, *ma = nullptr;
 
     // convert binary annotations to tags and addresses
     for (const ::BinaryAnnotation& annotation : span->m_span.binary_annotations)
@@ -520,6 +571,10 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
 
             case 0x6173: // SERVER_ADDR
                 sa = &annotation.host;
+                break;
+
+            case 0x616d: // MESSAGE_ADDR
+                ma = &annotation.host;
                 break;
 
             default:
@@ -539,6 +594,14 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
 
     if (sr && ca && !close_enough(ca, &sr->host)) {
         for_endpoint(sr->host).remote_endpoint = ca;
+    }
+
+    if (ms && ma && !close_enough(ma, &ms->host)) {
+        for_endpoint(ms->host).remote_endpoint = ma;
+    }
+
+    if (mr && ma && !close_enough(ma, &mr->host)) {
+        for_endpoint(mr->host).remote_endpoint = ma;
     }
 
     if ((!cs && !sr) && (ca && sa)) {

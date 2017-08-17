@@ -214,12 +214,18 @@ timestamp_t Span::now()
     return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch());
 }
 
-Annotation Span::annotate(const std::string &value, const Endpoint *endpoint)
+Annotation Span::annotate(const std::string &value, const Endpoint *endpoint, timestamp_t timestamp)
 {
     ::Annotation annotation;
 
-    annotation.__set_timestamp(now().count());
+    if ((annotation.__isset.timestamp = timestamp != timestamp_t::zero())) {
+        annotation.__set_timestamp(timestamp.count());
+    } else {
+        annotation.__set_timestamp(now().count());
+    }
+
     annotation.__set_value(value);
+    annotation.__isset.value = true;
 
     if (endpoint)
     {
@@ -236,8 +242,13 @@ BinaryAnnotation Span::annotate(const std::string &key, const uint8_t *value, si
     ::BinaryAnnotation annotation;
 
     annotation.__set_key(key);
+    annotation.__isset.key = true;
+
     annotation.__set_value(std::string(reinterpret_cast<const char *>(value), size));
+    annotation.__isset.value = true;
+
     annotation.__set_annotation_type(AnnotationType::BYTES);
+    annotation.__isset.annotation_type = true;
 
     if (endpoint)
     {
@@ -394,9 +405,9 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
     auto maybe_timestamp_and_duration = [span, for_endpoint](const ::Annotation *begin, const ::Annotation *end) {
         Span2& span2 = for_endpoint(begin->host);
 
-        if (span->m_span.__isset.timestamp && span->m_span.__isset.duration) {
-            span2.timestamp = span->m_span.timestamp;
-            span2.duration = span->m_span.duration;
+        if (span->message().__isset.timestamp && span->message().__isset.duration) {
+            span2.timestamp = span->message().timestamp;
+            span2.duration = span->message().duration;
         } else {
             span2.timestamp = begin->timestamp;
             span2.duration = end ? (end->timestamp - begin->timestamp) : 0;
@@ -406,7 +417,7 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
     const ::Annotation *cs = nullptr, *sr = nullptr, *ss = nullptr, *cr = nullptr, *ms = nullptr, *mr = nullptr, *ws = nullptr, *wr = nullptr;
 
     // add annotations unless they are "core"
-    for (const ::Annotation& annotation : span->m_span.annotations)
+    for (const ::Annotation& annotation : span->message().annotations)
     {
         Span2& span2 = for_endpoint(annotation.host);
 
@@ -482,7 +493,7 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
         server.timestamp = sr->timestamp;
 
         if (ss) server.duration = ss->timestamp - sr->timestamp;
-        if (!cr && !span->m_span.duration) client.duration = 0; // one-way has no duration
+        if (!cr && !span->message().duration) client.duration = 0; // one-way has no duration
     } else if (cs && cr) {
         maybe_timestamp_and_duration(cs, cr);
     } else if (sr && ss) {
@@ -504,17 +515,17 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
             }
         }
 
-        if (span->m_span.timestamp) {
+        if (span->message().timestamp) {
             Span2& span2 = spans.front();
 
-            span2.timestamp = span->m_span.timestamp;
-            span2.duration = span->m_span.duration;
+            span2.timestamp = span->message().timestamp;
+            span2.duration = span->message().duration;
         }
     }
 
     // Span v1 format did not have a shared flag. By convention, span.timestamp being absent
     // implied shared. When we only see the server-side, carry this signal over.
-    if (!cs && (sr && !span->m_span.timestamp)) {
+    if (!cs && (sr && !span->message().timestamp)) {
         for_endpoint(sr->host).shared = true;
     }
 
@@ -558,7 +569,7 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
     const ::Endpoint *ca = nullptr, *sa = nullptr, *ma = nullptr;
 
     // convert binary annotations to tags and addresses
-    for (const ::BinaryAnnotation& annotation : span->m_span.binary_annotations)
+    for (const ::BinaryAnnotation& annotation : span->message().binary_annotations)
     {
         if (annotation.key.size() == 2 &&
             annotation.annotation_type == AnnotationType::BOOL &&

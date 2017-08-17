@@ -199,7 +199,13 @@ class Endpoint
         return *this;
     }
 
-    inline const ::Endpoint &host(void) const { return m_host; }
+    const ::Endpoint& operator*(void) const { return m_host; }
+
+    ::Endpoint& operator*(void) { return m_host; }
+
+    const ::Endpoint& host(void) const { return m_host; }
+
+    ::Endpoint& host(void) { return m_host; }
 };
 
 /**
@@ -215,7 +221,27 @@ class Annotation
   public:
     Annotation(Span &span, ::Annotation &annotation) : m_span(span), m_annotation(annotation) {}
 
-    Span &span(void) { return m_span; }
+    Span &span(void) const { return m_span; }
+
+    /**
+     * \brief Raw thrift Annotation
+     */
+    const ::Annotation& operator*() const { return m_annotation; }
+
+    /**
+     * \brief Raw thrift Annotation
+     */
+    ::Annotation& operator*() { return m_annotation; }
+
+    /**
+     * \brief Raw thrift Annotation
+     */
+    const ::Annotation& annotation() const { return m_annotation; }
+
+    /**
+     * \brief Raw thrift Annotation
+     */
+    ::Annotation& annotation() { return m_annotation; }
 
     /**
     * \brief Microseconds from epoch.
@@ -250,7 +276,8 @@ class Annotation
     /** \sa Annotation#endpoint */
     Annotation &with_endpoint(const Endpoint &endpoint)
     {
-        m_annotation.host = endpoint.host();
+        m_annotation.host = *endpoint;
+
         return *this;
     }
 };
@@ -483,7 +510,27 @@ class BinaryAnnotation
   public:
     BinaryAnnotation(Span &span, ::BinaryAnnotation &annotation) : m_span(span), m_annotation(annotation) {}
 
-    Span &span(void) { return m_span; }
+    Span &span(void) const { return m_span; }
+
+    /**
+     * \brief Raw thrift BinaryAnnotation
+     */
+    const ::BinaryAnnotation& operator*() const { return m_annotation; }
+
+    /**
+     * \brief Raw thrift BinaryAnnotation
+     */
+    ::BinaryAnnotation& operator*() { return m_annotation; }
+
+    /**
+     * \brief Raw thrift BinaryAnnotation
+     */
+    const ::BinaryAnnotation& annotation() const { return m_annotation; }
+
+    /**
+     * \brief Raw thrift BinaryAnnotation
+     */
+    ::BinaryAnnotation& annotation() { return m_annotation; }
 
     /**
     * \brief The thrift type of value, most often AnnotationType#STRING.
@@ -596,7 +643,8 @@ class BinaryAnnotation
     */
     BinaryAnnotation &with_endpoint(const Endpoint &endpoint)
     {
-        m_annotation.host = endpoint.host();
+        m_annotation.host = *endpoint;
+
         return *this;
     }
 };
@@ -664,9 +712,22 @@ class Span
     /**
      * \brief Raw thrift message
      */
-    inline const ::Span &message(void) const { return m_span; }
+    inline const ::Span& message(void) const { return m_span; }
 
-    inline ::Span &message(void) { return m_span; }
+    /**
+     * \brief Raw thrift message
+     */
+    inline ::Span& message(void) { return m_span; }
+
+    /**
+     * \brief Raw thrift message
+     */
+    inline const ::Span& operator*(void) const { return m_span; }
+
+    /**
+     * \brief Raw thrift message
+     */
+    inline ::Span& operator*(void) { return m_span; }
 
     /**
      * \brief Unique 8-byte identifier for a trace, set on all spans within it.
@@ -869,67 +930,67 @@ class Span
     /**
     * \brief Associates events that explain latency with a timestamp.
     */
-    Annotation annotate(const std::string &value, const Endpoint *endpoint = nullptr);
+    Annotation annotate(const std::string &value, const Endpoint *endpoint = nullptr, timestamp_t timestamp = timestamp_t::zero());
 
     /// \brief Annotate TraceKeys#CLIENT_SEND event
-    inline Annotation client_send(const Endpoint *endpoint = nullptr)
+    inline Annotation client_send(const Endpoint *endpoint = nullptr, timestamp_t timestamp = timestamp_t::zero())
     {
-        return annotate(TraceKeys::CLIENT_SEND, endpoint);
+        return annotate(TraceKeys::CLIENT_SEND, endpoint, timestamp);
     }
     /// \brief Annotate TraceKeys#CLIENT_RECV event
-    inline Annotation client_recv(const Endpoint *endpoint = nullptr)
+    inline Annotation client_recv(const Endpoint *endpoint = nullptr, timestamp_t timestamp = timestamp_t::zero())
     {
-        return annotate(TraceKeys::CLIENT_RECV, endpoint);
+        return annotate(TraceKeys::CLIENT_RECV, endpoint, timestamp);
     }
     /// \brief Annotate TraceKeys#SERVER_SEND event
-    inline Annotation server_send(const Endpoint *endpoint = nullptr)
+    inline Annotation server_send(const Endpoint *endpoint = nullptr, timestamp_t timestamp = timestamp_t::zero())
     {
-        return annotate(TraceKeys::SERVER_SEND, endpoint);
+        return annotate(TraceKeys::SERVER_SEND, endpoint, timestamp);
     }
     /// \brief Annotate TraceKeys#CLIENT_RECV event
-    inline Annotation server_recv(const Endpoint *endpoint = nullptr)
+    inline Annotation server_recv(const Endpoint *endpoint = nullptr, timestamp_t timestamp = timestamp_t::zero())
     {
-        return annotate(TraceKeys::SERVER_RECV, endpoint);
+        return annotate(TraceKeys::SERVER_RECV, endpoint, timestamp);
     }
     /// \brief Annotate TraceKeys#MESSAGE_SEND event
-    inline Annotation message_send(const Endpoint *endpoint = nullptr)
+    inline Annotation message_send(const Endpoint *endpoint = nullptr, timestamp_t timestamp = timestamp_t::zero())
     {
-        return annotate(TraceKeys::MESSAGE_SEND, endpoint);
+        return annotate(TraceKeys::MESSAGE_SEND, endpoint, timestamp);
     }
     /// \brief Annotate TraceKeys#MESSAGE_RECV event
-    inline Annotation message_recv(const Endpoint *endpoint = nullptr)
+    inline Annotation message_recv(const Endpoint *endpoint = nullptr, timestamp_t timestamp = timestamp_t::zero())
     {
-        return annotate(TraceKeys::MESSAGE_RECV, endpoint);
+        return annotate(TraceKeys::MESSAGE_RECV, endpoint, timestamp);
     }
     /// \brief Annotate TraceKeys#WIRE_SEND event
-    inline Annotation wire_send(const Endpoint *endpoint = nullptr)
+    inline Annotation wire_send(const Endpoint *endpoint = nullptr, timestamp_t timestamp = timestamp_t::zero())
     {
-        return annotate(TraceKeys::WIRE_SEND, endpoint);
+        return annotate(TraceKeys::WIRE_SEND, endpoint, timestamp);
     }
     /// \brief Annotate TraceKeys#CLIENT_RECV event
-    inline Annotation wire_recv(const Endpoint *endpoint = nullptr)
+    inline Annotation wire_recv(const Endpoint *endpoint = nullptr, timestamp_t timestamp = timestamp_t::zero())
     {
-        return annotate(TraceKeys::WIRE_RECV, endpoint);
+        return annotate(TraceKeys::WIRE_RECV, endpoint, timestamp);
     }
     /// \brief Annotate TraceKeys#CLIENT_SEND_FRAGMENT event
-    inline Annotation client_send_fragment(const Endpoint *endpoint = nullptr)
+    inline Annotation client_send_fragment(const Endpoint *endpoint = nullptr, timestamp_t timestamp = timestamp_t::zero())
     {
-        return annotate(TraceKeys::CLIENT_SEND_FRAGMENT, endpoint);
+        return annotate(TraceKeys::CLIENT_SEND_FRAGMENT, endpoint, timestamp);
     }
     /// \brief Annotate TraceKeys#CLIENT_RECV_FRAGMENT event
-    inline Annotation client_recv_fragment(const Endpoint *endpoint = nullptr)
+    inline Annotation client_recv_fragment(const Endpoint *endpoint = nullptr, timestamp_t timestamp = timestamp_t::zero())
     {
-        return annotate(TraceKeys::CLIENT_RECV_FRAGMENT, endpoint);
+        return annotate(TraceKeys::CLIENT_RECV_FRAGMENT, endpoint, timestamp);
     }
     /// \brief Annotate TraceKeys#SERVER_SEND_FRAGMENT event
-    inline Annotation server_send_fragment(const Endpoint *endpoint = nullptr)
+    inline Annotation server_send_fragment(const Endpoint *endpoint = nullptr, timestamp_t timestamp = timestamp_t::zero())
     {
-        return annotate(TraceKeys::SERVER_SEND_FRAGMENT, endpoint);
+        return annotate(TraceKeys::SERVER_SEND_FRAGMENT, endpoint, timestamp);
     }
     /// \brief Annotate TraceKeys#SERVER_RECV_FRAGMENT event
-    inline Annotation server_recv_fragment(const Endpoint *endpoint = nullptr)
+    inline Annotation server_recv_fragment(const Endpoint *endpoint = nullptr, timestamp_t timestamp = timestamp_t::zero())
     {
-        return annotate(TraceKeys::SERVER_RECV_FRAGMENT, endpoint);
+        return annotate(TraceKeys::SERVER_RECV_FRAGMENT, endpoint, timestamp);
     }
 
     /**
@@ -1490,10 +1551,12 @@ struct Span2 {
     std::vector<const ::Annotation *> annotations;
     std::vector<const ::BinaryAnnotation *> binary_annotations;
 
-    Span2(const Span *source) : span(source) {}
+    Span2(const Span *source = nullptr) : span(source) {}
 
     // Converts the input, parsing RPC annotations into Span2.
     static const std::vector<Span2> from_span(const Span *span);
+
+    const Span& operator*() const { return *span; }
 
     template <class RapidJsonWriter>
     void serialize_json(RapidJsonWriter &writer) const;
@@ -1583,7 +1646,7 @@ void Span2::serialize_json(RapidJsonWriter &writer) const
     writer.Key("id");
     writer.String(str, snprintf(str, sizeof(str), SPAN_ID_FMT, span->id()));
 
-    if (span->m_span.__isset.parent_id)
+    if (span->message().__isset.parent_id)
     {
         writer.Key("parentId");
         writer.String(str, snprintf(str, sizeof(str), SPAN_ID_FMT, span->parent_id()));
@@ -1614,17 +1677,17 @@ void Span2::serialize_json(RapidJsonWriter &writer) const
             break;
     }
 
-    if (span->m_span.__isset.timestamp) {
+    if (span->message().__isset.timestamp) {
         writer.Key("timestamp");
-        writer.Int64(span->m_span.timestamp);
+        writer.Int64(span->message().timestamp);
     } else if (timestamp) {
         writer.Key("timestamp");
         writer.Int64(timestamp);
     }
 
-    if (span->m_span.__isset.duration) {
+    if (span->message().__isset.duration) {
         writer.Key("duration");
-        writer.Int64(span->m_span.duration);
+        writer.Int64(span->message().duration);
     } else if (duration) {
         writer.Key("duration");
         writer.Int64(duration);

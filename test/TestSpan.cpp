@@ -391,3 +391,122 @@ TEST(span, annotate_stream)
     ASSERT_EQ(span.message().annotations.size(), 2);
     ASSERT_EQ(span.message().binary_annotations.size(), 8);
 }
+
+class Span2ConverterTest : public ::testing::Test {
+protected:
+    zipkin::Endpoint frontend, backend, kafka;
+
+    Span2ConverterTest()
+      : frontend("frontend", "127.0.0.1"),
+        backend("backend", "192.168.99.101", 9000),
+        kafka("kafka")
+    {
+    }
+
+    virtual void SetUp() {}
+
+    virtual void TearDown() {}
+};
+
+using zipkin::__impl::Span2;
+
+TEST_F(Span2ConverterTest, client)
+{
+    zipkin::Span client(nullptr, "get");
+
+    client
+        .with_trace_id("7180c278b62e8f6a216a2aea45d08fc9")
+        .with_parent_id(0x6b221d5bc9e6496c)
+        .with_id(0x5b4185666d50f68b)
+        .with_timestamp(std::chrono::microseconds(1472470996199000))
+        .with_duration(std::chrono::microseconds(207000));
+
+    client.client_send(&frontend, std::chrono::microseconds(1472470996199000));
+    auto wire_send = client.wire_send(&frontend, std::chrono::microseconds(1472470996238000));
+    auto wire_recv = client.wire_recv(&frontend, std::chrono::microseconds(1472470996403000));
+    client.client_recv(&frontend, std::chrono::microseconds(1472470996406000));
+    auto http_path = client.http_path("/api", &frontend);
+    auto client_version = client.annotate("clnt/finagle.version", "6.45.0", &frontend);
+    client.server_addr(&backend);
+
+    auto spans = Span2::from_span(&client);
+
+    EXPECT_EQ(spans.size(), 1);
+
+    auto simpleClient = spans.front();
+
+    EXPECT_EQ(simpleClient.kind, Span2::CLIENT);
+    EXPECT_EQ(*simpleClient.local_endpoint, frontend.host());
+    EXPECT_EQ(*simpleClient.remote_endpoint, backend.host());
+    EXPECT_EQ(simpleClient.timestamp, 1472470996199000);
+    EXPECT_EQ(simpleClient.duration, 207000);
+
+    EXPECT_EQ(simpleClient.annotations.size(), 2);
+    EXPECT_EQ(*simpleClient.annotations[0], *wire_send);
+    EXPECT_EQ(*simpleClient.annotations[1], *wire_recv);
+
+    EXPECT_EQ(simpleClient.binary_annotations.size(), 2);
+    EXPECT_EQ(*simpleClient.binary_annotations[0], *http_path);
+    EXPECT_EQ(*simpleClient.binary_annotations[1], *client_version);
+}
+
+TEST_F(Span2ConverterTest, client_unfinished)
+{
+    zipkin::Span client(nullptr, "get");
+
+    client
+        .with_trace_id("7180c278b62e8f6a216a2aea45d08fc9")
+        .with_parent_id(0x6b221d5bc9e6496c)
+        .with_id(0x5b4185666d50f68b)
+        .with_timestamp(std::chrono::microseconds(1472470996199000));
+
+    client.client_send(&frontend, std::chrono::microseconds(1472470996199000));
+    auto wire_send = client.wire_send(&frontend, std::chrono::microseconds(1472470996238000));
+
+    auto spans = Span2::from_span(&client);
+
+    EXPECT_EQ(spans.size(), 1);
+
+    auto simpleClient = spans.front();
+
+    EXPECT_EQ(simpleClient.kind, Span2::CLIENT);
+    EXPECT_EQ(*simpleClient.local_endpoint, frontend.host());
+    EXPECT_EQ(simpleClient.remote_endpoint, nullptr);
+    EXPECT_EQ(simpleClient.timestamp, 1472470996199000);
+    EXPECT_EQ(simpleClient.duration, 0);
+
+    EXPECT_EQ(simpleClient.annotations.size(), 1);
+    EXPECT_EQ(*simpleClient.annotations[0], *wire_send);
+
+    EXPECT_TRUE(simpleClient.binary_annotations.empty());
+}
+
+TEST_F(Span2ConverterTest, client_kindInferredFromAnnotation)
+{
+    zipkin::Span client(nullptr, "get");
+
+    client
+        .with_trace_id("7180c278b62e8f6a216a2aea45d08fc9")
+        .with_parent_id(0x6b221d5bc9e6496c)
+        .with_id(0x5b4185666d50f68b)
+        .with_timestamp(std::chrono::microseconds(1472470996199000))
+        .with_duration(std::chrono::microseconds(1472470996238000 - 1472470996199000));
+
+    auto client_send = client.client_send(&frontend, std::chrono::microseconds(1472470996199000));
+    client.client_recv(&frontend, std::chrono::microseconds(1472470996238000));
+
+    auto spans = Span2::from_span(&client);
+
+    EXPECT_EQ(spans.size(), 1);
+
+    auto simpleClient = spans.front();
+
+    EXPECT_EQ(simpleClient.kind, Span2::CLIENT);
+    EXPECT_EQ(*simpleClient.local_endpoint, frontend.host());
+    EXPECT_EQ(simpleClient.remote_endpoint, nullptr);
+    EXPECT_EQ(simpleClient.timestamp, 1472470996199000);
+    EXPECT_EQ(simpleClient.duration, 1472470996238000 - 1472470996199000);
+
+    EXPECT_TRUE(simpleClient.annotations.empty());
+    EXPECT_TRUE(simpleClient.binary_annotations.empty());
+}

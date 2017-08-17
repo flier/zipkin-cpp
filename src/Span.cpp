@@ -89,9 +89,9 @@ Endpoint &Endpoint::with_addr(const struct sockaddr *addr)
     {
         auto v4 = reinterpret_cast<const struct sockaddr_in *>(addr);
 
-        m_host.__set_ipv4(ntohl(v4->sin_addr.s_addr));
-        m_host.__set_port(ntohs(v4->sin_port));
-        m_host.__isset.ipv6 = false;
+        set_ipv4(ntohl(v4->sin_addr.s_addr));
+        set_port(ntohs(v4->sin_port));
+
         break;
     }
 
@@ -99,8 +99,9 @@ Endpoint &Endpoint::with_addr(const struct sockaddr *addr)
     {
         auto v6 = reinterpret_cast<const struct sockaddr_in6 *>(addr);
 
-        m_host.__set_ipv6(std::string(reinterpret_cast<const char *>(v6->sin6_addr.s6_addr), sizeof(v6->sin6_addr)));
-        m_host.__set_port(ntohs(v6->sin6_port));
+        set_ipv6(std::string(reinterpret_cast<const char *>(v6->sin6_addr.s6_addr), sizeof(v6->sin6_addr)));
+        set_port(ntohs(v6->sin6_port));
+
         break;
     }
     }
@@ -116,17 +117,16 @@ Endpoint &Endpoint::with_addr(const std::string &addr, port_t port)
     {
         auto bytes = ip.to_v6().to_bytes();
 
-        m_host.__set_ipv6(std::string(reinterpret_cast<char *>(bytes.data()), bytes.size()));
+        set_ipv6(std::string(reinterpret_cast<char *>(bytes.data()), bytes.size()));
     }
     else
     {
         auto bytes = ip.to_v4().to_bytes();
 
-        m_host.__set_ipv4(ntohl(*reinterpret_cast<uint32_t *>(bytes.data())));
-        m_host.__isset.ipv6 = false;
+        set_ipv4(ntohl(*reinterpret_cast<uint32_t *>(bytes.data())));
     }
 
-    m_host.__set_port(port);
+    set_port(port);
 
     return *this;
 }
@@ -357,7 +357,7 @@ inline bool close_enough(const ::Endpoint *lhs, const ::Endpoint *rhs) {
 }
 
 const std::vector<Span2> Span2::from_span(const Span *span) {
-    std::vector<Span2> spans;
+    std::vector<Span2> spans = {{ Span2 { .span = span }}};
 
     auto new_span = [span, &spans](const ::Endpoint *host, Kind kind=UNKNOWN) -> Span2& {
         spans.push_back(Span2 { .span = span, .kind = kind, .local_endpoint = host });
@@ -366,20 +366,18 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
     };
 
     auto for_endpoint = [span, &spans, new_span](const ::Endpoint &host) -> Span2& {
-        if (!spans.empty()) {
-            if (!is_set(host)) {
-                return spans.front(); // allocate missing endpoint data to first span
+        if (!is_set(host)) {
+            return spans.front(); // allocate missing endpoint data to first span
+        }
+
+        for (Span2& next : spans) {
+            if (!next.local_endpoint) {
+                next.local_endpoint = &host;
+                return next;
             }
 
-            for (auto &next : spans) {
-                if (!next.local_endpoint) {
-                    next.local_endpoint = &host;
-                    return next;
-                }
-
-                if (close_enough(next.local_endpoint, &host)) {
-                    return next;
-                }
+            if (close_enough(next.local_endpoint, &host)) {
+                return next;
             }
         }
 
@@ -387,7 +385,7 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
     };
 
     auto maybe_timestamp_and_duration = [span, for_endpoint](const ::Annotation *begin, const ::Annotation *end) {
-        auto span2 = for_endpoint(begin->host);
+        Span2& span2 = for_endpoint(begin->host);
 
         if (span->m_span.__isset.timestamp && span->m_span.__isset.duration) {
             span2.timestamp = span->m_span.timestamp;
@@ -401,13 +399,15 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
     const ::Annotation *cs = nullptr, *sr = nullptr, *ss = nullptr, *cr = nullptr, *ws = nullptr, *wr = nullptr;
 
     // add annotations unless they are "core"
-    for (auto &annotation : span->m_span.annotations)
+    for (const ::Annotation& annotation : span->m_span.annotations)
     {
-        auto span2 = for_endpoint(annotation.host);
+        Span2& span2 = for_endpoint(annotation.host);
 
         if (annotation.value.size() == 2 && is_set(annotation.host)) {
+            uint16_t key = *reinterpret_cast<const uint16_t *>(annotation.value.c_str());
+
             // core annotations require an endpoint. Don't give special treatment when that's missing
-            switch (* reinterpret_cast<const uint16_t *>(annotation.value.c_str())) {
+            switch (key) {
                 case 0x7363: // CLIENT_SEND
                     span2.kind = CLIENT;
                     cs = &annotation;
@@ -450,9 +450,9 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
         maybe_timestamp_and_duration(cs, cr);
 
         // special-case loopback: We need to make sure on loopback there are two span2s
-        auto client = for_endpoint(cs->host);
+        Span2& client = for_endpoint(cs->host);
         bool is_client = close_enough(&cs->host, &sr->host);
-        auto server = is_client ?
+        Span2& server = is_client ?
             new_span(&sr->host, SERVER) : // fork a new span for the server side
             for_endpoint(sr->host);
 
@@ -472,7 +472,7 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
         maybe_timestamp_and_duration(sr, ss);
     } else {
         // otherwise, the span is incomplete. revert special-casing
-        for (auto &next : spans) {
+        for (Span2& next : spans) {
             switch (next.kind) {
             case CLIENT:
                 if (cs) next.timestamp = cs->timestamp;
@@ -486,8 +486,10 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
         }
 
         if (span->m_span.timestamp) {
-            spans.front().timestamp = span->m_span.timestamp;
-            spans.front().duration = span->m_span.duration;
+            Span2& span2 = spans.front();
+
+            span2.timestamp = span->m_span.timestamp;
+            span2.duration = span->m_span.duration;
         }
     }
 
@@ -503,9 +505,12 @@ const std::vector<Span2> Span2::from_span(const Span *span) {
     const ::Endpoint *ca = nullptr, *sa = nullptr;
 
     // convert binary annotations to tags and addresses
-    for (auto &annotation : span->m_span.binary_annotations)
+    for (const ::BinaryAnnotation& annotation : span->m_span.binary_annotations)
     {
-        if (annotation.annotation_type == AnnotationType::BOOL) {
+        if (annotation.key.size() == 2 &&
+            annotation.annotation_type == AnnotationType::BOOL &&
+            is_set(annotation.host))
+        {
             switch (* reinterpret_cast<const uint16_t *>(annotation.key.c_str())) {
             case 0x6163: // CLIENT_ADDR
                 ca = &annotation.host;

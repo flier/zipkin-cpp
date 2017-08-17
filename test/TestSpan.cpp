@@ -245,35 +245,6 @@ static const char *json_template = R"###({
     "timestamp": %lld
 })###";
 
-static const char *json_v2_template = R"###({
-    "traceId": "%016llx%016llx",
-    "name": "test",
-    "id": "%016llx",
-    "parentId": "%016llx",
-    "kind": "CLIENT",
-    "timestamp": %lld,
-    "annotations": [
-        {
-            "timestamp": %lld,
-            "value": "cs"
-        }
-    ],
-    "tags": {
-        "bool": "true",
-        "i16": "123",
-        "i32": "123",
-        "i64": "123",
-        "double": "12.3",
-        "string": "测试",
-        "bytes": "AQID"
-    },
-    "remoteEndpoint": {
-        "serviceName": "remote",
-        "ipv6": "::1",
-        "port": 80
-    }
-})###";
-
 TEST(span, serialize_json)
 {
     MockTracer tracer;
@@ -309,16 +280,41 @@ TEST(span, serialize_json)
     ASSERT_EQ(std::string(buffer.GetString(), buffer.GetSize()), std::string(str, str_len));
 }
 
+static const char *json_v2_template = R"###([
+    {
+        "traceId": "%016llx%016llx",
+        "name": "test",
+        "id": "%016llx",
+        "parentId": "%016llx",
+        "kind": "CLIENT",
+        "timestamp": %lld,
+        "annotations": [],
+        "tags": {
+            "bool": "true",
+            "i16": "123",
+            "i32": "123",
+            "i64": "123",
+            "double": "12.3",
+            "string": "测试",
+            "bytes": "AQID"
+        },
+        "localEndpoint": {
+            "serviceName": "host",
+            "ipv4": "127.0.0.1",
+            "port": 80
+        }
+    }
+])###";
+
 TEST(span, serialize_json_v2)
 {
     MockTracer tracer;
 
     zipkin::Span span(&tracer, "test", zipkin::Span::next_id());
     zipkin::Endpoint host("host", "127.0.0.1", 80);
-    zipkin::Endpoint remote("remote", "::1", 80);
 
     span.client_send(&host);
-    span.server_addr("8.8.8.8", &remote);
+    span.server_addr(&host);
     span.annotate("bool", true, &host);
     span.annotate("i16", (int16_t)123);
     span.annotate("i32", (int32_t)123);
@@ -333,9 +329,13 @@ TEST(span, serialize_json_v2)
     rapidjson::StringBuffer buffer;
     rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
 
+    writer.StartArray();
+
     for (auto &span2: zipkin::__impl::Span2::from_span(&span)) {
         span2.serialize_json(writer);
     }
+
+    writer.EndArray();
 
     char str[2048] = {0};
     int str_len = snprintf(str, sizeof(str), json_v2_template, span.trace_id_high(), span.trace_id(), span.id(), span.parent_id(), span.message().timestamp, span.message().annotations[0].timestamp);

@@ -50,7 +50,29 @@ class Endpoint
 {
     ::Endpoint m_host;
 
-    friend class __impl::Span2;
+    inline void set_service_name(const std::string& service_name) {
+        m_host.__set_service_name(service_name);
+        m_host.__isset.service_name = true;
+    }
+
+    inline void set_ipv4(uint32_t ipv4) {
+        m_host.__set_ipv4(ipv4);
+        m_host.__isset.ipv4 = true;
+        m_host.__isset.ipv6 = false;
+    }
+
+    inline void set_ipv6(const std::string& ipv6) {
+        m_host.__set_ipv6(ipv6);
+        m_host.__isset.ipv4 = false;
+        m_host.__isset.ipv6 = true;
+    }
+
+    inline void set_port(uint16_t port) {
+        if ((m_host.__isset.port = port != 0)) {
+            m_host.__set_port(port);
+        }
+    }
+
   public:
     Endpoint()
     {
@@ -106,7 +128,11 @@ class Endpoint
     */
     inline const std::string &service_name(void) const { return m_host.service_name; }
 
-    inline Endpoint &with_service_name(const std::string &service_name);
+    inline Endpoint &with_service_name(const std::string &service_name) {
+        set_service_name(service_name);
+
+        return *this;
+    }
 
     std::unique_ptr<const struct sockaddr> sockaddr(void) const;
 
@@ -119,12 +145,26 @@ class Endpoint
     /**
     * \brief with IPv4 address
     */
-    inline Endpoint &with_addr(const struct sockaddr_in *addr);
+    inline Endpoint &with_addr(const struct sockaddr_in *addr) {
+        assert(addr);
+
+        set_ipv4(ntohl(addr->sin_addr.s_addr));
+        set_port(ntohs(addr->sin_port));
+
+        return *this;
+    }
 
     /**
     * \brief with IPv6 address
     */
-    inline Endpoint &with_addr(const struct sockaddr_in6 *addr);
+    inline Endpoint &with_addr(const struct sockaddr_in6 *addr) {
+        assert(addr);
+
+        set_ipv6(std::string(reinterpret_cast<const char *>(addr->sin6_addr.s6_addr), sizeof(addr->sin6_addr)));
+        set_port(ntohs(addr->sin6_port));
+
+        return *this;
+    }
 
     /**
     * \brief with IP address
@@ -134,14 +174,30 @@ class Endpoint
     /**
     * \brief with IPv4 address
     */
-    inline Endpoint &with_ipv4(const std::string &ip);
+    inline Endpoint &with_ipv4(const std::string &ip) {
+        set_ipv4(ntohl(inet_addr(ip.c_str())));
+
+        return *this;
+    }
 
     /**
     * \brief with IPv6 address
     */
-    inline Endpoint &with_ipv6(const std::string &ip);
+    inline Endpoint &with_ipv6(const std::string &ip) {
+        struct in6_addr addr;
 
-    inline Endpoint &with_port(port_t port);
+        if (inet_pton(AF_INET6, ip.c_str(), addr.s6_addr) > 0) {
+            set_ipv6(std::string(reinterpret_cast<const char *>(addr.s6_addr), sizeof(addr)));
+        }
+
+        return *this;
+    }
+
+    inline Endpoint &with_port(port_t port) {
+        set_port(port);
+
+        return *this;
+    }
 
     inline const ::Endpoint &host(void) const { return m_host; }
 };
@@ -931,14 +987,14 @@ class Span
         return annotate(TraceKeys::LOCAL_COMPONENT, value, endpoint);
     }
     /// \brief Annotate TraceKeys#CLIENT_ADDR event
-    inline BinaryAnnotation client_addr(const std::string &value, const Endpoint *endpoint = nullptr)
+    inline BinaryAnnotation client_addr(const Endpoint *endpoint)
     {
-        return annotate(TraceKeys::CLIENT_ADDR, value, endpoint);
+        return annotate(TraceKeys::CLIENT_ADDR, true, endpoint);
     }
     /// \brief Annotate TraceKeys#SERVER_ADDR event
-    inline BinaryAnnotation server_addr(const std::string &value, const Endpoint *endpoint = nullptr)
+    inline BinaryAnnotation server_addr(const Endpoint *endpoint)
     {
-        return annotate(TraceKeys::SERVER_ADDR, value, endpoint);
+        return annotate(TraceKeys::SERVER_ADDR, true, endpoint);
     }
     /// \brief Annotate TraceKeys#ERROR event
     inline Annotation error(const Endpoint *endpoint = nullptr)
@@ -1086,56 +1142,6 @@ class CachedSpan : public Span
     virtual Span *span(const std::string &name, userdata_t userdata = nullptr) const override;
 
 } __attribute__((aligned));
-
-Endpoint &Endpoint::with_service_name(const std::string &service_name)
-{
-    m_host.service_name = service_name;
-    return *this;
-}
-
-Endpoint &Endpoint::with_addr(const struct sockaddr_in *addr)
-{
-    assert(addr);
-
-    m_host.__isset.ipv6 = 0;
-    m_host.__set_ipv4(ntohl(addr->sin_addr.s_addr));
-    m_host.__set_port(ntohs(addr->sin_port));
-
-    return *this;
-}
-
-Endpoint &Endpoint::with_addr(const struct sockaddr_in6 *addr)
-{
-    assert(addr);
-
-    m_host.__set_ipv6(std::string(reinterpret_cast<const char *>(addr->sin6_addr.s6_addr), sizeof(addr->sin6_addr)));
-    m_host.__set_port(ntohs(addr->sin6_port));
-
-    return *this;
-}
-
-Endpoint &Endpoint::with_ipv4(const std::string &ip)
-{
-    m_host.__set_ipv4(ntohl(inet_addr(ip.c_str())));
-
-    return *this;
-}
-
-Endpoint &Endpoint::with_ipv6(const std::string &ip)
-{
-    struct in6_addr addr;
-
-    if (inet_pton(AF_INET6, ip.c_str(), addr.s6_addr) > 0)
-        m_host.__set_ipv6(std::string(reinterpret_cast<const char *>(addr.s6_addr), sizeof(addr)));
-
-    return *this;
-}
-
-inline Endpoint &Endpoint::with_port(port_t port)
-{
-    m_host.__set_port(port);
-    return *this;
-}
 
 namespace __impl
 {

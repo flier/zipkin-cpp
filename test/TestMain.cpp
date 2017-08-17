@@ -5,6 +5,7 @@
 
 int main(int argc, char **argv)
 {
+    ::google::InitGoogleLogging(argv[0]);
     ::google::ParseCommandLineFlags(&argc, &argv, false);
     ::testing::GTEST_FLAG(throw_on_failure) = true;
     ::testing::InitGoogleMock(&argc, argv);

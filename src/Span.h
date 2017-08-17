@@ -323,6 +323,19 @@ struct TraceKeys
     */
     DECLARE_TRACE_KEY(SERVER_RECV)
     /**
+    * \brief Message send ("ms") is a request to send a message to a destination, usually a broker.
+    *
+    * This may be the only annotation in a messaging span. If WIRE_SEND exists in the same span,
+    * it follows this moment and clarifies delays sending the message, such as batching.
+    */
+    DECLARE_TRACE_KEY(MESSAGE_SEND)
+    /**
+    * \brief A consumer received ("mr") a message from a broker. This may be the only
+    * annotation in a messaging span. If WIRE_RECV exists in the same span, it
+    * precedes this moment and clarifies any local queuing delay.
+    */
+    DECLARE_TRACE_KEY(MESSAGE_RECV)
+    /**
     * \brief Optionally logs an attempt to send a message on the wire.
     *
     * Multiple wire send events could indicate network retries.
@@ -398,6 +411,10 @@ struct TraceKeys
     * fails to a different server ip or port.
     */
     DECLARE_TRACE_KEY(SERVER_ADDR)
+    /**
+    * \brief Indicates the remote address of a messaging span, usually the broker.
+    */
+    DECLARE_TRACE_KEY(MESSAGE_ADDR)
     /**
     * \brief When an {@link Annotation#value}, this indicates when an error occurred. When a {@link
     * BinaryAnnotation#key}, the value is a human readable message associated with an error.
@@ -874,6 +891,16 @@ class Span
     {
         return annotate(TraceKeys::SERVER_RECV, endpoint);
     }
+    /// \brief Annotate TraceKeys#MESSAGE_SEND event
+    inline Annotation message_send(const Endpoint *endpoint = nullptr)
+    {
+        return annotate(TraceKeys::MESSAGE_SEND, endpoint);
+    }
+    /// \brief Annotate TraceKeys#MESSAGE_RECV event
+    inline Annotation message_recv(const Endpoint *endpoint = nullptr)
+    {
+        return annotate(TraceKeys::MESSAGE_RECV, endpoint);
+    }
     /// \brief Annotate TraceKeys#WIRE_SEND event
     inline Annotation wire_send(const Endpoint *endpoint = nullptr)
     {
@@ -995,6 +1022,11 @@ class Span
     inline BinaryAnnotation server_addr(const Endpoint *endpoint)
     {
         return annotate(TraceKeys::SERVER_ADDR, true, endpoint);
+    }
+    /// \brief Annotate TraceKeys#MESSAGE_ADDR event
+    inline BinaryAnnotation message_addr(const Endpoint *endpoint)
+    {
+        return annotate(TraceKeys::MESSAGE_ADDR, true, endpoint);
     }
     /// \brief Annotate TraceKeys#ERROR event
     inline Annotation error(const Endpoint *endpoint = nullptr)

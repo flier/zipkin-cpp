@@ -14,7 +14,24 @@ add_custom_command (
     OUTPUT ${zipkin_core_INCS} ${zipkin_core_SRCS}
     COMMAND ${THRIFT_COMPILER} --gen cpp -o ${PROJECT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/zipkinCore.thrift
     DEPENDS zipkinCore.thrift
-    COMMENT "Generating zipkin Thrift binding files"
+    COMMENT "Generating zipkin core Thrift binding files"
+)
+
+set (zipkin_deps_INCS
+    ${GENDIR}/zipkinDependencies_constants.h
+    ${GENDIR}/zipkinDependencies_types.h
+    )
+
+set (zipkin_deps_SRCS
+    ${GENDIR}/zipkinDependencies_constants.cpp
+    ${GENDIR}/zipkinDependencies_types.cpp
+    )
+
+add_custom_command (
+    OUTPUT ${zipkin_deps_INCS} ${zipkin_deps_SRCS}
+    COMMAND ${THRIFT_COMPILER} --gen cpp -o ${PROJECT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/zipkinDependencies.thrift
+    DEPENDS zipkinDependencies.thrift
+    COMMENT "Generating zipkin dependencies Thrift binding files"
 )
 
 set (scribe_INCS
@@ -76,7 +93,7 @@ endif()
 
 message(STATUS "Library type: ${LIB_TYPE}")
 
-add_library (zipkin ${LIB_TYPE} ${zipkin_SRCS} ${zipkin_core_SRCS} ${scribe_SRCS})
+add_library (zipkin ${LIB_TYPE} ${zipkin_SRCS} ${zipkin_core_SRCS} ${zipkin_deps_SRCS} ${scribe_SRCS})
 target_link_libraries (zipkin ${zipkin_DEPENDENCIES})
 
 set (PREFIX ${CMAKE_INSTALL_PREFIX})
@@ -103,7 +120,7 @@ install (
 )
 
 install (
-    FILES ${zipkin_INCS} ${zipkin_core_INCS} ${scribe_INCS}
+    FILES ${zipkin_INCS} ${zipkin_core_INCS} ${zipkin_deps_INCS} ${scribe_INCS}
     DESTINATION ${CMAKE_INSTALL_PREFIX}/include/zipkin
 )
 

@@ -24,7 +24,15 @@ For a release version of the `zipkin-cpp` library you can run:
 $ cd ci && ./build-dist.sh release:0.3.1
 ```
 
-To build with the CentOS image, we need `IMAGE_TAG=centos`.
+For a local version of the `zipkin-cpp` library you can run:
+
+```sh
+$ cd ci && ./build-dist.sh local
+```
+
+The build script will map the local source code to `/source` folder.
+
+To build with the CentOS image, we need `IMAGE_TAG=centos` with previous commands.
 
 ```sh
 $ cd ci && IMAGE_TAG=centos ./build-dist.sh git:develop
@@ -53,6 +61,8 @@ $ cd ci && IMAGE_TAG=centos ./build-image.sh  # Wait patiently for quite some ti
 Sending build context to Docker daemon  22.53kB
 Step 1/28 : FROM centos/devtoolset-4-toolchain-centos7
 ...
+Successfully built 419fd83e43c8
+Successfully tagged zipkin-cpp-build:centos
 ```
 
 After the build was finished, it will be tagged with `IMAGE_TAG`.

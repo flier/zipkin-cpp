@@ -2,7 +2,7 @@
 
 set -e
 
-if [ "$1" =~ ^release: ]; then
+if [[ "$1" =~ ^release: ]]; then
     if [ "${1:8}" != "" ]; then
         ZIPKIN_VERSION=${1:8}
     fi
@@ -24,13 +24,17 @@ elif [[ "$1" =~ ^git: ]]; then
     echo "checkout GIT branch: ${GIT_BRANCH}"
 
     cd ${SRC_DIR} && git checkout ${GIT_BRANCH}
+
+    ZIPKIN_VERSION=`git describe --always`
 elif [ "$1" == 'local' ]; then
     echo "zipkin-cpp development build with with local volume mapping to ${SRC_DIR}."
+
+    ZIPKIN_VERSION="local"
 else
     exec "$@"
 fi
 
-echo "build zipkin-cpp ${ZIPKIN_VERSION} @ ${SRC_DIR}"
+echo "build zipkin-cpp version ${ZIPKIN_VERSION} @ ${SRC_DIR}"
 echo "install dist files to @ ${DIST_DIR}"
 echo "use prebuilt projects @ ${EXT_DIR}"
 
@@ -54,5 +58,9 @@ make test
 make install
 make clean
 
+PACKAGE_FILE="zipkin-cpp-$ZIPKIN_VERSION-Linux-x86_64.tar.gz"
+
 tree -h ${DIST_DIR}
-tar czvf ${DIST_DIR}/zipkin-cpp-$ZIPKIN_VERSION-Linux-x86_64.tar.gz ${DIST_DIR}/
+tar czvf ${DIST_DIR}/${PACKAGE_FILE} --exclude *.tar.gz ${DIST_DIR}/
+
+echo "dist files packaged to: dist/${PACKAGE_FILE}"

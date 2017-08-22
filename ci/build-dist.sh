@@ -43,7 +43,7 @@ function container_has_outdated {
 function run_container {
     echo "run new container"
 
-    if [[ $1 == 'latest' ]]; then
+    if [[ $1 == 'local' ]]; then
         docker run --name ${CONTAINER_NAME} -u "${USER}":"${USER_GROUP}" -v ${SRC_DIR}:/source -v ${DIST_DIR}:/dist ${IMAGE_NAME} $1
     else
         docker run --name ${CONTAINER_NAME} -u "${USER}":"${USER_GROUP}" -v ${DIST_DIR}:/dist ${IMAGE_NAME} $1

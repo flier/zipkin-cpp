@@ -10,7 +10,7 @@ DIST_DIR=${BASE_DIR}/dist
 
 IMAGE_TAG=${IMAGE_TAG:-ubuntu}
 IMAGE_NAME=zipkin-cpp-build:${IMAGE_TAG}
-CONTAINER_NAME=zipkin-cpp-build
+CONTAINER_NAME=zipkin-cpp-build-${IMAGE_TAG}
 
 # When running docker on a Mac, root user permissions are required.
 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -41,7 +41,7 @@ function container_has_outdated {
 }
 
 function run_container {
-    echo "run new container"
+    echo "run new container: ${CONTAINER_NAME}"
 
     if [[ $1 == 'local' ]]; then
         docker run --name ${CONTAINER_NAME} -u "${USER}":"${USER_GROUP}" -v ${SRC_DIR}:/source -v ${DIST_DIR}:/dist ${IMAGE_NAME} $1
@@ -54,7 +54,7 @@ if container_is_exists; then
     if container_is_running; then
         docker logs -f ${CONTAINER_NAME}
     else
-        echo "remove stopped container"
+        echo "remove stopped container: ${CONTAINER_NAME}"
 
         docker rm ${CONTAINER_NAME}
 
@@ -62,7 +62,7 @@ if container_is_exists; then
     fi
 else
     if container_has_outdated; then
-        echo "remove outdated container"
+        echo "remove outdated container ${CONTAINER_NAME}"
 
         docker rm ${CONTAINER_NAME}
     fi
@@ -70,9 +70,9 @@ else
     run_container $@
 fi
 
-PKG_TYPE=$2
+if [[ -n $2 ]]; then
+    PKG_TYPE=$2
 
-if [[ -d ${DIST_DIR} ]]; then
     cd ${DIST_DIR}
 
     if [[ `gem list -i fpm` != 'true' ]]; then

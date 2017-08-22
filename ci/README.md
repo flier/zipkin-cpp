@@ -16,6 +16,8 @@ An example basic invocation to build a developer version of the `zipkin-cpp` lib
 
 ```sh
 $ cd ci && ./build-dist.sh git:develop
+...
+dist files packaged to: dist/zipkin-cpp-git-daefe03-Linux-x86_64.tar.gz
 ```
 
 For a release version of the `zipkin-cpp` library you can run:

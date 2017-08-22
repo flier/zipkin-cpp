@@ -64,7 +64,6 @@ make clean
 
 PACKAGE_FILE="zipkin-cpp-$ZIPKIN_VERSION-Linux-x86_64.tar.gz"
 
-tree -h ${DIST_DIR}
 tar czvf ${DIST_DIR}/${PACKAGE_FILE} --exclude *.tar.gz ${DIST_DIR}/
 
 echo "dist files packaged to: dist/${PACKAGE_FILE}"

@@ -11,6 +11,7 @@ RUN yum -y update && \
     autoconf-archive \
     automake \
     boost-devel \
+    boost-test \
     bzip2 \
     double-conversion-devel \
     doxygen \
@@ -94,13 +95,12 @@ RUN wget http://www-us.apache.org/dist/thrift/$THRIFT_VERSION_STRING/thrift-$THR
         --without-nodejs \
         --without-qt4 \
         --without-qt5 \
+        --disable-tests \
         --disable-plugin && \
     make && \
     make install && \
     make clean && \
     rm -rf $EXT_DIR/src/Thrift
-
-RUN yum -y install boost-test
 
 ENV LibRDKafka_VERSION      0.11.0
 RUN wget https://github.com/edenhill/librdkafka/archive/v$LibRDKafka_VERSION.tar.gz -O LibRDKafka-$LibRDKafka_VERSION.tar.gz && \

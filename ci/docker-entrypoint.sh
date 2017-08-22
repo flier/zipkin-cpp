@@ -25,11 +25,15 @@ elif [[ "$1" =~ ^git: ]]; then
 
     cd ${SRC_DIR} && git checkout ${GIT_BRANCH}
 
-    ZIPKIN_VERSION=`git describe --always`
+    GIT_REVISION=`git describe --always`
+    ZIPKIN_VERSION="git-${GIT_REVISION}"
 elif [ "$1" == 'local' ]; then
     echo "zipkin-cpp development build with with local volume mapping to ${SRC_DIR}."
 
-    ZIPKIN_VERSION="local"
+    cd ${SRC_DIR}
+
+    GIT_REVISION=`git describe --always`
+    ZIPKIN_VERSION="git-${GIT_REVISION}"
 else
     exec "$@"
 fi

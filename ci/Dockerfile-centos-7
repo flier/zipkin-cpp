@@ -1,46 +1,47 @@
-FROM ubuntu:xenial
+FROM centos/devtoolset-4-toolchain-centos7
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+USER root
+
+RUN rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm && \
+    yum repolist
+
+RUN yum -y update && \
+    yum -y install \
     autoconf \
+    autoconf-archive \
     automake \
-    binutils-dev \
-    bison \
-    build-essential \
-    ca-certificates \
+    boost-devel \
+    bzip2 \
+    double-conversion-devel \
     doxygen \
-    flex \
+    gflags-devel \
     git \
-    libboost-all-dev \
-    libc++-dev \
-    libcurl4-openssl-dev \
-    libdouble-conversion-dev \
-    libdwarf-dev \
-    libelf-dev \
-    libevent-dev \
-    libgflags-dev \
-    libgoogle-glog-dev \
-    libiberty-dev \
-    libjemalloc-dev \
-    liblz4-dev \
-    liblzma-dev \
-    libsnappy-dev \
-    libssl-dev \
+    glog-devel \
+    jemalloc-devel \
+    libcurl-devel \
+    libdwarf-devel \
+    libevent-devel \
     libtool \
-    libunwind8-dev \
+    libunwind-devel \
+    lz4-devel \
+    lzma-sdk457 \
     make \
-    pkg-config \
-    thrift-compiler \
-    tree \
+    openssl-devel \
+    scons \
+    snappy-devel \
     wget \
-    zlib1g-dev && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    zlib-devel && \
+    yum clean all
+
+RUN scl -l devtoolset-4 && \
+    gcc --version && \
+    g++ --version
 
 ENV CMAKE_DIR   /cmake
 ENV SRC_DIR     /source
 ENV DIST_DIR    /dist
 ENV BUILD_DIR   /build
-ENV EXT_DIR     /externals
+ENV EXT_DIR     $BUILD_DIR/externals
 
 ENV CMAKE_VERSION   3.8.2
 RUN wget https://cmake.org/files/v3.8/cmake-$CMAKE_VERSION-Linux-x86_64.tar.gz && \
@@ -98,6 +99,8 @@ RUN wget http://www-us.apache.org/dist/thrift/$THRIFT_VERSION_STRING/thrift-$THR
     make install && \
     make clean && \
     rm -rf $EXT_DIR/src/Thrift
+
+RUN yum -y install boost-test
 
 ENV LibRDKafka_VERSION      0.11.0
 RUN wget https://github.com/edenhill/librdkafka/archive/v$LibRDKafka_VERSION.tar.gz -O LibRDKafka-$LibRDKafka_VERSION.tar.gz && \

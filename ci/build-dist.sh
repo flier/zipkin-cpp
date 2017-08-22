@@ -8,7 +8,8 @@ BASE_DIR=`pwd`/..
 SRC_DIR=${BASE_DIR}
 DIST_DIR=${BASE_DIR}/dist
 
-IMAGE_NAME=zipkin-cpp-build:ubuntu
+IMAGE_TAG=${IMAGE_TAG:-ubuntu}
+IMAGE_NAME=zipkin-cpp-build:${IMAGE_TAG}
 CONTAINER_NAME=zipkin-cpp-build
 
 # When running docker on a Mac, root user permissions are required.

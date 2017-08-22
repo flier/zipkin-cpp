@@ -2,7 +2,11 @@
 
 set -e
 
-if [ "$1" == 'release' ]; then
+if [ "$1" =~ ^release: ]; then
+    if [ "${1:8}" != "" ]; then
+        ZIPKIN_VERSION=${1:8}
+    fi
+
     echo "zipkin-cpp release build with v${ZIPKIN_VERSION} package."
 
     update-ca-certificates
@@ -20,7 +24,7 @@ elif [[ "$1" =~ ^git: ]]; then
     echo "checkout GIT branch: ${GIT_BRANCH}"
 
     cd ${SRC_DIR} && git checkout ${GIT_BRANCH}
-elif [ "$1" == 'latest' ]; then
+elif [ "$1" == 'local' ]; then
     echo "zipkin-cpp development build with with local volume mapping to ${SRC_DIR}."
 else
     exec "$@"

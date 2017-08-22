@@ -263,9 +263,12 @@ void BaseCollector::send_spans(void)
 
     std::vector<Span *> spans;
 
-    m_queued_spans -= m_spans.consume_all([&spans](Span *span) {
+    CachedSpan *span;
+
+    while (m_spans.pop(span)) {
         spans.push_back(span);
-    });
+        m_queued_spans--;
+    }
 
     if (!spans.empty())
     {

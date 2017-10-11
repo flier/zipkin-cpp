@@ -13,7 +13,7 @@ $ brew install curl double-conversion gflags glog google-benchmark gperftools ra
 
 ### Linux
 
-`zipkin-cpp` requires gcc 4.8+ and a version of boost compiled with C++11 support.
+`zipkin-cpp` requires gcc 4.9+ and a version of boost compiled with C++11 support. If your build system needs to compiled in an earlier version (e.g., 4.8), then you can checkout an older folly commit, and build folly from that commit. Folly's current codebase requires gcc 4.9+ to compile.
 
 #### Ubuntu
 

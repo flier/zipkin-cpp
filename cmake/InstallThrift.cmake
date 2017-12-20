@@ -1,7 +1,7 @@
 if (NOT THRIFT_FOUND OR USE_BUNDLED_THRIFT)
     if (NOT THRIFT_VERSION_STRING OR USE_BUNDLED_THRIFT)
-        set (THRIFT_VERSION_STRING        0.10.0)
-        set (THRIFT_URL_MD5               795c5dd192e310ffff38cfd9430d6b29)
+        set (THRIFT_VERSION_STRING        0.11.0)
+        set (THRIFT_URL_MD5               0be59730ebce071eceaf6bfdb8d3a20e)
     endif ()
 
     ExternalProject_Add(Thrift

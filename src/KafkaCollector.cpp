@@ -136,7 +136,7 @@ KafkaConf::KafkaConf(folly::Uri &uri)
 
 void KafkaCollector::submit(Span *span)
 {
-    boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new ReusableMemoryBuffer(static_cast<CachedSpan *>(span)));
+    std::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new ReusableMemoryBuffer(static_cast<CachedSpan *>(span)));
     std::vector<Span *> spans;
 
     spans.push_back(span);

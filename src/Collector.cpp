@@ -61,7 +61,7 @@ std::shared_ptr<MessageCodec> MessageCodec::parse(const std::string &codec)
     return nullptr;
 }
 
-size_t BinaryCodec::encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans)
+size_t BinaryCodec::encode(std::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans)
 {
     apache::thrift::protocol::TBinaryProtocol protocol(buf);
 
@@ -75,7 +75,7 @@ size_t BinaryCodec::encode(boost::shared_ptr<apache::thrift::transport::TMemoryB
     return wrote + protocol.writeListEnd();
 }
 
-size_t JsonCodec::encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans)
+size_t JsonCodec::encode(std::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans)
 {
     rapidjson::StringBuffer buffer;
 
@@ -95,7 +95,7 @@ size_t JsonCodec::encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuf
     return buffer.GetSize();
 }
 
-size_t PrettyJsonCodec::encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans)
+size_t PrettyJsonCodec::encode(std::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans)
 {
     rapidjson::StringBuffer buffer;
 
@@ -207,7 +207,8 @@ bool BaseCollector::flush(std::chrono::milliseconds timeout_ms)
 
 void BaseCollector::shutdown(std::chrono::milliseconds timeout_ms)
 {
-    if (m_terminated.exchange(true)) return;
+    if (m_terminated.exchange(true))
+        return;
 
     if (!flush(timeout_ms) && m_worker.joinable())
     {
@@ -265,14 +266,15 @@ void BaseCollector::send_spans(void)
 
     CachedSpan *span;
 
-    while (m_spans.pop(span)) {
+    while (m_spans.pop(span))
+    {
         spans.push_back(span);
         m_queued_spans--;
     }
 
     if (!spans.empty())
     {
-        boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer());
+        std::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer());
 
         VLOG(1) << "encode " << spans.size() << " spans with `" << m_conf->message_codec->name() << "` codec";
 

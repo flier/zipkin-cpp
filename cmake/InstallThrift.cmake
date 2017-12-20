@@ -13,17 +13,20 @@ if (NOT THRIFT_FOUND OR USE_BUNDLED_THRIFT)
                             --with-boost=${BOOST_ROOT}
                             --without-c_glib
                             --without-csharp
-                            --without-python
-                            --without-java
-                            --without-nodejs
-                            --without-lua
-                            --without-ruby
-                            --without-php
+                            --without-dart
+                            --without-dotnetcore
                             --without-erlang
                             --without-go
+                            --without-java
+                            --without-lua
                             --without-nodejs
+                            --without-php
+                            --without-py3
+                            --without-python
                             --without-qt4
                             --without-qt5
+                            --without-rs
+                            --without-ruby
                             --disable-plugin
         BUILD_COMMAND       CXXFLAGS=-I<BINARY_DIR>/lib/cpp/src make
         INSTALL_COMMAND     make install

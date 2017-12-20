@@ -60,9 +60,7 @@ find_package(Gperftools)
 find_package(Doxygen)
 
 if (OPENSSL_FOUND)
-    list(GET OPENSSL_LIBRARIES 0 openssl_libname)
-    get_filename_component(OPENSSL_LIBRARY_DIR ${openssl_libname} DIRECTORY)
-    get_filename_component(OPENSSL_ROOT_DIR ${OPENSSL_LIBRARY_DIR} DIRECTORY)
+    get_filename_component(OPENSSL_ROOT_DIR ${OPENSSL_INCLUDE_DIR} DIRECTORY)
 
     if (APPLE)
         set (WITH_OPENSSL   "--with-openssl=${OPENSSL_ROOT_DIR}")

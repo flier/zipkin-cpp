@@ -1,7 +1,7 @@
 if (NOT GBENCH_FOUND OR USE_BUNDLED_GBENCH)
     if (NOT GBENCH_VERSION OR USE_BUNDLED_GBENCH)
-        set (GBENCH_VERSION     1.1.0)
-        set (GBENCH_URL_MD5     66b2a23076cf70739525be0092fc3ae3)
+        set (GBENCH_VERSION     1.3.0)
+        set (GBENCH_URL_MD5     19ce86516ab82d6ad3b17173cf307aac)
     endif ()
 
     ExternalProject_Add(GBench

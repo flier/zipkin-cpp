@@ -103,6 +103,8 @@ script:
 
 after_failure:
     - echo `pwd`
+    - cat $HOME/zipkin-cpp/build/CMakeFiles/CMakeOutput.log
+    - cat $HOME/zipkin-cpp/build/CMakeFiles/CMakeError.log
     - cat externals/src/Folly/folly/config.log
     - cat externals/src/Thrift/config.log
     - tree -h

@@ -60,9 +60,7 @@ find_package(Gperftools)
 find_package(Doxygen)
 
 if (OPENSSL_FOUND)
-    list(GET OPENSSL_LIBRARIES 0 openssl_libname)
-    get_filename_component(OPENSSL_LIBRARY_DIR ${openssl_libname} DIRECTORY)
-    get_filename_component(OPENSSL_ROOT_DIR ${OPENSSL_LIBRARY_DIR} DIRECTORY)
+    get_filename_component(OPENSSL_ROOT_DIR ${OPENSSL_INCLUDE_DIR} DIRECTORY)
 
     if (APPLE)
         set (WITH_OPENSSL   "--with-openssl=${OPENSSL_ROOT_DIR}")
@@ -106,6 +104,12 @@ else ()
     set (BUILD_DOCS OFF)
 endif ()
 
+if (GBENCH_FOUND AND RELEASE_BUILD)
+    set (BUILD_BENCH ON)
+else ()
+    set (BUILD_BENCH OFF)
+endif ()
+
 option (WITH_CURL "Build with cURL propagation" WITH_CURL)
 option (WITH_GRPC "Build with gRPC propagation" WITH_GRPC)
 option (WITH_FPIC "Build with -fPIC for shared library" OFF)
@@ -113,6 +117,7 @@ option (WITH_TCMALLOC "Build with tcmalloc library" WITH_TCMALLOC)
 option (WITH_PROFILER "Build with CPU profiler" WITH_PROFILER)
 option (SHARED_LIB "Build shared library" OFF)
 option (BUILD_DOCS "Build API documentation (requires Doxygen)" BUILD_DOCS)
+option (BUILD_BENCH "Build benchmark (requires GBench)" BUILD_BENCH)
 
 if (RELEASE_BUILD)
     add_compile_options(-O2)
@@ -145,6 +150,7 @@ set (zipkin_DEPENDENCIES
     ${GFLAGS_LIBRARIES}
     ${THRIFT_LIBRARIES}
     ${LibRDKafka_LIBRARIES}
+    ${LibRDKafka_C_LIBRARIES}
     ${ZLIB_LIBRARIES}
     ${OPENSSL_LIBRARIES}
     ${FOLLY_STATIC_LIBRARY}

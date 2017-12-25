@@ -1,7 +1,7 @@
 if (NOT FOLLY_FOUND OR USE_BUNDLED_FOLLY)
     if (NOT FOLLY_VERSION OR USE_BUNDLED_FOLLY)
-        set (FOLLY_VERSION              2017.06.26.01)
-        set (FOLLY_URL_MD5              cf7a05081adb16913b5d7039ac62d46b)
+        set (FOLLY_VERSION              2017.12.18.00)
+        set (FOLLY_URL_MD5              6073d8fab8c54a0b6212a98244f2689b)
     endif()
 
     ExternalProject_Add(Folly
@@ -13,7 +13,6 @@ if (NOT FOLLY_FOUND OR USE_BUNDLED_FOLLY)
                             <SOURCE_DIR>/folly/configure
                             --prefix=<INSTALL_DIR>
                             --with-pic
-                            --with-jemalloc
                             ${WITH_OPENSSL}
                             LD_LIBRARY_PATH=<INSTALL_DIR>/lib
                             LD_RUN_PATH=<INSTALL_DIR>/lib

@@ -95,7 +95,11 @@ class SpanCache
 
     inline void purge_all(void)
     {
-        m_spans.consume_all([](CachedSpan *span) -> void { delete span; });
+        CachedSpan *span;
+
+        while (m_spans.pop(span)) {
+            if (span) delete span;
+        }
     }
 
     inline CachedSpan *get(void)

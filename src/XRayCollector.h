@@ -24,7 +24,7 @@ class XRayCodec : public MessageCodec
 
     virtual const std::string mime_type(void) const override { return "application/json"; }
 
-    virtual size_t encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) override;
+    virtual size_t encode(std::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) override;
 };
 
 struct XRayConf : public BaseConf

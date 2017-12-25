@@ -1,4 +1,4 @@
-#include <benchmark/benchmark_api.h>
+#include <benchmark/benchmark.h>
 
 #include <utility>
 
@@ -231,7 +231,7 @@ void bench_span_serialize_binary(benchmark::State &state)
          << std::make_pair(zipkin::TraceKeys::CLIENT_SEND, false) << endpoint
          << std::make_pair(zipkin::TraceKeys::CLIENT_SEND, L"hello world");
 
-    boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer());
+    std::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf(new apache::thrift::transport::TMemoryBuffer());
     apache::thrift::protocol::TBinaryProtocol protocol(buf);
 
     while (state.KeepRunning())

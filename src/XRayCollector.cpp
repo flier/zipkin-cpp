@@ -9,7 +9,7 @@ namespace zipkin
 
 std::shared_ptr<XRayCodec> XRayConf::xray(new XRayCodec());
 
-size_t XRayCodec::encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans)
+size_t XRayCodec::encode(std::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans)
 {
     rapidjson::StringBuffer buffer;
 

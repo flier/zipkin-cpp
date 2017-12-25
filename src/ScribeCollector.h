@@ -50,10 +50,10 @@ struct ScribeConf : public BaseConf
 
 class ScribeCollector : public BaseCollector
 {
-    boost::shared_ptr<apache::thrift::transport::TSocket> m_socket;
-    boost::shared_ptr<apache::thrift::transport::TFramedTransport> m_transport;
-    boost::shared_ptr<apache::thrift::protocol::TBinaryProtocol> m_protocol;
-    boost::shared_ptr<ScribeClient> m_client;
+    std::shared_ptr<apache::thrift::transport::TSocket> m_socket;
+    std::shared_ptr<apache::thrift::transport::TFramedTransport> m_transport;
+    std::shared_ptr<apache::thrift::protocol::TBinaryProtocol> m_protocol;
+    std::shared_ptr<ScribeClient> m_client;
 
     bool connected(void) const { return m_socket->isOpen(); }
 

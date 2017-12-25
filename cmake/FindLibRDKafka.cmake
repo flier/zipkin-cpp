@@ -28,7 +28,7 @@ find_library(LibRDKafka_LIBRARIES
 
 find_library(LibRDKafka_C_LIBRARIES
 	NAMES rdkafka
-	HINTS ${LibRDKafka_ROT_DIR}/lib
+	HINTS ${LibRDKafka_ROOT_DIR}/lib
 )
 
 find_path(LibRDKafka_INCLUDE_DIR

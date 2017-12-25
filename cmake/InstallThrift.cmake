@@ -1,7 +1,7 @@
 if (NOT THRIFT_FOUND OR USE_BUNDLED_THRIFT)
     if (NOT THRIFT_VERSION_STRING OR USE_BUNDLED_THRIFT)
-        set (THRIFT_VERSION_STRING        0.10.0)
-        set (THRIFT_URL_MD5               795c5dd192e310ffff38cfd9430d6b29)
+        set (THRIFT_VERSION_STRING        0.11.0)
+        set (THRIFT_URL_MD5               0be59730ebce071eceaf6bfdb8d3a20e)
     endif ()
 
     ExternalProject_Add(Thrift
@@ -13,17 +13,20 @@ if (NOT THRIFT_FOUND OR USE_BUNDLED_THRIFT)
                             --with-boost=${BOOST_ROOT}
                             --without-c_glib
                             --without-csharp
-                            --without-python
-                            --without-java
-                            --without-nodejs
-                            --without-lua
-                            --without-ruby
-                            --without-php
+                            --without-dart
+                            --without-dotnetcore
                             --without-erlang
                             --without-go
+                            --without-java
+                            --without-lua
                             --without-nodejs
+                            --without-php
+                            --without-py3
+                            --without-python
                             --without-qt4
                             --without-qt5
+                            --without-rs
+                            --without-ruby
                             --disable-plugin
         BUILD_COMMAND       CXXFLAGS=-I<BINARY_DIR>/lib/cpp/src make
         INSTALL_COMMAND     make install

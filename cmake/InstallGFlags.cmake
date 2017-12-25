@@ -1,7 +1,7 @@
 if (NOT GFLAGS_FOUND OR USE_BUNDLED_GFLAGS)
     if (NOT GFLAGS_VERSION OR USE_BUNDLED_GFLAGS)
-        set (GFLAGS_VERSION     2.2.0)
-        set (GFLAGS_URL_MD5     b99048d9ab82d8c56e876fb1456c285e)
+        set (GFLAGS_VERSION     2.2.1)
+        set (GFLAGS_URL_MD5     b98e772b4490c84fc5a87681973f75d1)
     endif ()
 
     ExternalProject_Add(GFlags

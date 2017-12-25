@@ -47,7 +47,7 @@ public:
 
   virtual const std::string mime_type(void) const = 0;
 
-  virtual size_t encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) = 0;
+  virtual size_t encode(std::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) = 0;
 
   static std::shared_ptr<MessageCodec> parse(const std::string &codec);
 
@@ -66,7 +66,7 @@ public:
 
   virtual const std::string mime_type(void) const override { return "application/x-thrift"; }
 
-  virtual size_t encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) override;
+  virtual size_t encode(std::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) override;
 };
 
 /**
@@ -79,7 +79,7 @@ public:
 
   virtual const std::string mime_type(void) const override { return "application/json"; }
 
-  virtual size_t encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) override;
+  virtual size_t encode(std::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) override;
 };
 
 /**
@@ -92,7 +92,7 @@ public:
 
   virtual const std::string mime_type(void) const override { return "application/json"; }
 
-  virtual size_t encode(boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) override;
+  virtual size_t encode(std::shared_ptr<apache::thrift::transport::TMemoryBuffer> buf, const std::vector<Span *> &spans) override;
 };
 
 /**
@@ -191,7 +191,8 @@ protected:
 
   virtual ~BaseCollector()
   {
-    if (!m_terminated.exchange(true)) {
+    if (!m_terminated.exchange(true))
+    {
       m_worker.detach();
     }
   }
